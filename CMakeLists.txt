@@ -23,7 +23,7 @@ add_subdirectory(src/lexer)
 add_subdirectory(src/parser)
 add_subdirectory(src/sema)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/Main.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(${PROJECT_NAME} PRIVATE ${LLVM_DEFINITIONS})
@@ -35,4 +35,10 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE ${LLVM_LIBS})
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE OnyxAST OnyxBasic OnyxCodeGen OnyxLexer OnyxParser OnyxSema)
+target_link_libraries(${PROJECT_NAME} PRIVATE OnyxAST
+                                              OnyxBasic
+                                              OnyxCodeGen
+                                              OnyxLexer
+                                              OnyxParser
+                                              OnyxSema
+)
