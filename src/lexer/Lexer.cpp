@@ -47,20 +47,48 @@ namespace onyx {
 
     Token
     Lexer::tokenizeNumLit(const char *tokStart) {
-        while (*_curPtr != '\0' && (isdigit(*_curPtr) || *_curPtr == '.')) {
+        bool hasDot = false;
+        while (*_curPtr != '\0' && (isdigit(*_curPtr) || *_curPtr == '.' && !hasDot)) {
+            if (*_curPtr == '.') {
+                hasDot = true;
+            }
             ++_curPtr;
         }
         llvm::StringRef text(tokStart, _curPtr - tokStart);
-        // TODO: create lexing of other numerics literals
-        return Token(TkI32Lit, text, llvm::SMLoc::getFromPointer(tokStart));
+        #define TOKEN(kind) Token(kind, text, llvm::SMLoc::getFromPointer(tokStart))
+        switch (tolower(*(_curPtr++))) {    // skip suffix (maybe not suffix)
+            case 's':
+                if (hasDot) {
+                    _diag.Report(llvm::SMLoc::getFromPointer(_curPtr - 1), ErrIntegerSuffixForFloatingPoint)
+                        << *(_curPtr - 1);
+                }
+                return TOKEN(TkI16);
+            case 'f':
+                return TOKEN(TkF32);
+            case 'd':
+                return TOKEN(TkF64);
+        }
+        --_curPtr;                              // returned, because the character is not a suffix
+        if (hasDot) {
+            return TOKEN(TkF64);
+        }
+        return TOKEN(TkI32Lit);
+        #undef TOKEN
     }
 
     Token
     Lexer::tokenizeStrLit(const char *tokStart) {
-        // TODO: create handling of escape-sequences
         ++_curPtr;  // skip "
+        std::string text;
         while (*_curPtr != '\0' && *_curPtr != '\"') {
-            ++_curPtr;
+            char c;
+            if (*_curPtr == '\\') {
+                c = getEscapeSecuence(++_curPtr);
+            }
+            else {
+                c = *(_curPtr++);
+            }
+            text += c;
         }
         ++_curPtr;  // skip "
         return Token(TkStrLit, llvm::StringRef(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart));
@@ -68,14 +96,25 @@ namespace onyx {
 
     Token
     Lexer::tokenizeCharLit(const char *tokStart) {
-        // TODO: create handling of escape-sequences
         ++_curPtr;  // skip '
+        std::string text;
         while (*_curPtr != '\0' && *_curPtr != '\'') {
-            ++_curPtr;
+            char c;
+            if (*_curPtr == '\\') {
+                c = getEscapeSecuence(++_curPtr);
+            }
+            else {
+                c = *(_curPtr++);
+            }
+            text += c;
         }
         ++_curPtr;  // skip '
-        // TODO: create error if length of literal is not equal 1
-        return Token(TkCharLit, llvm::StringRef(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart));
+        if (text.length() != 1) {
+            _diag.Report(llvm::SMLoc::getFromPointer(tokStart), ErrCharLitLen)
+                << llvm::SMRange(llvm::SMLoc::getFromPointer(tokStart), llvm::SMLoc::getFromPointer(_curPtr))
+                << "'" + text + "'";
+        }
+        return Token(TkCharLit, text, llvm::SMLoc::getFromPointer(tokStart));
     }
 
     Token
@@ -197,6 +236,44 @@ namespace onyx {
             while (*_curPtr != '\0' && *_curPtr != '\n') {
                 ++_curPtr;
             }
+        }
+    }
+
+    const char
+    Lexer::getEscapeSecuence(const char *tokStart) {
+        switch (*(_curPtr++)) {
+            case 'a':
+                return '\a';
+            case 'b':
+                return '\b';
+            case 'e':
+                return '\e';
+            case 'f':
+                return '\f';
+            case 'r':
+                return '\r';
+            case 'n':
+                return '\n';
+            case 't':
+                return '\t';
+            case 'v':
+                return '\v';
+            case '\\':
+                return '\\';
+            case '\'':
+                return '\'';
+            case '\"':
+                return '\"';
+            case '\?':
+                return '\?';
+            case '0':
+                return '\0';
+            default:
+                --_curPtr;
+                _diag.Report(llvm::SMLoc::getFromPointer(tokStart), ErrUnsupportedEscapeSequence)
+                    << llvm::SMRange(llvm::SMLoc::getFromPointer(tokStart - 1), llvm::SMLoc::getFromPointer(tokStart))
+                    << *tokStart;
+                return *tokStart;
         }
     }
 }

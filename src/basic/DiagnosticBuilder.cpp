@@ -13,12 +13,18 @@ namespace onyx {
             }
         }
 
-        _mgr.PrintMessage(_loc, _info.Kind, msg);
+        _srcMgr.PrintMessage(_loc, _info.Kind, msg, _ranges);
     }
 
     DiagnosticBuilder &
     DiagnosticBuilder::operator<<(llvm::StringRef s) {
         _args.push_back(s.str());
+        return *this;
+    }
+
+    DiagnosticBuilder &
+    DiagnosticBuilder::operator<<(llvm::SMRange r) {
+        _ranges.push_back(r);
         return *this;
     }
 

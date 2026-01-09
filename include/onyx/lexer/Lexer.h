@@ -40,5 +40,8 @@ namespace onyx {
 
         void
         skipComments();
+
+        const char
+        getEscapeSecuence(const char *tokStart);
     };
 }
