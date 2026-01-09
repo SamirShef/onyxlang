@@ -20,6 +20,8 @@ namespace onyx {
                 return ERR("expected `%0`, but got `%1`");
             case ErrExpectedId:
                 return ERR("expected identifier, but got `%0`");
+            case ErrExpectedType:
+                return ERR("expected type, but got `%0`");
         }
     }
 }

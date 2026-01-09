@@ -44,24 +44,18 @@ namespace onyx {
                 << ":"                  // expected
                 << _curTok.GetText();   // got
         }
-
+        
         ASTType type = consumeType();
         
         Expr *expr = nullptr;
-        if (!expect(TkSemi)) {
-            if (!expect(TkEq)) {
-                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                    << getRangeFromTok(_curTok)
-                    << "="                  // expected
-                    << _curTok.GetText();   // got
-            }
+        if (expect(TkEq)) {
             expr = parseExpr(PrecLowest);
-            if (!expect(TkSemi)) {
-                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                    << getRangeFromTok(_curTok)
-                    << ";"                  // expected
-                    << _curTok.GetText();   // got
-            }
+        }
+        if (!expect(TkSemi)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << ";"                  // expected
+                << _curTok.GetText();   // got
         }
         return createNode<VarDeclStmt>(name, isConst, type, expr, firstTok.GetLoc());
     }
@@ -142,15 +136,39 @@ namespace onyx {
     
     Token
     Parser::consume() {
+        Token tok = _curTok;
         _curTok = _nextTok;
         _nextTok = _lex.NextToken();
-        return _curTok;
+        return tok;
     }
 
     ASTType
     Parser::consumeType() {
-        consume();
-        return ASTType(ASTTypeKind::I32, false);
+        bool isConst = expect(TkConst);
+        Token type = consume();
+        switch (type.GetKind()) {
+            #define TYPE(kind) ASTType(ASTTypeKind::kind, isConst)
+            case TkBool:
+                return TYPE(Bool);
+            case TkChar:
+                return TYPE(Char);
+            case TkI16:
+                return TYPE(I16);
+            case TkI32:
+                return TYPE(I32);
+            case TkI64:
+                return TYPE(I64);
+            case TkF32:
+                return TYPE(F32);
+            case TkF64:
+                return TYPE(F64);
+            default:
+                _diag.Report(type.GetLoc(), ErrExpectedType)
+                    << getRangeFromTok(type)
+                    << type.GetText();
+                return TYPE(I32);
+            #undef TYPE
+        }
     }
 
     bool
@@ -164,6 +182,6 @@ namespace onyx {
 
     llvm::SMRange
     Parser::getRangeFromTok(Token tok) const {
-        return llvm::SMRange(_curTok.GetLoc(), llvm::SMLoc::getFromPointer(_curTok.GetLoc().getPointer() + _curTok.GetText().size()));
+        return llvm::SMRange(tok.GetLoc(), llvm::SMLoc::getFromPointer(tok.GetLoc().getPointer() + tok.GetText().size()));
     }
 }

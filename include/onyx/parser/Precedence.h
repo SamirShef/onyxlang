@@ -3,13 +3,17 @@
 
 namespace onyx {
     enum Precedence {
-        PrecLowest      = 0,
-        PrecEquality    = 10,
-        PrecComparation = 20,
-        PrecSum         = 30,
-        PrecProduct     = 40,
-        PrecPrefix      = 50,
-        PrecCall        = 60
+        PrecLowest,
+        PrecLogical,
+        PrecComparation,
+        PrecEquality,
+        PrecBiwiseAnd,
+        PrecBiwiseXor,
+        PrecBiwiseOr,
+        PrecSum,
+        PrecProduct,
+        PrecPrefix,
+        PrecCall
     };
     
     int

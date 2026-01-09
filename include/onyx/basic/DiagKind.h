@@ -10,5 +10,6 @@ namespace onyx {
         ErrExpectedStmt,
         ErrExpectedToken,
         ErrExpectedId,
+        ErrExpectedType
     };
 }
