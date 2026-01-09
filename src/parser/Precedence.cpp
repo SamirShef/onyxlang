@@ -1,5 +1,5 @@
-#include "onyx/lexer/Token.h"
-#include <onyx/parser/Precedence.h>
+#include "onyx/Lexer/Token.h"
+#include <onyx/Parser/Precedence.h>
 
 namespace onyx {
     int

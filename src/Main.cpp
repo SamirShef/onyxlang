@@ -1,6 +1,6 @@
-#include "onyx/parser/Parser.h"
+#include <onyx/Lexer/Lexer.h>
+#include <onyx/Parser/Parser.h>
 #include <llvm/Support/raw_ostream.h>
-#include <onyx/lexer/Lexer.h>
 
 int
 main(int argc, char **argv) {

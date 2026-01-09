@@ -1,6 +1,6 @@
 #pragma once
-#include <onyx/basic/DiagnosticEngine.h>
-#include <onyx/lexer/Token.h>
+#include <onyx/Basic/DiagnosticEngine.h>
+#include <onyx/Lexer/Token.h>
 #include <llvm/Support/SourceMgr.h>
 
 namespace onyx {

@@ -1,8 +1,8 @@
 #pragma once
-#include <onyx/ast/Node.h>
-#include <onyx/ast/Stmt.h>
-#include <onyx/ast/Expr.h>
-#include <onyx/basic/ASTType.h>
+#include <onyx/AST/Node.h>
+#include <onyx/AST/Stmt.h>
+#include <onyx/AST/Expr.h>
+#include <onyx/Basic/ASTType.h>
 #include <llvm/ADT/StringRef.h>
 
 namespace onyx {

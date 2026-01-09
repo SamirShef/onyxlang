@@ -1,6 +1,6 @@
 #pragma once
-#include <onyx/ast/Expr.h>
-#include <onyx/basic/ASTVal.h>
+#include <onyx/AST/Expr.h>
+#include <onyx/Basic/ASTVal.h>
 
 namespace onyx {
     class LiteralExpr : public Expr {
@@ -10,7 +10,7 @@ namespace onyx {
         explicit LiteralExpr(ASTVal val, llvm::SMLoc loc) : _val(val), Expr(NkLiteralExpr, loc) {}
 
         constexpr static bool
-        classof(const onyx::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkLiteralExpr;
         }
         

@@ -1,7 +1,7 @@
 #pragma once
-#include <onyx/lexer/Token.h>
-#include <onyx/ast/Expr.h>
-#include <onyx/basic/ASTVal.h>
+#include <onyx/Lexer/Token.h>
+#include <onyx/AST/Expr.h>
+#include <onyx/Basic/ASTVal.h>
 
 namespace onyx {
     class BinaryExpr : public Expr {
@@ -13,7 +13,7 @@ namespace onyx {
         explicit BinaryExpr(Expr *lhs, Expr *rhs, Token op, llvm::SMLoc loc) : _lhs(lhs), _rhs(rhs), _op(op), Expr(NkBinaryExpr, loc) {}
 
         constexpr static bool
-        classof(const onyx::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkBinaryExpr;
         }
 

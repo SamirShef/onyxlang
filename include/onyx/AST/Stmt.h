@@ -1,5 +1,5 @@
 #pragma once
-#include <onyx/ast/Node.h>
+#include <onyx/AST/Node.h>
 
 namespace onyx {
     class Stmt : public Node {

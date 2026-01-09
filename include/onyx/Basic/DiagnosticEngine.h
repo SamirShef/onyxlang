@@ -1,5 +1,5 @@
 #pragma once
-#include <onyx/basic/DiagnosticBuilder.h>
+#include <onyx/Basic/DiagnosticBuilder.h>
 
 namespace onyx {
     class DiagnosticEngine {

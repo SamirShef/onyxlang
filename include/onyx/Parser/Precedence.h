@@ -1,5 +1,5 @@
 #pragma once
-#include <onyx/lexer/Token.h>
+#include <onyx/Lexer/Token.h>
 
 namespace onyx {
     enum Precedence {

@@ -1,5 +1,5 @@
 #pragma once
-#include <onyx/basic/ASTType.h>
+#include <onyx/Basic/ASTType.h>
 
 namespace onyx {
     union ASTValData {

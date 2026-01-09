@@ -1,7 +1,7 @@
 #pragma once
-#include <onyx/ast/AST.h>
-#include <onyx/basic/DiagnosticEngine.h>
-#include <onyx/lexer/Lexer.h>
+#include <onyx/AST/AST.h>
+#include <onyx/Basic/DiagnosticEngine.h>
+#include <onyx/Lexer/Lexer.h>
 #include <llvm/Support/Allocator.h>
 
 namespace onyx {

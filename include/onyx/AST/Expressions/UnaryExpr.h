@@ -1,6 +1,6 @@
 #pragma once
-#include <onyx/ast/Expr.h>
-#include <onyx/lexer/Token.h>
+#include <onyx/AST/Expr.h>
+#include <onyx/Lexer/Token.h>
 
 namespace onyx {
     class UnaryExpr : public Expr {
@@ -11,7 +11,7 @@ namespace onyx {
         explicit UnaryExpr(Expr *rhs, Token op, llvm::SMLoc loc) : _rhs(rhs), _op(op), Expr(NkBinaryExpr, loc) {}
 
         constexpr static bool
-        classof(const onyx::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkUnaryExpr;
         }
 

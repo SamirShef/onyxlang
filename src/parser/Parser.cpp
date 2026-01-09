@@ -1,5 +1,5 @@
-#include <onyx/parser/Parser.h>
-#include <onyx/parser/Precedence.h>
+#include <onyx/Parser/Parser.h>
+#include <onyx/Parser/Precedence.h>
 
 namespace onyx {
     Stmt *

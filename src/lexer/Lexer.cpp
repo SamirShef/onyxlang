@@ -1,7 +1,7 @@
-#include <onyx/basic/DiagKind.h>
-#include <onyx/lexer/Token.h>
-#include <onyx/lexer/Keywords.h>
-#include <onyx/lexer/Lexer.h>
+#include <onyx/Basic/DiagKind.h>
+#include <onyx/Lexer/Token.h>
+#include <onyx/Lexer/Keywords.h>
+#include <onyx/Lexer/Lexer.h>
 
 namespace onyx {
     Token

@@ -1,5 +1,5 @@
-#include <onyx/basic/DiagKind.h>
-#include <onyx/basic/DiagInfo.h>
+#include <onyx/Basic/DiagKind.h>
+#include <onyx/Basic/DiagInfo.h>
 
 namespace onyx {
     DiagInfo

@@ -1,5 +1,5 @@
 #pragma once
-#include <onyx/ast/Expr.h>
+#include <onyx/AST/Expr.h>
 #include <llvm/ADT/StringRef.h>
 
 namespace onyx {
@@ -10,7 +10,7 @@ namespace onyx {
         explicit VarExpr(llvm::StringRef name, llvm::SMLoc loc) : _name(name), Expr(NkVarExpr, loc) {}
         
         constexpr static bool
-        classof(const onyx::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkVarExpr;
         }
 

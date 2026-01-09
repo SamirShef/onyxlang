@@ -1,5 +1,5 @@
 #pragma once
-#include <onyx/basic/DiagKind.h>
+#include <onyx/Basic/DiagKind.h>
 #include <llvm/Support/SourceMgr.h>
 
 namespace onyx {
