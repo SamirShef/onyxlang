@@ -3,7 +3,9 @@
 #include <unordered_map>
 
 namespace onyx {
-    static std::unordered_map<const char *, TokenKind> keywords {
+    static std::unordered_map<std::string, TokenKind> keywords {
+        { "false", TkBoolLit },
+        { "true", TkBoolLit },
         { "var", TkVar },
         { "const", TkConst },
         { "bool", TkBool },

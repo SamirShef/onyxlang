@@ -78,8 +78,8 @@ namespace onyx {
     
     class Token {
         TokenKind _kind;
-        const llvm::StringRef _text;
-        const llvm::SMLoc _loc;
+        llvm::StringRef _text;
+        llvm::SMLoc _loc;
 
     public:
         explicit Token(TokenKind kind, llvm::StringRef text, llvm::SMLoc loc) : _kind(kind), _text(text), _loc(loc) {}

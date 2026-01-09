@@ -2,11 +2,11 @@
 #include <onyx/ast/Node.h>
 
 namespace onyx {
-    class Expr : Node {
+    class Expr : public Node {
     public:
         explicit Expr(NodeKind kind, llvm::SMLoc loc) : Node(kind, loc) {}
 
-        static bool
+        constexpr static bool
         classof(const Node *node) {
             return node->GetKind() > NkStartExprs && node->GetKind() < NkEndExprs;
         }

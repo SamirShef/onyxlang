@@ -39,8 +39,8 @@ namespace onyx {
             ++_curPtr;
         }
         llvm::StringRef text(tokStart, _curPtr - tokStart);
-        if (keywords.find(text.data()) != keywords.end()) {
-            return Token(keywords.at(text.data()), text, llvm::SMLoc::getFromPointer(tokStart));
+        if (keywords.find(text.str()) != keywords.end()) {
+            return Token(keywords.at(text.str()), text, llvm::SMLoc::getFromPointer(tokStart));
         }
         return Token(TkId, text, llvm::SMLoc::getFromPointer(tokStart));
     }

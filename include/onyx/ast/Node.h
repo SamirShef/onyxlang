@@ -4,14 +4,14 @@
 namespace onyx {
     enum NodeKind {
         NkStartStmts,
-        VarDeclStmt,
+        NkVarDeclStmt,
         NkEndStmts,
 
         NkStartExprs,
-        BinaryExpr,
-        UnaryExpr,
-        VarExpr,
-        LiteralExpr,
+        NkBinaryExpr,
+        NkUnaryExpr,
+        NkVarExpr,
+        NkLiteralExpr,
         NkEndExprs,
     };
 

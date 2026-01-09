@@ -1,3 +1,4 @@
+#include "onyx/parser/Parser.h"
 #include <llvm/Support/raw_ostream.h>
 #include <onyx/lexer/Lexer.h>
 
@@ -22,12 +23,11 @@ main(int argc, char **argv) {
     onyx::DiagnosticEngine diag(srcMgr);
     
     onyx::Lexer lex(srcMgr, diag);
+    onyx::Parser parser(lex, diag);
 
-    while (1) {
-        onyx::Token tok = lex.NextToken();
-        if (tok.Is(onyx::TkEof)) {
-            break;
-        }
+    onyx::Stmt *stmt = parser.ParseStmt();
+    while (stmt) {
+        stmt = parser.ParseStmt();
     }
     return 0;
 }

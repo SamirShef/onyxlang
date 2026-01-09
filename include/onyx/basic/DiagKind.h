@@ -6,6 +6,9 @@ namespace onyx {
         ErrIntegerSuffixForFloatingPoint,
         ErrUnsupportedEscapeSequence,
         ErrCharLitLen,
-        ErrExpectedSemi,
+        ErrExpectedExpr,
+        ErrExpectedStmt,
+        ErrExpectedToken,
+        ErrExpectedId,
     };
 }
