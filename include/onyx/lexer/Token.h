@@ -84,11 +84,6 @@ namespace onyx {
     public:
         explicit Token(TokenKind kind, llvm::StringRef text, llvm::SMLoc loc) : _kind(kind), _text(text), _loc(loc) {}
 
-        void
-        operator=(Token &other) {
-            _kind = other.GetKind();
-        }
-
         const TokenKind
         GetKind() const {
             return _kind;

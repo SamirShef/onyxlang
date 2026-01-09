@@ -1,16 +1,18 @@
 #pragma once
+#include <onyx/basic/DiagnosticEngine.h>
 #include <onyx/lexer/Token.h>
 #include <llvm/Support/SourceMgr.h>
 
 namespace onyx {
     class Lexer {
         llvm::SourceMgr &_srcMgr;
+        DiagnosticEngine &_diag;
         unsigned _curBuf;
         const char *_bufStart;
         const char *_curPtr;
 
     public:
-        explicit Lexer(llvm::SourceMgr &mgr) : _srcMgr(mgr) {
+        explicit Lexer(llvm::SourceMgr &mgr, DiagnosticEngine &diag) : _srcMgr(mgr), _diag(diag) {
             _curBuf = _srcMgr.getMainFileID();
             auto *buf = _srcMgr.getMemoryBuffer(_curBuf);
             _bufStart = buf->getBufferStart();

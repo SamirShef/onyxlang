@@ -16,16 +16,20 @@ include_directories(include)
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_subdirectory(src/ast)
 add_subdirectory(src/basic)
-add_subdirectory(src/codegen)
 add_subdirectory(src/lexer)
+add_subdirectory(src/ast)
 add_subdirectory(src/parser)
 add_subdirectory(src/sema)
+add_subdirectory(src/codegen)
 
 add_executable(${PROJECT_NAME} src/Main.cpp)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${LLVM_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} 
+    PRIVATE 
+        ${LLVM_INCLUDE_DIRS}
+        include
+)
 target_compile_definitions(${PROJECT_NAME} PRIVATE ${LLVM_DEFINITIONS})
 
 if (TARGET LLVM)
@@ -35,10 +39,13 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE ${LLVM_LIBS})
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE OnyxAST
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+                                              -Wl,--start-group
                                               OnyxBasic
-                                              OnyxCodeGen
                                               OnyxLexer
+                                              OnyxAST
                                               OnyxParser
                                               OnyxSema
+                                              OnyxCodeGen
+                                              -Wl,--end-group
 )

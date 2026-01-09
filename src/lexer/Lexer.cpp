@@ -1,4 +1,5 @@
-#include "onyx/lexer/Token.h"
+#include <onyx/basic/DiagKind.h>
+#include <onyx/lexer/Token.h>
 #include <onyx/lexer/Keywords.h>
 #include <onyx/lexer/Lexer.h>
 
