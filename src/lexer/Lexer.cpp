@@ -34,7 +34,7 @@ namespace onyx {
 
     Token
     Lexer::tokenizeId(const char *tokStart) {
-        while (isalnum(*_curPtr) || *_curPtr == '_') {
+        while (*_curPtr != '\0' && (isalnum(*_curPtr) || *_curPtr == '_')) {
             ++_curPtr;
         }
         llvm::StringRef text(tokStart, _curPtr - tokStart);
@@ -46,7 +46,7 @@ namespace onyx {
 
     Token
     Lexer::tokenizeNumLit(const char *tokStart) {
-        while (isdigit(*_curPtr) || *_curPtr == '.') {
+        while (*_curPtr != '\0' && (isdigit(*_curPtr) || *_curPtr == '.')) {
             ++_curPtr;
         }
         llvm::StringRef text(tokStart, _curPtr - tokStart);
@@ -58,7 +58,7 @@ namespace onyx {
     Lexer::tokenizeStrLit(const char *tokStart) {
         // TODO: create handling of escape-sequences
         ++_curPtr;  // skip "
-        while (*_curPtr != '\"') {
+        while (*_curPtr != '\0' && *_curPtr != '\"') {
             ++_curPtr;
         }
         ++_curPtr;  // skip "
@@ -69,10 +69,11 @@ namespace onyx {
     Lexer::tokenizeCharLit(const char *tokStart) {
         // TODO: create handling of escape-sequences
         ++_curPtr;  // skip '
-        while (*_curPtr != '\'') {
+        while (*_curPtr != '\0' && *_curPtr != '\'') {
             ++_curPtr;
         }
         ++_curPtr;  // skip '
+        // TODO: create error if length of literal is not equal 1
         return Token(TkCharLit, llvm::StringRef(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart));
     }
 
@@ -186,13 +187,13 @@ namespace onyx {
         _curPtr += 2;
         bool isMultilineComment = *(_curPtr - 1) == '*';
         if (isMultilineComment) {
-            while (*_curPtr != '*' || *(_curPtr + 1) != '/') {
+            while (*_curPtr != '\0' && (*_curPtr != '*' || *(_curPtr + 1) != '/')) {
                 ++_curPtr;
             }
             _curPtr += 2;
         }
         else {
-            while (*_curPtr != '\n') {
+            while (*_curPtr != '\0' && *_curPtr != '\n') {
                 ++_curPtr;
             }
         }
