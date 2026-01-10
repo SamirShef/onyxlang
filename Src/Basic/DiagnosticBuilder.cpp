@@ -36,7 +36,7 @@ namespace onyx {
 
     DiagnosticBuilder &
     DiagnosticBuilder::operator<<(char c) {
-        _args.push_back(std::string { c });
+        _args.push_back(std::string(1, c));
         return *this;
     }
 }

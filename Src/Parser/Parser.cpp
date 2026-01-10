@@ -72,23 +72,23 @@ namespace onyx {
                     return createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc());
                 }
             }
-            #define LIT(kind, field, val) \
-                createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, true), \
+            #define LIT(kind, type_val, field, val) \
+                createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, true), \
                                                ASTValData { .field = (val) }), consume().GetLoc())
             case TkBoolLit:
-                return LIT(Bool, boolVal, _curTok.GetText() == "true");
+                return LIT(Bool, "bool", boolVal, _curTok.GetText() == "true");
             case TkCharLit:
-                return LIT(Char, charVal, _curTok.GetText()[0]);
+                return LIT(Char, "char", charVal, _curTok.GetText()[0]);
             case TkI16Lit:
-                return LIT(I16, i16Val, static_cast<short>(std::stoi(_curTok.GetText().data())));
+                return LIT(I16, "i16", i16Val, static_cast<short>(std::stoi(_curTok.GetText().data())));
             case TkI32Lit:
-                return LIT(I32, i32Val, std::stoi(_curTok.GetText().data()));
+                return LIT(I32, "i32", i32Val, std::stoi(_curTok.GetText().data()));
             case TkI64Lit:
-                return LIT(I64, i64Val, std::stol(_curTok.GetText().data()));
+                return LIT(I64, "i64", i64Val, std::stol(_curTok.GetText().data()));
             case TkF32Lit:
-                return LIT(F32, f32Val, std::stof(_curTok.GetText().data()));
+                return LIT(F32, "f32", f32Val, std::stof(_curTok.GetText().data()));
             case TkF64Lit:
-                return LIT(F64, f64Val, std::stod(_curTok.GetText().data()));
+                return LIT(F64, "f64", f64Val, std::stod(_curTok.GetText().data()));
             #undef LIT
             case TkMinus:
             case TkBang: {
@@ -147,26 +147,26 @@ namespace onyx {
         bool isConst = expect(TkConst);
         Token type = consume();
         switch (type.GetKind()) {
-            #define TYPE(kind) ASTType(ASTTypeKind::kind, isConst)
+            #define TYPE(kind, type_val) ASTType(ASTTypeKind::kind, type_val, isConst)
             case TkBool:
-                return TYPE(Bool);
+                return TYPE(Bool, "bool");
             case TkChar:
-                return TYPE(Char);
+                return TYPE(Char, "char");
             case TkI16:
-                return TYPE(I16);
+                return TYPE(I16, "i16");
             case TkI32:
-                return TYPE(I32);
+                return TYPE(I32, "i32");
             case TkI64:
-                return TYPE(I64);
+                return TYPE(I64, "i64");
             case TkF32:
-                return TYPE(F32);
+                return TYPE(F32, "f32");
             case TkF64:
-                return TYPE(F64);
+                return TYPE(F64, "f64");
             default:
                 _diag.Report(type.GetLoc(), ErrExpectedType)
                     << getRangeFromTok(type)
                     << type.GetText();
-                return TYPE(I32);
+                return TYPE(I32, "i32");
             #undef TYPE
         }
     }

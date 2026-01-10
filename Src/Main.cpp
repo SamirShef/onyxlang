@@ -1,3 +1,4 @@
+#include <onyx/AST/Printer.h>
 #include <onyx/Lexer/Lexer.h>
 #include <onyx/Parser/Parser.h>
 #include <llvm/Support/raw_ostream.h>
@@ -25,9 +26,15 @@ main(int argc, char **argv) {
     onyx::Lexer lex(srcMgr, diag);
     onyx::Parser parser(lex, diag);
 
-    onyx::Stmt *stmt = parser.ParseStmt();
-    while (stmt) {
-        stmt = parser.ParseStmt();
+    onyx::ASTPrinter printer;
+    while (1) {
+        onyx::Stmt *stmt = parser.ParseStmt();
+        if (!stmt) {
+            break;
+        }
+        printer.visit(stmt);
+        llvm::outs() << '\n';
     }
+    llvm::outs().flush();   // explicitly flushing the buffer
     return 0;
 }

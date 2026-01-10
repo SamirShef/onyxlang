@@ -1,4 +1,3 @@
-#include "onyx/Lexer/Token.h"
 #include <onyx/Parser/Precedence.h>
 
 namespace onyx {

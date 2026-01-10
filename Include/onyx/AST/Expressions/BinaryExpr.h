@@ -1,7 +1,6 @@
 #pragma once
-#include <onyx/Lexer/Token.h>
 #include <onyx/AST/Expr.h>
-#include <onyx/Basic/ASTVal.h>
+#include <onyx/Lexer/Token.h>
 
 namespace onyx {
     class BinaryExpr : public Expr {

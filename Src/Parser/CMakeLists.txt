@@ -4,6 +4,6 @@ add_library(OnyxParser STATIC ${SOURCES})
 
 target_include_directories(OnyxParser 
     PUBLIC 
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/Include>
+        $<INSTALL_INTERFACE:Include>
 )
