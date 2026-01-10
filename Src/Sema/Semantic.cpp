@@ -3,7 +3,11 @@
 
 namespace onyx {
     static std::unordered_map<ASTTypeKind, std::vector<ASTTypeKind>> implicitlyCastAllowed {
-        { ASTTypeKind::Char, { ASTTypeKind::I16, ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64 } }
+        { ASTTypeKind::Char, { ASTTypeKind::I16, ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64 } },
+        { ASTTypeKind::I16,  { ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64                       } },
+        { ASTTypeKind::I32,  { ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64                                             } },
+        { ASTTypeKind::I64,  { ASTTypeKind::F32, ASTTypeKind::F64                                                                   } },
+        { ASTTypeKind::F32,  { ASTTypeKind::F64                                                                                         } },
     };
     
     std::optional<ASTVal>
