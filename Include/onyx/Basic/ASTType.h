@@ -21,6 +21,11 @@ namespace onyx {
     public:
         explicit ASTType(ASTTypeKind kind, llvm::StringRef val, bool isConst) : _kind(kind), _val(val), _isConst(isConst) {}
 
+        bool
+        operator==(ASTType &other) {
+            return _kind == other._kind && _val == other._val;
+        }
+        
         ASTTypeKind
         GetTypeKind() const {
             return _kind;
@@ -44,6 +49,29 @@ namespace onyx {
             }
             val += _val;
             return val;
+        }
+
+        static ASTType
+        GetNothType() {
+            return ASTType(ASTTypeKind::Noth, "noth", false);
+        }
+        
+        static ASTType
+        GetCommon(ASTType lhs, ASTType rhs) {
+            if (lhs.GetTypeKind() >= ASTTypeKind::Bool && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
+                rhs.GetTypeKind() >= ASTTypeKind::Bool && rhs.GetTypeKind() <= ASTTypeKind::F64) {
+                return lhs.GetTypeKind() > rhs.GetTypeKind() ? lhs : rhs;
+            }
+            return GetNothType();
+        }
+
+        static bool
+        HasCommon(ASTType lhs, ASTType rhs) {
+            if (lhs.GetTypeKind() >= ASTTypeKind::Bool && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
+                rhs.GetTypeKind() >= ASTTypeKind::Bool && rhs.GetTypeKind() <= ASTTypeKind::F64) {
+                return true;
+            }
+            return false;
         }
     };
 }

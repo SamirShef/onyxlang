@@ -23,6 +23,7 @@ add_subdirectory(Src/Parser)
 add_subdirectory(Src/Sema)
 add_subdirectory(Src/CodeGen)
 
+add_definitions(-w)
 add_executable(${PROJECT_NAME} Src/Main.cpp)
 
 target_include_directories(${PROJECT_NAME} 

@@ -31,12 +31,12 @@ namespace onyx {
     Parser::parseVarDeclStmt() {
         Token firstTok = _curTok;
         bool isConst = consume().Is(TkConst);
+        llvm::StringRef name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
                 << _curTok.GetText();
         }
-        llvm::StringRef name = _curTok.GetText();
 
         if (!expect(TkColon)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
@@ -57,7 +57,7 @@ namespace onyx {
                 << ";"                  // expected
                 << _curTok.GetText();   // got
         }
-        return createNode<VarDeclStmt>(name, isConst, type, expr, firstTok.GetLoc());
+        return createNode<VarDeclStmt>(name, isConst, type, expr, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Expr *
@@ -69,12 +69,12 @@ namespace onyx {
                     // TODO: create logic for calling of functions
                 }
                 else {
-                    return createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc());
+                    return createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
                 }
             }
             #define LIT(kind, type_val, field, val) \
                 createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, true), \
-                                               ASTValData { .field = (val) }), consume().GetLoc())
+                                               ASTValData { .field = (val) }), consume().GetLoc(), _curTok.GetLoc())
             case TkBoolLit:
                 return LIT(Bool, "bool", boolVal, _curTok.GetText() == "true");
             case TkCharLit:
@@ -93,7 +93,7 @@ namespace onyx {
             case TkMinus:
             case TkBang: {
                 Token op = consume();
-                return createNode<UnaryExpr>(parseExpr(PrecLowest), op, op.GetLoc());
+                return createNode<UnaryExpr>(parseExpr(PrecLowest), op, op.GetLoc(), _curTok.GetLoc());
             }
             case TkLParen: {
                 Token lparen = consume();
@@ -104,6 +104,8 @@ namespace onyx {
                         << ")"                  // expected
                         << _curTok.GetText();   // got
                 }
+                expr->SetStartLoc(lparen.GetLoc());
+                expr->SetEndLoc(_curTok.GetLoc());
                 return expr;
             }
             default:
@@ -128,7 +130,7 @@ namespace onyx {
             consume();
 
             Expr *rhs = parseExpr(prec);
-            lhs = createNode<BinaryExpr>(lhs, rhs, op, lhs->GetLoc());
+            lhs = createNode<BinaryExpr>(lhs, rhs, op, lhs->GetStartLoc(), _curTok.GetLoc());
         }
 
         return lhs;

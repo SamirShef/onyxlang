@@ -8,7 +8,7 @@ namespace onyx {
         Token _op;
 
     public:
-        explicit UnaryExpr(Expr *rhs, Token op, llvm::SMLoc loc) : _rhs(rhs), _op(op), Expr(NkUnaryExpr, loc) {}
+        explicit UnaryExpr(Expr *rhs, Token op, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _rhs(rhs), _op(op), Expr(NkUnaryExpr, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const Node *node) {

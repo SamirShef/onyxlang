@@ -7,7 +7,7 @@ namespace onyx {
         llvm::StringRef _name;
 
     public:
-        explicit VarExpr(llvm::StringRef name, llvm::SMLoc loc) : _name(name), Expr(NkVarExpr, loc) {}
+        explicit VarExpr(llvm::StringRef name, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), Expr(NkVarExpr, startLoc, endLoc) {}
         
         constexpr static bool
         classof(const Node *node) {

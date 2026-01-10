@@ -22,6 +22,18 @@ namespace onyx {
                 return ERR("expected identifier, but got `%0`");
             case ErrExpectedType:
                 return ERR("expected type, but got `%0`");
+            case ErrUndeclaredVariable:
+                return ERR("variable `%0` is undeclared");
+            case ErrRedefinitionVar:
+                return ERR("redefinition the variable `%0`");
+            case ErrTypeMismatchNotNum:
+                return ERR("expected number, but got `%0`");
+            case ErrTypeMismatchNotBool:
+                return ERR("expected bool, but got `%0`");
+            case ErrCannotCast:
+                return ERR("cannot implicitly cast `%0` to `%1`");
+            case ErrUnsupportedTypeForOperator:
+                return ERR("operator `%0` does not support types `%1` and `%2`");
         }
     }
 }

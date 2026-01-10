@@ -7,7 +7,7 @@ namespace onyx {
         ASTVal _val;
 
     public:
-        explicit LiteralExpr(ASTVal val, llvm::SMLoc loc) : _val(val), Expr(NkLiteralExpr, loc) {}
+        explicit LiteralExpr(ASTVal val, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _val(val), Expr(NkLiteralExpr, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const Node *node) {
