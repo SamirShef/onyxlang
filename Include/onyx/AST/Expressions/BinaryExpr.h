@@ -9,7 +9,8 @@ namespace onyx {
         Token _op;
 
     public:
-        explicit BinaryExpr(Expr *lhs, Expr *rhs, Token op, llvm::SMLoc loc) : _lhs(lhs), _rhs(rhs), _op(op), Expr(NkBinaryExpr, loc) {}
+        explicit BinaryExpr(Expr *lhs, Expr *rhs, Token op, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _lhs(lhs), _rhs(rhs), _op(op),
+                                                                                                        Expr(NkBinaryExpr, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const Node *node) {

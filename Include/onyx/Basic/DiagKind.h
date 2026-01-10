@@ -10,6 +10,12 @@ namespace onyx {
         ErrExpectedStmt,
         ErrExpectedToken,
         ErrExpectedId,
-        ErrExpectedType
+        ErrExpectedType,
+        ErrUndeclaredVariable,
+        ErrRedefinitionVar,
+        ErrTypeMismatchNotNum,
+        ErrTypeMismatchNotBool,
+        ErrCannotCast,
+        ErrUnsupportedTypeForOperator
     };
 }

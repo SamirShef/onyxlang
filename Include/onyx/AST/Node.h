@@ -17,10 +17,11 @@ namespace onyx {
 
     class Node {
         const NodeKind _kind;
-        llvm::SMLoc _loc;
+        llvm::SMLoc _startLoc;
+        llvm::SMLoc _endLoc;
 
     public:
-        explicit Node(NodeKind kind, llvm::SMLoc loc) : _kind(kind), _loc(loc) {}
+        explicit Node(NodeKind kind, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _kind(kind), _startLoc(startLoc), _endLoc(endLoc) {}
         virtual ~Node() = default;
 
         NodeKind
@@ -29,8 +30,23 @@ namespace onyx {
         }
 
         const llvm::SMLoc
-        GetLoc() const {
-            return _loc;
+        GetStartLoc() const {
+            return _startLoc;
+        }
+
+        const llvm::SMLoc
+        GetEndLoc() const {
+            return _endLoc;
+        }
+
+        void
+        SetStartLoc(llvm::SMLoc startLoc) {
+            _startLoc = startLoc;
+        }
+
+        void
+        SetEndLoc(llvm::SMLoc endLoc) {
+            _endLoc = endLoc;
         }
     };
 }

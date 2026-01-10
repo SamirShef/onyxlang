@@ -13,8 +13,8 @@ namespace onyx {
         Expr *_expr;
 
     public:
-        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, llvm::SMLoc loc) : _name(name), _type(type), _isConst(isConst),
-                                                                                                              _expr(expr), Stmt(NkVarDeclStmt, loc) {}
+        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), _type(type),
+                             _isConst(isConst), _expr(expr), Stmt(NkVarDeclStmt, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {

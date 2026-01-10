@@ -4,7 +4,7 @@
 namespace onyx {
     class Stmt : public Node {
     public:
-        explicit Stmt(NodeKind kind, llvm::SMLoc loc) : Node(kind, loc) {}
+        explicit Stmt(NodeKind kind, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : Node(kind, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const Node *node) {
