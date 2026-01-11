@@ -44,6 +44,8 @@ namespace onyx {
                 return ERR("function cannot return a value");
             case ErrFewArgs:
                 return ERR("function `%0` expected %1 arguments, but received %2");
+            case ErrAssignmentConst:
+                return ERR("assigning a value to a constant");
         }
     }
 }

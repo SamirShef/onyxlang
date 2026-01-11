@@ -1,3 +1,4 @@
+#include "onyx/Basic/ASTType.h"
 #include <onyx/Sema/Semantic.h>
 #include <cmath>
 
@@ -30,6 +31,24 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::visitVarAsgnStmt(VarAsgnStmt *vas) {
+        auto varsCopy = _vars;
+        while (!varsCopy.empty()) {
+            if (auto var = varsCopy.top().find(vas->GetName().str()); var != varsCopy.top().end()) {
+                if (var->second.IsConst) {
+                    _diag.Report(vas->GetStartLoc(), ErrAssignmentConst)
+                        << llvm::SMRange(vas->GetStartLoc(), vas->GetEndLoc());
+                    return std::nullopt;
+                }
+                ASTVal val = visit(vas->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
+                val = implicitlyCast(val, var->second.Type, vas->GetExpr()->GetStartLoc(), vas->GetExpr()->GetEndLoc());
+                var->second.Val = val;
+                return std::nullopt;
+            }
+            varsCopy.pop();
+        }
+        _diag.Report(vas->GetStartLoc(), ErrUndeclaredVariable)
+            << getRange(vas->GetStartLoc(), vas->GetName().size())
+            << vas->GetName();
         return std::nullopt;
     }
 
@@ -251,7 +270,7 @@ namespace onyx {
 
     void
     SemanticAnalyzer::checkBinaryExpr(BinaryExpr *be) {
-        ASTVal lhs = visit(be->GetRHS()).value();
+        ASTVal lhs = visit(be->GetLHS()).value();
         ASTVal rhs = visit(be->GetRHS()).value();
         switch (be->GetOp().GetKind()) {
             case TkPlus:
