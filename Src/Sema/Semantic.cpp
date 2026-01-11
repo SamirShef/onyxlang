@@ -12,7 +12,7 @@ namespace onyx {
     
     std::optional<ASTVal>
     SemanticAnalyzer::visitVarDeclStmt(VarDeclStmt *vds) {
-        if (variableExists(vds->GetName().str())) {
+        if (_vars.top().find(vds->GetName().str()) != _vars.top().end()) {
             _diag.Report(llvm::SMLoc::getFromPointer(vds->GetName().data()), ErrRedefinitionVar)
                 << getRange(llvm::SMLoc::getFromPointer(vds->GetName().data()), vds->GetName().size())
                 << vds->GetName();
@@ -54,8 +54,9 @@ namespace onyx {
             funRetsTypes.pop();
             _vars.pop();
 
-            if (!hasRet) {
-                _diag.Report(fds->GetStartLoc(), ErrNotAllPathsReturnsValue);
+            if (!hasRet && fds->GetRetType().GetTypeKind() != ASTTypeKind::Noth) {
+                _diag.Report(fds->GetStartLoc(), ErrNotAllPathsReturnsValue)
+                    << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
             }
         }
         return std::nullopt;
