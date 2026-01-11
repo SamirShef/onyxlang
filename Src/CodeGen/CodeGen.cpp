@@ -40,6 +40,7 @@ namespace onyx {
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
             llvm::AllocaInst *alloca = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName());
+            _builder.CreateStore(&arg, alloca);
             _vars.top().emplace(arg.getName().str(), alloca);
             ++index;
         }
@@ -56,7 +57,8 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::visitFunCallStmt(FunCallStmt *fcs) {
-
+        visit(new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc()));
+        return nullptr;
     }
 
     llvm::Value *
@@ -217,7 +219,12 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::visitFunCallExpr(FunCallExpr *fce) {
-        
+        std::vector<llvm::Value *> args(fce->GetArgs().size());
+        for (int i = 0; i < fce->GetArgs().size(); ++i) {
+            args[i] = visit(fce->GetArgs()[i]);
+        }
+        llvm::Function *fun = functions.at(fce->GetName().str());
+        return _builder.CreateCall(fun, args, fce->GetName() + ".call");
     }
 
     llvm::Type *
