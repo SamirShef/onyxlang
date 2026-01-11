@@ -14,15 +14,13 @@ namespace onyx {
 
         std::stack<std::unordered_map<std::string, llvm::Value *>> _vars;
 
+        std::unordered_map<std::string, llvm::Function *> functions;
+        std::stack<llvm::Type *> funRetsTypes;
+
     public:
         explicit CodeGen(DiagnosticEngine &diag, std::string fileName) : _diag(diag), _context(), _builder(_context),
                                                                          _module(std::make_unique<llvm::Module>(fileName, _context)) {
             _vars.push({});
-            llvm::FunctionType *retType = llvm::FunctionType::get(typeKindToLLVM(ASTTypeKind::I32), false);
-            llvm::Function *main = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, "main", *_module);
-            llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", main);
-            _builder.SetInsertPoint(entry);
-            _builder.CreateRet(llvm::Constant::getNullValue(typeKindToLLVM(ASTTypeKind::I32)));
         }
 
         std::unique_ptr<llvm::Module>

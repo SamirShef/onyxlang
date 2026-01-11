@@ -25,7 +25,33 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::visitFunDeclStmt(FunDeclStmt *fds) {
-        
+        std::vector<llvm::Type *> args(fds->GetArgs().size());
+        for (int i = 0; i < fds->GetArgs().size(); ++i) {
+            args[i] = typeKindToLLVM(fds->GetArgs()[i].GetType().GetTypeKind());
+        }
+        llvm::FunctionType *retType = llvm::FunctionType::get(typeKindToLLVM(fds->GetRetType().GetTypeKind()), args, false);
+        llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName(), *_module);
+        llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
+        _builder.SetInsertPoint(entry);
+        _vars.push({});
+        funRetsTypes.push(fun->getReturnType());
+        functions.emplace(fun->getName(), fun);
+        int index = 0;
+        for (auto &arg : fun->args()) {
+            arg.setName(fds->GetArgs()[index].GetName());
+            llvm::AllocaInst *alloca = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName());
+            _vars.top().emplace(arg.getName().str(), alloca);
+            ++index;
+        }
+        for (auto &stmt : fds->GetBody()) {
+            visit(stmt);
+        }
+        if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Noth) {
+            _builder.CreateRetVoid();
+        }
+        funRetsTypes.pop();
+        _vars.pop();
+        return nullptr;
     }
 
     llvm::Value *
@@ -35,7 +61,11 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::visitRetStmt(RetStmt *rs) {
-        
+        if (rs->GetExpr()) {
+            llvm::Value *val = visit(rs->GetExpr());
+            return _builder.CreateRet(implicitlyCast(val, funRetsTypes.top()));
+        }
+        return _builder.CreateRetVoid();
     }
     
     llvm::Value *
