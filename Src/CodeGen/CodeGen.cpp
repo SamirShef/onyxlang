@@ -25,6 +25,19 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::visitVarAsgnStmt(VarAsgnStmt *vas) {
+        llvm::Value *val = visit(vas->GetExpr());
+        auto varsCopy = _vars;
+        while (!varsCopy.empty()) {
+            if (auto var = varsCopy.top().find(vas->GetName().str()); var != varsCopy.top().end()) {
+                if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second)) {
+                    _builder.CreateStore(val, glob);
+                }
+                if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second)) {
+                    _builder.CreateStore(val, local);
+                }
+            }
+            varsCopy.pop();
+        }
         return nullptr;
     }
 
