@@ -22,6 +22,7 @@ add_subdirectory(Src/AST)
 add_subdirectory(Src/Parser)
 add_subdirectory(Src/Sema)
 add_subdirectory(Src/CodeGen)
+add_subdirectory(Src/Compilation)
 
 add_definitions(-w)
 add_executable(${PROJECT_NAME} Src/Main.cpp)
@@ -48,5 +49,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
                                               OnyxParser
                                               OnyxSema
                                               OnyxCodeGen
+                                              OnyxCompilation
                                               -Wl,--end-group
 )
