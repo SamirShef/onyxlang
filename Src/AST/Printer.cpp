@@ -16,6 +16,17 @@ namespace onyx {
     }
 
     void
+    ASTPrinter::visitVarAsgnStmt(VarAsgnStmt *vas) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(VarAsgnStmt: " << vas->GetName().str() << " = ";
+        int spaces = _spaces;
+        _spaces = 0;
+        visit(vas->GetExpr());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
+
+    void
     ASTPrinter::visitFunDeclStmt(FunDeclStmt *fds) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(FunDeclStmt: " << fds->GetRetType().ToString() << ' ' << fds->GetName().str() << " (";
@@ -25,10 +36,11 @@ namespace onyx {
                 llvm::outs() << ", ";
             }
         }
-        llvm::outs() << " {";
+        llvm::outs() << " {\n";
         _spaces += 2;
         for (auto stmt : fds->GetBody()) {
             visit(stmt);
+            llvm::outs() << '\n';
         }
         _spaces -= 2;
         llvm::outs() << "})";

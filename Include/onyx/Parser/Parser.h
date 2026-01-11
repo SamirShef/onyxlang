@@ -31,6 +31,9 @@ namespace onyx {
         parseVarDeclStmt();
 
         Stmt *
+        parseVarAsgn();
+
+        Stmt *
         parseFunDeclStmt();
 
         Stmt *
@@ -54,8 +57,14 @@ namespace onyx {
         ASTType
         consumeType();
 
+        Expr *
+        createCompoundAssignmentOp(Token op, Expr *base, Expr *expr);
+
         bool
         expect(TokenKind kind);
+
+        bool
+        isAssignmentOp(TokenKind kind);
 
         llvm::SMRange
         getRangeFromTok(Token tok) const;

@@ -32,6 +32,9 @@ namespace onyx {
         visitVarDeclStmt(VarDeclStmt *vds);
 
         llvm::Value *
+        visitVarAsgnStmt(VarAsgnStmt *vas);
+
+        llvm::Value *
         visitFunDeclStmt(FunDeclStmt *fds);
 
         llvm::Value *

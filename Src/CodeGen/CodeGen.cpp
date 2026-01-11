@@ -24,6 +24,11 @@ namespace onyx {
     }
 
     llvm::Value *
+    CodeGen::visitVarAsgnStmt(VarAsgnStmt *vas) {
+        return nullptr;
+    }
+
+    llvm::Value *
     CodeGen::visitFunDeclStmt(FunDeclStmt *fds) {
         std::vector<llvm::Type *> args(fds->GetArgs().size());
         for (int i = 0; i < fds->GetArgs().size(); ++i) {
@@ -57,7 +62,9 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::visitFunCallStmt(FunCallStmt *fcs) {
-        visit(new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc()));
+        FunCallExpr *expr = new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc());
+        visit(expr);
+        delete expr;
         return nullptr;
     }
 

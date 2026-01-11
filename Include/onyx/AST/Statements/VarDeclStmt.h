@@ -8,11 +8,11 @@ namespace onyx {
     class VarDeclStmt : public Stmt {
         llvm::StringRef _name;
         bool _isConst;
-        ASTType _retType;
+        ASTType _type;
         Expr *_expr;
 
     public:
-        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), _retType(type),
+        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), _type(type),
                              _isConst(isConst), _expr(expr), Stmt(NkVarDeclStmt, startLoc, endLoc) {}
 
         constexpr static bool
@@ -32,7 +32,7 @@ namespace onyx {
 
         ASTType
         GetType() const {
-            return _retType;
+            return _type;
         }
         
         Expr *
