@@ -27,6 +27,11 @@ namespace onyx {
     CodeGen::visitFunDeclStmt(FunDeclStmt *fds) {
         
     }
+
+    llvm::Value *
+    CodeGen::visitRetStmt(RetStmt *rs) {
+        
+    }
     
     llvm::Value *
     CodeGen::visitBinaryExpr(BinaryExpr *be) {

@@ -31,5 +31,8 @@ namespace onyx {
 
         DiagnosticBuilder &
         operator<<(char c);
+
+        DiagnosticBuilder &
+        operator<<(size_t s);
     };
 }

@@ -30,7 +30,45 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::visitFunDeclStmt(FunDeclStmt *fds) {
+        if (functions.find(fds->GetName().str()) != functions.end()) {
+            _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
+                << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
+                << fds->GetName();
+        }
+        else {
+            _vars.push({});
+            for (auto arg : fds->GetArgs()) {
+                _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
+                                                                   .IsConst = arg.GetType().IsConst() });
+            }
+            Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody() };
+            functions.emplace(fds->GetName().str(), fun);
+            funRetsTypes.push(fds->GetRetType());
+            bool hasRet;
+            for (auto stmt : fds->GetBody()) {
+                if (stmt->GetKind() == NkRetStmt) {
+                    hasRet = true;
+                }
+                visit(stmt);
+            }
+            funRetsTypes.pop();
+            _vars.pop();
 
+            if (!hasRet) {
+                _diag.Report(fds->GetStartLoc(), ErrNotAllPathsReturnsValue);
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::visitRetStmt(RetStmt *rs) {
+        ASTVal val = ASTVal::GetDefaultByType(ASTType::GetNothType());
+        if (rs->GetExpr()) {
+            val = visit(rs->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
+        }
+        implicitlyCast(val, funRetsTypes.top(), rs->GetStartLoc(), rs->GetEndLoc());
+        return std::nullopt;
     }
     
     std::optional<ASTVal>
@@ -151,7 +189,45 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::visitFunCallExpr(FunCallExpr *fce) {
-        
+        if (functions.find(fce->GetName().str()) != functions.end()) {
+            _vars.push({});
+            Function fun = functions.at(fce->GetName().str());
+            if (fun.Args.size() != fce->GetArgs().size()) {
+                _diag.Report(fce->GetStartLoc(), ErrFewArgs)
+                    << llvm::SMRange(fce->GetStartLoc(), fce->GetEndLoc())
+                    << fce->GetName().str()
+                    << fun.Args.size()
+                    << fce->GetArgs().size();
+                return std::nullopt;
+            }
+            for (int i = 0; i < fun.Args.size(); ++i) {
+                std::optional<ASTVal> val = visit(fce->GetArgs()[i]);
+                implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), fun.Args[i].GetType(),
+                               fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
+                _vars.top().emplace(fun.Args[i].GetName(), Variable { .Name = fun.Args[i].GetName(), .Type = fun.Args[i].GetType(),
+                                                                           .Val = val, .IsConst = fun.Args[i].GetType().IsConst() });
+            }
+            for (auto stmt : fun.Body) {
+                if (stmt->GetKind() == NkRetStmt) {
+                    Expr *expr = llvm::dyn_cast<RetStmt>(stmt)->GetExpr();
+                    std::optional<ASTVal> val = expr ? visit(expr) : ASTVal::GetDefaultByType(ASTType::GetNothType());
+                    implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), fun.RetType, fce->GetStartLoc(),
+                                   fce->GetEndLoc());
+                    _vars.pop();
+                    return val;
+                }
+                else {
+                    visit(stmt);
+                }
+            }
+            _vars.pop();
+            _diag.Report(fce->GetStartLoc(), ErrFuntionCannotReturnValue);
+            return std::nullopt;
+        }
+        _diag.Report(fce->GetStartLoc(), ErrUndeclaredFuntion)
+            << getRange(fce->GetStartLoc(), fce->GetName().size())
+            << fce->GetName();
+        return std::nullopt;
     }
 
     llvm::SMRange

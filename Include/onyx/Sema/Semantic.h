@@ -18,6 +18,15 @@ namespace onyx {
         };
         std::stack<std::unordered_map<std::string, Variable>> _vars;
 
+        struct Function {
+            const llvm::StringRef Name;
+            const ASTType RetType;
+            std::vector<Argument> Args;
+            std::vector<Stmt *> Body;
+        };
+        std::unordered_map<std::string, Function> functions;
+        std::stack<ASTType> funRetsTypes;
+
     public:
         explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {
             _vars.push({});
@@ -28,6 +37,9 @@ namespace onyx {
 
         std::optional<ASTVal>
         visitFunDeclStmt(FunDeclStmt *fds);
+
+        std::optional<ASTVal>
+        visitRetStmt(RetStmt *rs);
         
         std::optional<ASTVal>
         visitBinaryExpr(BinaryExpr *be);
