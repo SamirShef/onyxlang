@@ -22,6 +22,11 @@ namespace onyx {
         _vars.top().emplace(vds->GetName().str(), var);
         return nullptr;
     }
+
+    llvm::Value *
+    CodeGen::visitFunDeclStmt(FunDeclStmt *fds) {
+        
+    }
     
     llvm::Value *
     CodeGen::visitBinaryExpr(BinaryExpr *be) {
@@ -123,6 +128,11 @@ namespace onyx {
             #undef CONST_INT
         }
         return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::visitFunCallExpr(FunCallExpr *fce) {
+        
     }
 
     llvm::SMRange

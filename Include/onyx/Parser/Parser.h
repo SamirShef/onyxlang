@@ -30,6 +30,15 @@ namespace onyx {
         Stmt *
         parseVarDeclStmt();
 
+        Stmt *
+        parseFunDeclStmt();
+
+        Stmt *
+        parseRetStmt();
+
+        Argument
+        parseArgument();
+        
         Expr *
         parsePrefixExpr();
 

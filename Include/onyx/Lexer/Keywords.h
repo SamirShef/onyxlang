@@ -17,7 +17,7 @@ namespace onyx {
         { "f64", TkF64 },
         { "noth", TkNoth },
         { "fun", TkFun },
-        { "ret", TkRet },
+        { "return", TkRet },
         { "if", TkIf },
         { "else", TkElse },
         { "for", TkFor },

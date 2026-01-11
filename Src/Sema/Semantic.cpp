@@ -27,6 +27,11 @@ namespace onyx {
         }
         return std::nullopt;
     }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::visitFunDeclStmt(FunDeclStmt *fds) {
+
+    }
     
     std::optional<ASTVal>
     SemanticAnalyzer::visitBinaryExpr(BinaryExpr *be) {
@@ -142,6 +147,11 @@ namespace onyx {
     std::optional<ASTVal>
     SemanticAnalyzer::visitLiteralExpr(LiteralExpr *le) {
         return le->GetVal();
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::visitFunCallExpr(FunCallExpr *fce) {
+        
     }
 
     llvm::SMRange

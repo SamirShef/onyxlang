@@ -5,6 +5,8 @@ namespace onyx {
     enum NodeKind {
         NkStartStmts,
         NkVarDeclStmt,
+        NkFunDeclStmt,
+        NkRetStmt,
         NkEndStmts,
 
         NkStartExprs,
@@ -12,6 +14,7 @@ namespace onyx {
         NkUnaryExpr,
         NkVarExpr,
         NkLiteralExpr,
+        NkFunCallExpr,
         NkEndExprs,
     };
 
