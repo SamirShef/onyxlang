@@ -1,5 +1,4 @@
 #pragma once
-#include <onyx/AST/Node.h>
 #include <onyx/AST/Stmt.h>
 #include <onyx/AST/Expr.h>
 #include <onyx/Basic/ASTType.h>
@@ -9,11 +8,11 @@ namespace onyx {
     class VarDeclStmt : public Stmt {
         llvm::StringRef _name;
         bool _isConst;
-        ASTType _type;
+        ASTType _retType;
         Expr *_expr;
 
     public:
-        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), _type(type),
+        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), _retType(type),
                              _isConst(isConst), _expr(expr), Stmt(NkVarDeclStmt, startLoc, endLoc) {}
 
         constexpr static bool
@@ -33,7 +32,7 @@ namespace onyx {
 
         ASTType
         GetType() const {
-            return _type;
+            return _retType;
         }
         
         Expr *

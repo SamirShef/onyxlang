@@ -11,6 +11,10 @@ namespace onyx {
             case TkVar:
             case TkConst:
                 return parseVarDeclStmt();
+            case TkFun:
+                return parseFunDeclStmt();
+            case TkRet:
+                return parseRetStmt();
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -44,7 +48,6 @@ namespace onyx {
                 << ":"                  // expected
                 << _curTok.GetText();   // got
         }
-        
         ASTType type = consumeType();
         
         Expr *expr = nullptr;
@@ -60,13 +63,106 @@ namespace onyx {
         return createNode<VarDeclStmt>(name, isConst, type, expr, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
+    Stmt *
+    Parser::parseFunDeclStmt() {
+        Token firstTok = consume();
+        llvm::StringRef name = _curTok.GetText();
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        if (!expect(TkLParen)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "("                  // expected
+                << _curTok.GetText();   // got
+        }
+        std::vector<Argument> args;
+        while (!expect(TkRParen)) {
+            args.push_back(parseArgument());
+            if (!_curTok.Is(TkRParen)) {
+                if (!expect(TkComma)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ","                  // expected
+                        << _curTok.GetText();   // got
+                }
+            }
+        }
+
+        ASTType retType = ASTType(ASTTypeKind::Noth, "noth", false);
+        if (expect(TkColon)) {
+            retType = consumeType();
+        }
+
+        if (!expect(TkLBrace)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "{"                  // expected
+                << _curTok.GetText();   // got
+        }
+        std::vector<Stmt *> block;
+        while (!expect(TkRBrace)) {
+            block.push_back(ParseStmt());
+        }
+        return createNode<FunDeclStmt>(name, retType, args, block, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseRetStmt() {
+        Token firstTok = consume();
+        Expr *expr = nullptr;
+        if (!_curTok.Is(TkSemi)) {
+            expr = parseExpr(PrecLowest);
+        }
+        if (!expect(TkSemi)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << ";"                  // expected
+                << _curTok.GetText();   // got
+        }
+        return createNode<RetStmt>(expr, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Argument
+    Parser::parseArgument() {
+        llvm::StringRef name = _curTok.GetText();
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        if (!expect(TkColon)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << ":"                  // expected
+                << _curTok.GetText();   // got
+        }
+        ASTType type = consumeType();
+        return Argument(name, type);
+    }
+
     Expr *
     Parser::parsePrefixExpr() {
         switch (_curTok.GetKind()) {
             case TkId: {
                 Token nameToken = consume();
                 if (_curTok.GetKind() == TkLParen) {
-                    // TODO: create logic for calling of functions
+                    consume();
+                    std::vector<Expr *> args;
+                    while (!expect(TkRParen)) {
+                        args.push_back(parseExpr(PrecLowest));
+                        if (!_curTok.Is(TkRParen)) {
+                            if (!expect(TkComma)) {
+                                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                                    << getRangeFromTok(_curTok)
+                                    << ","                  // expected
+                                    << _curTok.GetText();   // got
+                            }
+                        }
+                    }
+                    return createNode<FunCallExpr>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
                 }
                 else {
                     return createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());

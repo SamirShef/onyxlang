@@ -7,13 +7,23 @@ namespace onyx {
     public:
         void
         visitVarDeclStmt(VarDeclStmt *vds);
+
+        void
+        visitFunDeclStmt(FunDeclStmt *fds);
+
         void
         visitBinaryExpr(BinaryExpr *be);
+
         void
         visitUnaryExpr(UnaryExpr *ue);
+
         void
         visitVarExpr(VarExpr *ve);
+
         void
         visitLiteralExpr(LiteralExpr *le);
+
+        void
+        visitFunCallExpr(FunCallExpr *fce);
     };
 }

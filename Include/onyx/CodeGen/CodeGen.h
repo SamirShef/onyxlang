@@ -32,6 +32,9 @@ namespace onyx {
 
         llvm::Value *
         visitVarDeclStmt(VarDeclStmt *vds);
+
+        llvm::Value *
+        visitFunDeclStmt(FunDeclStmt *fds);
                 
         llvm::Value *
         visitBinaryExpr(BinaryExpr *be);
@@ -44,6 +47,9 @@ namespace onyx {
                 
         llvm::Value *
         visitLiteralExpr(LiteralExpr *le);
+
+        llvm::Value *
+        visitFunCallExpr(FunCallExpr *fce);
 
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;

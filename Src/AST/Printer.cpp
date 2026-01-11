@@ -16,6 +16,25 @@ namespace onyx {
     }
 
     void
+    ASTPrinter::visitFunDeclStmt(FunDeclStmt *fds) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(FunDeclStmt: " << fds->GetRetType().ToString() << ' ' << fds->GetName().str() << " (";
+        for (int i = 0; i < fds->GetArgs().size(); ++i) {
+            llvm::outs() << fds->GetArgs()[i].GetType().ToString() << ' ' << fds->GetArgs()[i].GetName().str();
+            if (i < fds->GetArgs().size() - 1) {
+                llvm::outs() << ", ";
+            }
+        }
+        llvm::outs() << " {";
+        _spaces += 2;
+        for (auto stmt : fds->GetBody()) {
+            visit(stmt);
+        }
+        _spaces -= 2;
+        llvm::outs() << "})";
+    }
+
+    void
     ASTPrinter::visitBinaryExpr(BinaryExpr *be) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(BinaryExpr: ";
@@ -49,5 +68,18 @@ namespace onyx {
     ASTPrinter::visitLiteralExpr(LiteralExpr *le) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(LiteralExpr: " << le->GetVal().GetType().ToString() << ' ' << le->GetVal().ToString() << ')';
+    }
+
+    void
+    ASTPrinter::visitFunCallExpr(FunCallExpr *fce) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(FunCallExpr: " << fce->GetName().str() << " (";
+        for (int i = 0; i < fce->GetArgs().size(); ++i) {
+            visit(fce->GetArgs()[i]);
+            if (i < fce->GetArgs().size() - 1) {
+                llvm::outs() << ", ";
+            }
+        }
+        llvm::outs() << ')';
     }
 }

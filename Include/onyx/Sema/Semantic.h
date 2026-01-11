@@ -25,6 +25,9 @@ namespace onyx {
         
         std::optional<ASTVal>
         visitVarDeclStmt(VarDeclStmt *vds);
+
+        std::optional<ASTVal>
+        visitFunDeclStmt(FunDeclStmt *fds);
         
         std::optional<ASTVal>
         visitBinaryExpr(BinaryExpr *be);
@@ -37,6 +40,9 @@ namespace onyx {
         
         std::optional<ASTVal>
         visitLiteralExpr(LiteralExpr *le);
+
+        std::optional<ASTVal>
+        visitFunCallExpr(FunCallExpr *fce);
 
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;
