@@ -21,6 +21,7 @@ namespace onyx {
         ErrUnsupportedTypeForOperator,
         ErrNotAllPathsReturnsValue,
         ErrFuntionCannotReturnValue,
-        ErrFewArgs
+        ErrFewArgs,
+        ErrAssignmentConst
     };
 }
