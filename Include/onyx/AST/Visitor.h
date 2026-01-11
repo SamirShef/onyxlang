@@ -10,6 +10,8 @@ namespace onyx {
             switch (node->GetKind()) {
                 case NkVarDeclStmt:
                     return static_cast<Derived*>(this)->visitVarDeclStmt(static_cast<VarDeclStmt *>(node));
+                case NkVarAsgnStmt:
+                    return static_cast<Derived*>(this)->visitVarAsgnStmt(static_cast<VarAsgnStmt *>(node));
                 case NkFunDeclStmt:
                     return static_cast<Derived*>(this)->visitFunDeclStmt(static_cast<FunDeclStmt *>(node));
                 case NkFunCallStmt:

@@ -36,6 +36,9 @@ namespace onyx {
         visitVarDeclStmt(VarDeclStmt *vds);
 
         std::optional<ASTVal>
+        visitVarAsgnStmt(VarAsgnStmt *vas);
+
+        std::optional<ASTVal>
         visitFunDeclStmt(FunDeclStmt *fds);
 
         std::optional<ASTVal>

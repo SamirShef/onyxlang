@@ -9,6 +9,9 @@ namespace onyx {
         visitVarDeclStmt(VarDeclStmt *vds);
 
         void
+        visitVarAsgnStmt(VarAsgnStmt *vas);
+
+        void
         visitFunDeclStmt(FunDeclStmt *fds);
 
         void

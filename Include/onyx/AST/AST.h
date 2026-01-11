@@ -2,6 +2,7 @@
 #include <onyx/AST/Argument.h>
 
 #include <onyx/AST/Statements/VarDeclStmt.h>
+#include <onyx/AST/Statements/VarAsgnStmt.h>
 #include <onyx/AST/Statements/FunDeclStmt.h>
 #include <onyx/AST/Statements/FunCallStmt.h>
 #include <onyx/AST/Statements/RetStmt.h>

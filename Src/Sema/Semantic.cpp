@@ -29,6 +29,11 @@ namespace onyx {
     }
 
     std::optional<ASTVal>
+    SemanticAnalyzer::visitVarAsgnStmt(VarAsgnStmt *vas) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
     SemanticAnalyzer::visitFunDeclStmt(FunDeclStmt *fds) {
         if (functions.find(fds->GetName().str()) != functions.end()) {
             _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
@@ -64,7 +69,9 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::visitFunCallStmt(FunCallStmt *fcs) {
-        visitFunCallExpr(new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc()));
+        FunCallExpr *expr = new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc());
+        visitFunCallExpr(expr);
+        delete expr;
         return std::nullopt;
     }
 

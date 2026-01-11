@@ -16,7 +16,10 @@ namespace onyx {
             case TkRet:
                 return parseRetStmt();
             case TkId:
-                return parseFunCallStmt();
+                if (_nextTok.Is(TkLParen)) {
+                    return parseFunCallStmt();
+                }
+                return parseVarAsgn();
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -63,6 +66,29 @@ namespace onyx {
                 << _curTok.GetText();   // got
         }
         return createNode<VarDeclStmt>(name, isConst, type, expr, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseVarAsgn() {
+        Token nameToken = consume();
+        if (!isAssignmentOp(_curTok.GetKind())) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "=` or `+=` or `-=` or `*=` or `/=` or `%="
+                << _curTok.GetText().str();
+        }
+        Token op = consume();
+        Expr *expr = parseExpr(PrecLowest);
+        if (!expect(TkSemi)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << ";"                  // expected
+                << _curTok.GetText();   // got
+        }
+        if (op.GetKind() != TkEq && isAssignmentOp(op.GetKind())) {
+            expr = createCompoundAssignmentOp(op, createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
+        }
+        return createNode<VarAsgnStmt>(nameToken.GetText(), expr, nameToken.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -114,29 +140,26 @@ namespace onyx {
     Stmt *
     Parser::parseFunCallStmt() {
         Token nameToken = consume();
-        if (_curTok.GetKind() == TkLParen) {
-            consume();
-            std::vector<Expr *> args;
-            while (!expect(TkRParen)) {
-                args.push_back(parseExpr(PrecLowest));
-                if (!_curTok.Is(TkRParen)) {
-                    if (!expect(TkComma)) {
-                        _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                            << getRangeFromTok(_curTok)
-                            << ","                  // expected
-                            << _curTok.GetText();   // got
-                    }
+        consume();
+        std::vector<Expr *> args;
+        while (!expect(TkRParen)) {
+            args.push_back(parseExpr(PrecLowest));
+            if (!_curTok.Is(TkRParen)) {
+                if (!expect(TkComma)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ","                  // expected
+                        << _curTok.GetText();   // got
                 }
             }
-            if (!expect(TkSemi)) {
-                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                    << getRangeFromTok(_curTok)
-                    << ";"                  // expected
-                    << _curTok.GetText();   // got
-            }
-            return createNode<FunCallStmt>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
         }
-        return nullptr;
+        if (!expect(TkSemi)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << ";"                  // expected
+                << _curTok.GetText();   // got
+        }
+        return createNode<FunCallStmt>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -298,6 +321,26 @@ namespace onyx {
         }
     }
 
+    Expr *
+    Parser::createCompoundAssignmentOp(Token op, Expr *base, Expr *expr) {
+        switch (op.GetKind()) {
+            #define OP(kind, val) createNode<BinaryExpr>(base, expr, Token(kind, val, op.GetLoc()), expr->GetStartLoc(), expr->GetEndLoc())
+            case TkPlusEq:
+                return OP(TkPlus, "+");
+            case TkMinusEq:
+                return OP(TkMinus, "-");
+            case TkStarEq:
+                return OP(TkStar, "*");
+            case TkSlashEq:
+                return OP(TkSlash, "/");
+            case TkPercentEq:
+                return OP(TkPercent, "%");
+            default:
+                return nullptr;
+            #undef OP
+        }
+    }
+    
     bool
     Parser::expect(TokenKind kind) {
         if (_curTok.Is(kind)) {
@@ -305,6 +348,11 @@ namespace onyx {
             return true;
         }
         return false;
+    }
+
+    bool
+    Parser::isAssignmentOp(TokenKind kind) {
+        return kind >= TkPlusEq && kind <= TkPercentEq || kind == TkEq;
     }
 
     llvm::SMRange

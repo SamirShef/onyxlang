@@ -5,6 +5,7 @@ namespace onyx {
     enum NodeKind {
         NkStartStmts,
         NkVarDeclStmt,
+        NkVarAsgnStmt,
         NkFunDeclStmt,
         NkFunCallStmt,
         NkRetStmt,
