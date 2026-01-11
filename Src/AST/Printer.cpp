@@ -35,6 +35,19 @@ namespace onyx {
     }
 
     void
+    ASTPrinter::visitFunCallStmt(FunCallStmt *fcs) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(FunCallStmt: " << fcs->GetName().str() << " (";
+        for (int i = 0; i < fcs->GetArgs().size(); ++i) {
+            visit(fcs->GetArgs()[i]);
+            if (i < fcs->GetArgs().size() - 1) {
+                llvm::outs() << ", ";
+            }
+        }
+        llvm::outs() << ')';
+    }
+
+    void
     ASTPrinter::visitRetStmt(RetStmt *rs) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(RetStmt: ";

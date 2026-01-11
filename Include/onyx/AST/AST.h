@@ -3,6 +3,7 @@
 
 #include <onyx/AST/Statements/VarDeclStmt.h>
 #include <onyx/AST/Statements/FunDeclStmt.h>
+#include <onyx/AST/Statements/FunCallStmt.h>
 #include <onyx/AST/Statements/RetStmt.h>
 
 #include <onyx/AST/Expressions/BinaryExpr.h>

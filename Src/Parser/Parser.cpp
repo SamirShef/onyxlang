@@ -15,6 +15,8 @@ namespace onyx {
                 return parseFunDeclStmt();
             case TkRet:
                 return parseRetStmt();
+            case TkId:
+                return parseFunCallStmt();
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -107,6 +109,34 @@ namespace onyx {
             block.push_back(ParseStmt());
         }
         return createNode<FunDeclStmt>(name, retType, args, block, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseFunCallStmt() {
+        Token nameToken = consume();
+        if (_curTok.GetKind() == TkLParen) {
+            consume();
+            std::vector<Expr *> args;
+            while (!expect(TkRParen)) {
+                args.push_back(parseExpr(PrecLowest));
+                if (!_curTok.Is(TkRParen)) {
+                    if (!expect(TkComma)) {
+                        _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                            << getRangeFromTok(_curTok)
+                            << ","                  // expected
+                            << _curTok.GetText();   // got
+                    }
+                }
+            }
+            if (!expect(TkSemi)) {
+                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                    << getRangeFromTok(_curTok)
+                    << ";"                  // expected
+                    << _curTok.GetText();   // got
+            }
+            return createNode<FunCallStmt>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
+        }
+        return nullptr;
     }
 
     Stmt *

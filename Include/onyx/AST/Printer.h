@@ -12,6 +12,9 @@ namespace onyx {
         visitFunDeclStmt(FunDeclStmt *fds);
 
         void
+        visitFunCallStmt(FunCallStmt *fcs);
+
+        void
         visitRetStmt(RetStmt *rs);
 
         void

@@ -29,6 +29,11 @@ namespace onyx {
     }
 
     llvm::Value *
+    CodeGen::visitFunCallStmt(FunCallStmt *fcs) {
+        
+    }
+
+    llvm::Value *
     CodeGen::visitRetStmt(RetStmt *rs) {
         
     }

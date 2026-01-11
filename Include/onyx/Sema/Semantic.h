@@ -39,6 +39,9 @@ namespace onyx {
         visitFunDeclStmt(FunDeclStmt *fds);
 
         std::optional<ASTVal>
+        visitFunCallStmt(FunCallStmt *fcs);
+
+        std::optional<ASTVal>
         visitRetStmt(RetStmt *rs);
         
         std::optional<ASTVal>

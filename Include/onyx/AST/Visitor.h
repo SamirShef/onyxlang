@@ -12,6 +12,8 @@ namespace onyx {
                     return static_cast<Derived*>(this)->visitVarDeclStmt(static_cast<VarDeclStmt *>(node));
                 case NkFunDeclStmt:
                     return static_cast<Derived*>(this)->visitFunDeclStmt(static_cast<FunDeclStmt *>(node));
+                case NkFunCallStmt:
+                    return static_cast<Derived*>(this)->visitFunCallStmt(static_cast<FunCallStmt *>(node));
                 case NkRetStmt:
                     return static_cast<Derived*>(this)->visitRetStmt(static_cast<RetStmt *>(node));
                 case NkBinaryExpr:

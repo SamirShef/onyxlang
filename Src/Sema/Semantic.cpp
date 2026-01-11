@@ -62,6 +62,12 @@ namespace onyx {
     }
 
     std::optional<ASTVal>
+    SemanticAnalyzer::visitFunCallStmt(FunCallStmt *fcs) {
+        visitFunCallExpr(new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc()));
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
     SemanticAnalyzer::visitRetStmt(RetStmt *rs) {
         ASTVal val = ASTVal::GetDefaultByType(ASTType::GetNothType());
         if (rs->GetExpr()) {
