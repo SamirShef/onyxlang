@@ -6,7 +6,7 @@ namespace onyx {
         llvm::Value *initializer = nullptr;
         if (vds->GetExpr()) {
             initializer = visit(vds->GetExpr());
-            // TODO: create implicitly cast initializer value to target type
+            initializer = implicitlyCast(initializer, typeKindToLLVM(vds->GetType().GetTypeKind()));
         }
         else {
             initializer = llvm::Constant::getNullValue(typeKindToLLVM(vds->GetType().GetTypeKind()));
@@ -30,7 +30,7 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::visitFunCallStmt(FunCallStmt *fcs) {
-        
+
     }
 
     llvm::Value *
@@ -42,39 +42,81 @@ namespace onyx {
     CodeGen::visitBinaryExpr(BinaryExpr *be) {
         llvm::Value *lhs = visit(be->GetLHS());
         llvm::Value *rhs = visit(be->GetRHS());
-        // TODO: create implicitly cast values to common type
+        llvm::Type *lhsType = lhs->getType();
+        llvm::Type *rhsType = rhs->getType();
+        llvm::Type *commonType = getCommonType(lhsType, rhsType);
+        if (lhsType != commonType) {
+            lhs = implicitlyCast(lhs, commonType);
+            lhsType = lhs->getType();
+        }
+        else if (rhsType != commonType) {
+            rhs = implicitlyCast(rhs, commonType);
+            rhsType = rhs->getType();
+        }
         switch (be->GetOp().GetKind()) {
-            // TODO: create logic for floating point numbers
             case TkPlus:
-                return _builder.CreateAdd(lhs, rhs, "add.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFAdd(lhs, rhs);
+                }
+                return _builder.CreateAdd(lhs, rhs);
             case TkMinus:
-                return _builder.CreateSub(lhs, rhs, "sub.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFSub(lhs, rhs);
+                }
+                return _builder.CreateSub(lhs, rhs);
             case TkStar:
-                return _builder.CreateMul(lhs, rhs, "mul.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFMul(lhs, rhs);
+                }
+                return _builder.CreateMul(lhs, rhs);
             case TkSlash:
-                return _builder.CreateSDiv(lhs, rhs, "sdiv.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFDiv(lhs, rhs);
+                }
+                return _builder.CreateSDiv(lhs, rhs);
             case TkPercent:
-                return _builder.CreateSRem(lhs, rhs, "srem.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFRem(lhs, rhs);
+                }
+                return _builder.CreateSRem(lhs, rhs);
             case TkLogAnd:
-                return _builder.CreateLogicalAnd(lhs, rhs, "logical_and.tmp");
+                return _builder.CreateLogicalAnd(lhs, rhs);
             case TkLogOr:
-                return _builder.CreateLogicalOr(lhs, rhs, "logical_or.tmp");
+                return _builder.CreateLogicalOr(lhs, rhs);
             case TkAnd:
-                return _builder.CreateAnd(lhs, rhs, "and.tmp");
+                return _builder.CreateAnd(lhs, rhs);
             case TkOr:
-                return _builder.CreateOr(lhs, rhs, "or.tmp");
+                return _builder.CreateOr(lhs, rhs);
             case TkGt:
-                return _builder.CreateICmpSGT(lhs, rhs, "sgt.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFCmpOGT(lhs, rhs);
+                }
+                return _builder.CreateICmpSGT(lhs, rhs);
             case TkGtEq:
-                return _builder.CreateICmpSGE(lhs, rhs, "sge.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFCmpOGE(lhs, rhs);
+                }
+                return _builder.CreateICmpSGE(lhs, rhs);
             case TkLt:
-                return _builder.CreateICmpSLT(lhs, rhs, "sgt.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFCmpOLT(lhs, rhs);
+                }
+                return _builder.CreateICmpSLT(lhs, rhs);
             case TkLtEq:
-                return _builder.CreateICmpSLE(lhs, rhs, "sle.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFCmpOLE(lhs, rhs);
+                }
+                return _builder.CreateICmpSLE(lhs, rhs);
             case TkEqEq:
-                return _builder.CreateICmpEQ(lhs, rhs, "eq.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFCmpOEQ(lhs, rhs);
+                }
+                return _builder.CreateICmpEQ(lhs, rhs);
             case TkNotEq:
-                return _builder.CreateICmpNE(lhs, rhs, "ne.tmp");
+                if (commonType->isFloatingPointTy()) {
+                    _builder.CreateFCmpONE(lhs, rhs);
+                }
+                return _builder.CreateICmpNE(lhs, rhs);
             default: {}
         }
         return nullptr;
@@ -85,9 +127,12 @@ namespace onyx {
         llvm::Value *rhs = visit(ue->GetRHS());
         switch (ue->GetOp().GetKind()) {
             case TkMinus:
-                return _builder.CreateNeg(rhs, "neg.tmp");
+                if (rhs->getType()->isFloatingPointTy()) {
+                    return _builder.CreateFNeg(rhs);
+                }
+                return _builder.CreateNeg(rhs);
             case TkBang:
-                return _builder.CreateNot(rhs, "not.tmp");
+                return _builder.CreateNot(rhs);
             default: {}
         }
         return nullptr;
@@ -122,13 +167,13 @@ namespace onyx {
             case ASTTypeKind::Bool:
                 return CONST_INT(getInt1Ty, boolVal);
             case ASTTypeKind::Char:
-                return CONST_INT(getInt8Ty, boolVal);
+                return CONST_INT(getInt8Ty, charVal);
             case ASTTypeKind::I16:
-                return CONST_INT(getInt16Ty, boolVal);
+                return CONST_INT(getInt16Ty, i16Val);
             case ASTTypeKind::I32:
-                return CONST_INT(getInt32Ty, boolVal);
+                return CONST_INT(getInt32Ty, i32Val);
             case ASTTypeKind::I64:
-                return CONST_INT(getInt64Ty, boolVal);
+                return CONST_INT(getInt64Ty, i64Val);
             case ASTTypeKind::F32:
                 return CONST_FP(getFloatTy, f32Val);
             case ASTTypeKind::F64:
@@ -143,6 +188,62 @@ namespace onyx {
     llvm::Value *
     CodeGen::visitFunCallExpr(FunCallExpr *fce) {
         
+    }
+
+    llvm::Type *
+    CodeGen::getCommonType(llvm::Type *left, llvm::Type *right) {
+        if (left == right) {
+            return left;
+        }
+        else if (left->isIntegerTy() || right->isIntegerTy()) {
+            if (left->isIntegerTy() && right->isIntegerTy()) {
+                unsigned leftWidth = left->getIntegerBitWidth();
+                unsigned rightWidth = right->getIntegerBitWidth();
+
+                return leftWidth > rightWidth ? left : right;
+            }
+            else if (left->isFloatingPointTy() || right->isFloatingPointTy()) {
+                return left->isFloatingPointTy() ? left : right;
+            }
+        }
+        else if (left->isFloatingPointTy() && right->isFloatingPointTy()) {
+            return left->isDoubleTy() && right->isFloatTy() ? left : right;
+        }
+        else if (left->isDoubleTy() || right->isDoubleTy()) {
+            return llvm::Type::getDoubleTy(_context);
+        }
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::implicitlyCast(llvm::Value *src, llvm::Type *expectType) {
+        llvm::Type *destType = src->getType();
+        if (destType == expectType) {
+            return src;
+        }
+        else if (destType->isIntegerTy() && expectType->isIntegerTy()) {
+            unsigned long valWidth = destType->getIntegerBitWidth();
+            unsigned long expectedWidth = expectType->getIntegerBitWidth();
+
+            if (valWidth > expectedWidth) {
+                return _builder.CreateTrunc(src, expectType, "trunc.tmp");
+            }
+            else {
+                return _builder.CreateSExt(src, expectType, "sext.tmp");
+            }
+        }
+        else if (destType->isFloatingPointTy() && expectType->isFloatingPointTy()) {
+            if (destType->isFloatTy() && expectType->isDoubleTy()) {
+                return _builder.CreateFPExt(src, expectType, "fpext.tmp");
+            }
+            else {
+                return _builder.CreateFPTrunc(src, expectType, "fptrunc.tmp");
+            }
+        }
+        else if (destType->isIntegerTy() && expectType->isFloatingPointTy()) {
+            return _builder.CreateSIToFP(src, expectType, "sitofp.tmp");
+        }
+        return nullptr;
     }
 
     llvm::SMRange

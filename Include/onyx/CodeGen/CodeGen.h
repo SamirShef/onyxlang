@@ -57,6 +57,12 @@ namespace onyx {
         llvm::Value *
         visitFunCallExpr(FunCallExpr *fce);
 
+        llvm::Type *
+        getCommonType(llvm::Type *left, llvm::Type *right);
+        
+        llvm::Value *
+        implicitlyCast(llvm::Value *src, llvm::Type *expectType);
+
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;
 

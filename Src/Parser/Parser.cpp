@@ -251,9 +251,8 @@ namespace onyx {
         }
 
         while (minPrec < GetTokPrecedence(_curTok.GetKind())) {
-            Token op = _curTok;
-            int prec = GetTokPrecedence(_curTok.GetKind());
-            consume();
+            Token op = consume();
+            int prec = GetTokPrecedence(op.GetKind());
 
             Expr *rhs = parseExpr(prec);
             lhs = createNode<BinaryExpr>(lhs, rhs, op, lhs->GetStartLoc(), _curTok.GetLoc());
