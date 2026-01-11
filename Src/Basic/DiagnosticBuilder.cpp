@@ -39,4 +39,10 @@ namespace onyx {
         _args.push_back(std::string(1, c));
         return *this;
     }
+
+    DiagnosticBuilder &
+    DiagnosticBuilder::operator<<(size_t s) {
+        _args.push_back(std::to_string(s));
+        return *this;
+    }
 }

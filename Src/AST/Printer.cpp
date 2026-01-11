@@ -35,6 +35,19 @@ namespace onyx {
     }
 
     void
+    ASTPrinter::visitRetStmt(RetStmt *rs) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(RetStmt: ";
+        if (rs->GetExpr()) {
+            int spaces = _spaces;
+            _spaces = 0;
+            visit(rs->GetExpr());
+            _spaces = spaces;
+        }
+        llvm::outs() << ')';
+    }
+
+    void
     ASTPrinter::visitBinaryExpr(BinaryExpr *be) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(BinaryExpr: ";

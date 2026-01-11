@@ -24,8 +24,12 @@ namespace onyx {
                 return ERR("expected type, but got `%0`");
             case ErrUndeclaredVariable:
                 return ERR("variable `%0` is undeclared");
+            case ErrUndeclaredFuntion:
+                return ERR("function `%0` is undeclared");
             case ErrRedefinitionVar:
                 return ERR("redefinition the variable `%0`");
+            case ErrRedefinitionFun:
+                return ERR("redefinition the function `%0`");
             case ErrTypeMismatchNotNum:
                 return ERR("expected number, but got `%0`");
             case ErrTypeMismatchNotBool:
@@ -34,6 +38,12 @@ namespace onyx {
                 return ERR("cannot implicitly cast `%0` to `%1`");
             case ErrUnsupportedTypeForOperator:
                 return ERR("operator `%0` does not support types `%1` and `%2`");
+            case ErrNotAllPathsReturnsValue:
+                return ERR("not all paths return a value");
+            case ErrFuntionCannotReturnValue:
+                return ERR("function cannot return a value");
+            case ErrFewArgs:
+                return ERR("function `%0` expected %1 arguments, but received %2");
         }
     }
 }

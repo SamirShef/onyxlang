@@ -12,6 +12,9 @@ namespace onyx {
         visitFunDeclStmt(FunDeclStmt *fds);
 
         void
+        visitRetStmt(RetStmt *rs);
+
+        void
         visitBinaryExpr(BinaryExpr *be);
 
         void

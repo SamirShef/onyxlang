@@ -35,6 +35,9 @@ namespace onyx {
 
         llvm::Value *
         visitFunDeclStmt(FunDeclStmt *fds);
+
+        llvm::Value *
+        visitRetStmt(RetStmt *rs);
                 
         llvm::Value *
         visitBinaryExpr(BinaryExpr *be);
