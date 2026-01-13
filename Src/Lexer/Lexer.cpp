@@ -62,15 +62,15 @@ namespace onyx {
                     _diag.Report(llvm::SMLoc::getFromPointer(_curPtr - 1), ErrIntegerSuffixForFloatingPoint)
                         << *(_curPtr - 1);
                 }
-                return TOKEN(TkI16);
+                return TOKEN(TkI16Lit);
             case 'f':
-                return TOKEN(TkF32);
+                return TOKEN(TkF32Lit);
             case 'd':
-                return TOKEN(TkF64);
+                return TOKEN(TkF64Lit);
         }
         --_curPtr;                              // returned, because the character is not a suffix
         if (hasDot) {
-            return TOKEN(TkF64);
+            return TOKEN(TkF64Lit);
         }
         return TOKEN(TkI32Lit);
         #undef TOKEN

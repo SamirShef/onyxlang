@@ -58,7 +58,7 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    onyx::CodeGen codegen(diag, fileName);
+    onyx::CodeGen codegen(fileName);
     for (auto &stmt : ast) {
         codegen.visit(stmt);
     }

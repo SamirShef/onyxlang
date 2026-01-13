@@ -7,7 +7,6 @@
 
 namespace onyx {
     class CodeGen : public ASTVisitor<CodeGen, llvm::Value *> {
-        DiagnosticEngine &_diag;
         llvm::LLVMContext _context;
         std::unique_ptr<llvm::Module> _module;
         llvm::IRBuilder<> _builder;
@@ -18,8 +17,8 @@ namespace onyx {
         std::stack<llvm::Type *> funRetsTypes;
 
     public:
-        explicit CodeGen(DiagnosticEngine &diag, std::string fileName) : _diag(diag), _context(), _builder(_context),
-                                                                         _module(std::make_unique<llvm::Module>(fileName, _context)) {
+        explicit CodeGen(std::string fileName) : _context(), _builder(_context),
+                                                 _module(std::make_unique<llvm::Module>(fileName, _context)) {
             _vars.push({});
         }
 

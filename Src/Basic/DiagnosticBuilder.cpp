@@ -2,7 +2,9 @@
 
 namespace onyx {
     DiagnosticBuilder::~DiagnosticBuilder() {
-        if (!_isActive) return;
+        if (!_isActive) {
+            return;
+        }
 
         std::string msg = _info.Format;
         for (size_t i = 0; i < _args.size(); ++i) {

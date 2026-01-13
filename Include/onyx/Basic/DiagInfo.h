@@ -5,7 +5,7 @@
 namespace onyx {
     struct DiagInfo {
         const llvm::SourceMgr::DiagKind Kind;
-        const char * const Format;
+        const char *Format;
 
         explicit DiagInfo(llvm::SourceMgr::DiagKind kind, const char *format) : Kind(kind), Format(format) {}
     };

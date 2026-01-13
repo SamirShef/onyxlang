@@ -101,34 +101,34 @@ namespace onyx {
             lhs = implicitlyCast(lhs, commonType);
             lhsType = lhs->getType();
         }
-        else if (rhsType != commonType) {
+        if (rhsType != commonType) {
             rhs = implicitlyCast(rhs, commonType);
             rhsType = rhs->getType();
         }
         switch (be->GetOp().GetKind()) {
             case TkPlus:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFAdd(lhs, rhs);
+                    return _builder.CreateFAdd(lhs, rhs);
                 }
                 return _builder.CreateAdd(lhs, rhs);
             case TkMinus:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFSub(lhs, rhs);
+                    return _builder.CreateFSub(lhs, rhs);
                 }
                 return _builder.CreateSub(lhs, rhs);
             case TkStar:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFMul(lhs, rhs);
+                    return _builder.CreateFMul(lhs, rhs);
                 }
                 return _builder.CreateMul(lhs, rhs);
             case TkSlash:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFDiv(lhs, rhs);
+                    return _builder.CreateFDiv(lhs, rhs);
                 }
                 return _builder.CreateSDiv(lhs, rhs);
             case TkPercent:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFRem(lhs, rhs);
+                    return _builder.CreateFRem(lhs, rhs);
                 }
                 return _builder.CreateSRem(lhs, rhs);
             case TkLogAnd:
@@ -141,32 +141,32 @@ namespace onyx {
                 return _builder.CreateOr(lhs, rhs);
             case TkGt:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFCmpOGT(lhs, rhs);
+                    return _builder.CreateFCmpOGT(lhs, rhs);
                 }
                 return _builder.CreateICmpSGT(lhs, rhs);
             case TkGtEq:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFCmpOGE(lhs, rhs);
+                    return _builder.CreateFCmpOGE(lhs, rhs);
                 }
                 return _builder.CreateICmpSGE(lhs, rhs);
             case TkLt:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFCmpOLT(lhs, rhs);
+                    return _builder.CreateFCmpOLT(lhs, rhs);
                 }
                 return _builder.CreateICmpSLT(lhs, rhs);
             case TkLtEq:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFCmpOLE(lhs, rhs);
+                    return _builder.CreateFCmpOLE(lhs, rhs);
                 }
                 return _builder.CreateICmpSLE(lhs, rhs);
             case TkEqEq:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFCmpOEQ(lhs, rhs);
+                    return _builder.CreateFCmpOEQ(lhs, rhs);
                 }
                 return _builder.CreateICmpEQ(lhs, rhs);
             case TkNotEq:
                 if (commonType->isFloatingPointTy()) {
-                    _builder.CreateFCmpONE(lhs, rhs);
+                    return _builder.CreateFCmpONE(lhs, rhs);
                 }
                 return _builder.CreateICmpNE(lhs, rhs);
             default: {}
