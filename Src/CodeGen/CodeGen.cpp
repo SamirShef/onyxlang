@@ -92,12 +92,73 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitIfElseStmt(IfElseStmt *ies) {
-        
+        llvm::Function *parent = _builder.GetInsertBlock()->getParent();
+        llvm::Value *cond = Visit(ies->GetCondition());
+        llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(_context, "then", parent);
+        llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(_context, "else", parent);
+        llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(_context, "merge", parent);
+        _builder.CreateCondBr(cond, thenBB, elseBB);
+
+        _builder.SetInsertPoint(thenBB);
+        _vars.push({});
+        for (auto &stmt : ies->GetThenBody()) {
+            Visit(stmt);
+        }
+        _vars.pop();
+        if (!_builder.GetInsertBlock()->getTerminator()) {
+            _builder.CreateBr(mergeBB);
+        }
+
+        _builder.SetInsertPoint(elseBB);
+        _vars.push({});
+        for (auto &stmt : ies->GetElseBody()) {
+            Visit(stmt);
+        }
+        _vars.pop();
+        if (!_builder.GetInsertBlock()->getTerminator()) {
+            _builder.CreateBr(mergeBB);
+        }
+
+        _builder.SetInsertPoint(mergeBB);
+        return nullptr;
     }
 
     llvm::Value *
     CodeGen::VisitForLoopStmt(ForLoopStmt *fls) {
-        
+        llvm::Function *parent = _builder.GetInsertBlock()->getParent();
+        llvm::BasicBlock *indexatorBB = llvm::BasicBlock::Create(_context, "indexator", parent);
+        llvm::BasicBlock *condBB = llvm::BasicBlock::Create(_context, "cond", parent);
+        llvm::BasicBlock *iterationBB = llvm::BasicBlock::Create(_context, "iteration", parent);
+        llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(_context, "body", parent);
+        llvm::BasicBlock *exitBB = llvm::BasicBlock::Create(_context, "exit", parent);
+
+        _builder.CreateBr(indexatorBB);
+        _builder.SetInsertPoint(indexatorBB);
+        if (fls->GetIndexator()) {
+            Visit(fls->GetIndexator());
+        }
+
+        _builder.CreateBr(condBB);
+        _builder.SetInsertPoint(condBB);
+        llvm::Value *cond = Visit(fls->GetCondition());
+
+        _builder.CreateCondBr(cond, bodyBB, exitBB);
+        _builder.SetInsertPoint(bodyBB);
+        _vars.push({});
+        for (auto &stmt : fls->GetBody()) {
+            Visit(stmt);
+        }
+        _vars.pop();
+
+        _builder.CreateBr(iterationBB);
+        _builder.SetInsertPoint(iterationBB);
+        if (fls->GetIteration()) {
+            Visit(fls->GetIteration());
+        }
+
+        _builder.CreateBr(condBB);
+        _builder.SetInsertPoint(exitBB);
+        return nullptr;
     }
     
     llvm::Value *
