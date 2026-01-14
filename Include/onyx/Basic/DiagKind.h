@@ -22,6 +22,7 @@ namespace onyx {
         ErrNotAllPathsReturnsValue,
         ErrFuntionCannotReturnValue,
         ErrFewArgs,
-        ErrAssignmentConst
+        ErrAssignmentConst,
+        ErrCannotBeHere,
     };
 }

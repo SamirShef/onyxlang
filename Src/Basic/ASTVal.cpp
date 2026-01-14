@@ -67,6 +67,7 @@ namespace onyx {
                     return VAL(f32Val, float);
                 case ASTTypeKind::F64:
                     return VAL(f64Val, double);
+                #undef VAL
             }
         }
         return ASTVal::GetDefaultByType(ASTType::GetNothType());
