@@ -56,6 +56,26 @@ namespace onyx {
                 return parseIfElseStmt();
             case TkFor:
                 return parseForLoopStmt();
+            case TkBreak: {
+                Token firstTok = consume();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return createNode<BreakStmt>(firstTok.GetLoc(), _curTok.GetLoc());
+            }
+            case TkContinue: {
+                Token firstTok = consume();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return createNode<ContinueStmt>(firstTok.GetLoc(), _curTok.GetLoc());
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)

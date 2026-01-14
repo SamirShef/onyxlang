@@ -8,6 +8,8 @@
 #include <onyx/AST/Statements/RetStmt.h>
 #include <onyx/AST/Statements/IfElseStmt.h>
 #include <onyx/AST/Statements/ForLoopStmt.h>
+#include <onyx/AST/Statements/BreakStmt.h>
+#include <onyx/AST/Statements/ContinueStmt.h>
 
 #include <onyx/AST/Expressions/BinaryExpr.h>
 #include <onyx/AST/Expressions/LiteralExpr.h>

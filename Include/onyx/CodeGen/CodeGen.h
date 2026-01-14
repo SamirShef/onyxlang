@@ -16,6 +16,8 @@ namespace onyx {
         std::unordered_map<std::string, llvm::Function *> functions;
         std::stack<llvm::Type *> funRetsTypes;
 
+        std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
+
     public:
         explicit CodeGen(std::string fileName) : _context(), _builder(_context),
                                                  _module(std::make_unique<llvm::Module>(fileName, _context)) {
@@ -47,6 +49,12 @@ namespace onyx {
         
         llvm::Value *
         VisitForLoopStmt(ForLoopStmt *fls);
+
+        llvm::Value *
+        VisitBreakStmt(BreakStmt *bs);
+
+        llvm::Value *
+        VisitContinueStmt(ContinueStmt *cs);
                 
         llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);

@@ -27,6 +27,12 @@ namespace onyx {
         VisitForLoopStmt(ForLoopStmt *fls);
 
         void
+        VisitBreakStmt(BreakStmt *bs);
+
+        void
+        VisitContinueStmt(ContinueStmt *cs);
+
+        void
         VisitBinaryExpr(BinaryExpr *be);
 
         void

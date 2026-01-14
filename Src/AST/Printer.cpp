@@ -128,6 +128,18 @@ namespace onyx {
     }
 
     void
+    ASTPrinter::VisitBreakStmt(BreakStmt *bs) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(BreakStmt)";
+    }
+
+    void
+    ASTPrinter::VisitContinueStmt(ContinueStmt *cs) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(ContinueStmt)";
+    }
+
+    void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(BinaryExpr: ";

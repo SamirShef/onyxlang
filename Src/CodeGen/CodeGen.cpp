@@ -145,9 +145,11 @@ namespace onyx {
         _builder.CreateCondBr(cond, bodyBB, exitBB);
         _builder.SetInsertPoint(bodyBB);
         _vars.push({});
+        _loopDeth.push({ exitBB, iterationBB });
         for (auto &stmt : fls->GetBody()) {
             Visit(stmt);
         }
+        _loopDeth.pop();
         _vars.pop();
 
         _builder.CreateBr(iterationBB);
@@ -158,6 +160,18 @@ namespace onyx {
 
         _builder.CreateBr(condBB);
         _builder.SetInsertPoint(exitBB);
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitBreakStmt(BreakStmt *bs) {
+        _builder.CreateBr(_loopDeth.top().first);
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitContinueStmt(ContinueStmt *cs) {
+        _builder.CreateBr(_loopDeth.top().second);
         return nullptr;
     }
     
