@@ -6,33 +6,39 @@ namespace onyx {
         int _spaces = 0;
     public:
         void
-        visitVarDeclStmt(VarDeclStmt *vds);
+        VisitVarDeclStmt(VarDeclStmt *vds);
 
         void
-        visitVarAsgnStmt(VarAsgnStmt *vas);
+        VisitVarAsgnStmt(VarAsgnStmt *vas);
 
         void
-        visitFunDeclStmt(FunDeclStmt *fds);
+        VisitFunDeclStmt(FunDeclStmt *fds);
 
         void
-        visitFunCallStmt(FunCallStmt *fcs);
+        VisitFunCallStmt(FunCallStmt *fcs);
 
         void
-        visitRetStmt(RetStmt *rs);
+        VisitRetStmt(RetStmt *rs);
 
         void
-        visitBinaryExpr(BinaryExpr *be);
+        VisitIfElseStmt(IfElseStmt *ies);
+        
+        void
+        VisitForLoopStmt(ForLoopStmt *fls);
 
         void
-        visitUnaryExpr(UnaryExpr *ue);
+        VisitBinaryExpr(BinaryExpr *be);
 
         void
-        visitVarExpr(VarExpr *ve);
+        VisitUnaryExpr(UnaryExpr *ue);
 
         void
-        visitLiteralExpr(LiteralExpr *le);
+        VisitVarExpr(VarExpr *ve);
 
         void
-        visitFunCallExpr(FunCallExpr *fce);
+        VisitLiteralExpr(LiteralExpr *le);
+
+        void
+        VisitFunCallExpr(FunCallExpr *fce);
     };
 }

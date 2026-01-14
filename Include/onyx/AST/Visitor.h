@@ -6,28 +6,32 @@ namespace onyx {
     class ASTVisitor {
     public:
         RetType
-        visit(Node *node) {
+        Visit(Node *node) {
             switch (node->GetKind()) {
                 case NkVarDeclStmt:
-                    return static_cast<Derived*>(this)->visitVarDeclStmt(static_cast<VarDeclStmt *>(node));
+                    return static_cast<Derived *>(this)->VisitVarDeclStmt(static_cast<VarDeclStmt *>(node));
                 case NkVarAsgnStmt:
-                    return static_cast<Derived*>(this)->visitVarAsgnStmt(static_cast<VarAsgnStmt *>(node));
+                    return static_cast<Derived *>(this)->VisitVarAsgnStmt(static_cast<VarAsgnStmt *>(node));
                 case NkFunDeclStmt:
-                    return static_cast<Derived*>(this)->visitFunDeclStmt(static_cast<FunDeclStmt *>(node));
+                    return static_cast<Derived *>(this)->VisitFunDeclStmt(static_cast<FunDeclStmt *>(node));
                 case NkFunCallStmt:
-                    return static_cast<Derived*>(this)->visitFunCallStmt(static_cast<FunCallStmt *>(node));
+                    return static_cast<Derived *>(this)->VisitFunCallStmt(static_cast<FunCallStmt *>(node));
                 case NkRetStmt:
-                    return static_cast<Derived*>(this)->visitRetStmt(static_cast<RetStmt *>(node));
+                    return static_cast<Derived *>(this)->VisitRetStmt(static_cast<RetStmt *>(node));
+                case NkIfElseStmt:
+                    return static_cast<Derived *>(this)->VisitIfElseStmt(static_cast<IfElseStmt *>(node));
+                case NkForLoopStmt:
+                    return static_cast<Derived *>(this)->VisitForLoopStmt(static_cast<ForLoopStmt *>(node));
                 case NkBinaryExpr:
-                    return static_cast<Derived*>(this)->visitBinaryExpr(static_cast<BinaryExpr *>(node));
+                    return static_cast<Derived *>(this)->VisitBinaryExpr(static_cast<BinaryExpr *>(node));
                 case NkUnaryExpr:
-                    return static_cast<Derived*>(this)->visitUnaryExpr(static_cast<UnaryExpr *>(node));
+                    return static_cast<Derived *>(this)->VisitUnaryExpr(static_cast<UnaryExpr *>(node));
                 case NkVarExpr:
-                    return static_cast<Derived*>(this)->visitVarExpr(static_cast<VarExpr *>(node));
+                    return static_cast<Derived *>(this)->VisitVarExpr(static_cast<VarExpr *>(node));
                 case NkLiteralExpr:
-                    return static_cast<Derived*>(this)->visitLiteralExpr(static_cast<LiteralExpr *>(node));
+                    return static_cast<Derived *>(this)->VisitLiteralExpr(static_cast<LiteralExpr *>(node));
                 case NkFunCallExpr:
-                    return static_cast<Derived*>(this)->visitFunCallExpr(static_cast<FunCallExpr *>(node));
+                    return static_cast<Derived *>(this)->VisitFunCallExpr(static_cast<FunCallExpr *>(node));
                 default: {}
             }
         }

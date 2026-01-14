@@ -12,14 +12,14 @@ namespace onyx {
     };
     
     std::optional<ASTVal>
-    SemanticAnalyzer::visitVarDeclStmt(VarDeclStmt *vds) {
+    SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
         if (_vars.top().find(vds->GetName().str()) != _vars.top().end()) {
             _diag.Report(llvm::SMLoc::getFromPointer(vds->GetName().data()), ErrRedefinitionVar)
                 << getRange(llvm::SMLoc::getFromPointer(vds->GetName().data()), vds->GetName().size())
                 << vds->GetName();
         }
         else {
-            std::optional<ASTVal> val = vds->GetExpr() != nullptr ? visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
+            std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
             if (vds->GetExpr()) {
                 implicitlyCast(var.Val.value(), var.Type, vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
@@ -30,7 +30,7 @@ namespace onyx {
     }
 
     std::optional<ASTVal>
-    SemanticAnalyzer::visitVarAsgnStmt(VarAsgnStmt *vas) {
+    SemanticAnalyzer::VisitVarAsgnStmt(VarAsgnStmt *vas) {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(vas->GetName().str()); var != varsCopy.top().end()) {
@@ -39,7 +39,7 @@ namespace onyx {
                         << llvm::SMRange(vas->GetStartLoc(), vas->GetEndLoc());
                     return std::nullopt;
                 }
-                ASTVal val = visit(vas->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
+                ASTVal val = Visit(vas->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
                 val = implicitlyCast(val, var->second.Type, vas->GetExpr()->GetStartLoc(), vas->GetExpr()->GetEndLoc());
                 var->second.Val = val;
                 return std::nullopt;
@@ -53,7 +53,7 @@ namespace onyx {
     }
 
     std::optional<ASTVal>
-    SemanticAnalyzer::visitFunDeclStmt(FunDeclStmt *fds) {
+    SemanticAnalyzer::VisitFunDeclStmt(FunDeclStmt *fds) {
         if (functions.find(fds->GetName().str()) != functions.end()) {
             _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
                 << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
@@ -73,7 +73,7 @@ namespace onyx {
                 if (stmt->GetKind() == NkRetStmt) {
                     hasRet = true;
                 }
-                visit(stmt);
+                Visit(stmt);
             }
             funRetsTypes.pop();
             _vars.pop();
@@ -87,31 +87,41 @@ namespace onyx {
     }
 
     std::optional<ASTVal>
-    SemanticAnalyzer::visitFunCallStmt(FunCallStmt *fcs) {
+    SemanticAnalyzer::VisitFunCallStmt(FunCallStmt *fcs) {
         FunCallExpr *expr = new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc());
-        visitFunCallExpr(expr);
+        VisitFunCallExpr(expr);
         delete expr;
         return std::nullopt;
     }
 
     std::optional<ASTVal>
-    SemanticAnalyzer::visitRetStmt(RetStmt *rs) {
+    SemanticAnalyzer::VisitRetStmt(RetStmt *rs) {
         ASTVal val = ASTVal::GetDefaultByType(ASTType::GetNothType());
         if (rs->GetExpr()) {
-            val = visit(rs->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
+            val = Visit(rs->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
         }
         implicitlyCast(val, funRetsTypes.top(), rs->GetStartLoc(), rs->GetEndLoc());
         return std::nullopt;
     }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitIfElseStmt(IfElseStmt *ies) {
+        
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitForLoopStmt(ForLoopStmt *fls) {
+        
+    }
     
     std::optional<ASTVal>
-    SemanticAnalyzer::visitBinaryExpr(BinaryExpr *be) {
+    SemanticAnalyzer::VisitBinaryExpr(BinaryExpr *be) {
         checkBinaryExpr(be);
-        std::optional<ASTVal> lhs = visit(be->GetLHS());
+        std::optional<ASTVal> lhs = Visit(be->GetLHS());
         if (lhs == std::nullopt) {
             return lhs;
         }
-        std::optional<ASTVal> rhs = visit(be->GetRHS());
+        std::optional<ASTVal> rhs = Visit(be->GetRHS());
         if (rhs == std::nullopt) {
             return rhs;
         }
@@ -172,8 +182,8 @@ namespace onyx {
     }
     
     std::optional<ASTVal>
-    SemanticAnalyzer::visitUnaryExpr(UnaryExpr *ue) {
-        std::optional<ASTVal> rhs = visit(ue->GetRHS());
+    SemanticAnalyzer::VisitUnaryExpr(UnaryExpr *ue) {
+        std::optional<ASTVal> rhs = Visit(ue->GetRHS());
         if (rhs == std::nullopt) {
             return rhs;
         }
@@ -201,7 +211,7 @@ namespace onyx {
     }
     
     std::optional<ASTVal>
-    SemanticAnalyzer::visitVarExpr(VarExpr *ve) {
+    SemanticAnalyzer::VisitVarExpr(VarExpr *ve) {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName().str()); var != varsCopy.top().end()) {
@@ -216,12 +226,12 @@ namespace onyx {
     }
     
     std::optional<ASTVal>
-    SemanticAnalyzer::visitLiteralExpr(LiteralExpr *le) {
+    SemanticAnalyzer::VisitLiteralExpr(LiteralExpr *le) {
         return le->GetVal();
     }
 
     std::optional<ASTVal>
-    SemanticAnalyzer::visitFunCallExpr(FunCallExpr *fce) {
+    SemanticAnalyzer::VisitFunCallExpr(FunCallExpr *fce) {
         if (functions.find(fce->GetName().str()) != functions.end()) {
             _vars.push({});
             Function fun = functions.at(fce->GetName().str());
@@ -234,7 +244,7 @@ namespace onyx {
                 return std::nullopt;
             }
             for (int i = 0; i < fun.Args.size(); ++i) {
-                std::optional<ASTVal> val = visit(fce->GetArgs()[i]);
+                std::optional<ASTVal> val = Visit(fce->GetArgs()[i]);
                 implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), fun.Args[i].GetType(),
                                fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
                 _vars.top().emplace(fun.Args[i].GetName(), Variable { .Name = fun.Args[i].GetName(), .Type = fun.Args[i].GetType(),
@@ -243,14 +253,14 @@ namespace onyx {
             for (auto stmt : fun.Body) {
                 if (stmt->GetKind() == NkRetStmt) {
                     Expr *expr = llvm::dyn_cast<RetStmt>(stmt)->GetExpr();
-                    std::optional<ASTVal> val = expr ? visit(expr) : ASTVal::GetDefaultByType(ASTType::GetNothType());
+                    std::optional<ASTVal> val = expr ? Visit(expr) : ASTVal::GetDefaultByType(ASTType::GetNothType());
                     implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), fun.RetType, fce->GetStartLoc(),
                                    fce->GetEndLoc());
                     _vars.pop();
                     return val;
                 }
                 else {
-                    visit(stmt);
+                    Visit(stmt);
                 }
             }
             _vars.pop();
@@ -270,8 +280,8 @@ namespace onyx {
 
     void
     SemanticAnalyzer::checkBinaryExpr(BinaryExpr *be) {
-        ASTVal lhs = visit(be->GetLHS()).value();
-        ASTVal rhs = visit(be->GetRHS()).value();
+        ASTVal lhs = Visit(be->GetLHS()).value();
+        ASTVal rhs = Visit(be->GetRHS()).value();
         switch (be->GetOp().GetKind()) {
             case TkPlus:
             case TkMinus:

@@ -3,23 +3,59 @@
 
 namespace onyx {
     Stmt *
-    Parser::ParseStmt() {
+    Parser::ParseStmt(bool consumeSemi) {
         if (_curTok.Is(TkEof)) {
             return nullptr;
         }
         switch (_curTok.GetKind()) {
             case TkVar:
-            case TkConst:
-                return parseVarDeclStmt();
-            case TkFun:
-                return parseFunDeclStmt();
-            case TkRet:
-                return parseRetStmt();
-            case TkId:
-                if (_nextTok.Is(TkLParen)) {
-                    return parseFunCallStmt();
+            case TkConst: {
+                Stmt *stmt = parseVarDeclStmt();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
                 }
-                return parseVarAsgn();
+                return stmt;
+            }
+            case TkFun: {
+                return parseFunDeclStmt();
+            }
+            case TkRet: {
+                Stmt *stmt = parseRetStmt();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return stmt;
+            }
+            case TkId: {
+                if (_nextTok.Is(TkLParen)) {
+                    Stmt *stmt = parseFunCallStmt();
+                    if (consumeSemi && !expect(TkSemi)) {
+                        _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                            << getRangeFromTok(_curTok)
+                            << ";"                  // expected
+                            << _curTok.GetText();   // got
+                    }
+                    return stmt;
+                }
+                Stmt *stmt = parseVarAsgn();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return stmt;
+            }
+            case TkIf:
+                return parseIfElseStmt();
+            case TkFor:
+                return parseForLoopStmt();
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -59,12 +95,6 @@ namespace onyx {
         if (expect(TkEq)) {
             expr = parseExpr(PrecLowest);
         }
-        if (!expect(TkSemi)) {
-            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                << getRangeFromTok(_curTok)
-                << ";"                  // expected
-                << _curTok.GetText();   // got
-        }
         return createNode<VarDeclStmt>(name, isConst, type, expr, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -79,12 +109,6 @@ namespace onyx {
         }
         Token op = consume();
         Expr *expr = parseExpr(PrecLowest);
-        if (!expect(TkSemi)) {
-            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                << getRangeFromTok(_curTok)
-                << ";"                  // expected
-                << _curTok.GetText();   // got
-        }
         if (op.GetKind() != TkEq && isAssignmentOp(op.GetKind())) {
             expr = createCompoundAssignmentOp(op, createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
         }
@@ -153,12 +177,6 @@ namespace onyx {
                 }
             }
         }
-        if (!expect(TkSemi)) {
-            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                << getRangeFromTok(_curTok)
-                << ";"                  // expected
-                << _curTok.GetText();   // got
-        }
         return createNode<FunCallStmt>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
     }
 
@@ -169,13 +187,76 @@ namespace onyx {
         if (!_curTok.Is(TkSemi)) {
             expr = parseExpr(PrecLowest);
         }
-        if (!expect(TkSemi)) {
+        return createNode<RetStmt>(expr, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseIfElseStmt() {
+        Token firstTok = consume();
+        Expr *cond = parseExpr(PrecLowest);
+        std::vector<Stmt *> thenBranch;
+        if (!expect(TkLBrace)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                 << getRangeFromTok(_curTok)
-                << ";"                  // expected
+                << "{"                  // expected
                 << _curTok.GetText();   // got
         }
-        return createNode<RetStmt>(expr, firstTok.GetLoc(), _curTok.GetLoc());
+        else {
+            while (!expect(TkRBrace)) {
+                thenBranch.push_back(ParseStmt());
+            }
+        }
+        std::vector<Stmt *> elseBranch;
+        if (expect(TkElse)) {
+            if (expect(TkLBrace)) {
+                while (!expect(TkRBrace)) {
+                    elseBranch.push_back(ParseStmt());
+                }
+            }
+            else {
+                elseBranch.push_back(ParseStmt());
+            }
+        }
+        return createNode<IfElseStmt>(cond, thenBranch, elseBranch, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseForLoopStmt() {
+        Token firstTok = consume();
+        Stmt *indexator = nullptr;
+        if (_curTok.Is(TkVar) || _curTok.Is(TkId) && isAssignmentOp(_nextTok.GetKind())) {
+            indexator = ParseStmt(false);
+            if (!expect(TkComma)) {
+                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                    << getRangeFromTok(_curTok)
+                    << ","                  // expected
+                    << _curTok.GetText();   // got
+            }
+        }
+        Expr *cond = parseExpr(PrecLowest);
+        Stmt *iteration = nullptr;
+        if (!_curTok.Is(TkLBrace)) {
+            if (!expect(TkComma)) {
+                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                    << getRangeFromTok(_curTok)
+                    << ","                  // expected
+                    << _curTok.GetText();   // got
+            }
+            iteration = ParseStmt(false);
+        }
+        std::vector<Stmt *> block;
+        if (!expect(TkLBrace)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "{"                  // expected
+                << _curTok.GetText();   // got
+        }
+        else {
+            while (!expect(TkRBrace)) {
+                block.push_back(ParseStmt());
+            }
+        }
+        return createNode<ForLoopStmt>(indexator, cond, iteration, block, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument
