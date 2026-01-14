@@ -11,6 +11,8 @@ namespace onyx {
         NkRetStmt,
         NkIfElseStmt,
         NkForLoopStmt,
+        NkBreakStmt,
+        NkContinueStmt,
         NkEndStmts,
 
         NkStartExprs,

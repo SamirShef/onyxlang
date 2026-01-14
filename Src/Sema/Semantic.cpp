@@ -132,6 +132,7 @@ namespace onyx {
                 << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
         }
         _vars.push({});
+        ++_loopDeth;
         if (fls->GetIndexator()) {
             Visit(fls->GetIndexator());
         }
@@ -143,7 +144,26 @@ namespace onyx {
         for (auto &stmt : fls->GetBody()) {
             Visit(stmt);
         }
+        --_loopDeth;
         _vars.pop();
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitBreakStmt(BreakStmt *bs) {
+        if (_loopDeth == 0) {
+            _diag.Report(bs->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(bs->GetStartLoc(), bs->GetEndLoc());
+        }
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitContinueStmt(ContinueStmt *cs) {
+        if (_loopDeth == 0) {
+            _diag.Report(cs->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(cs->GetStartLoc(), cs->GetEndLoc());
+        }
         return std::nullopt;
     }
     

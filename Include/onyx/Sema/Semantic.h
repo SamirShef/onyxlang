@@ -27,6 +27,8 @@ namespace onyx {
         std::unordered_map<std::string, Function> functions;
         std::stack<ASTType> funRetsTypes;
 
+        int _loopDeth = 0;
+        
     public:
         explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {
             _vars.push({});
@@ -52,6 +54,12 @@ namespace onyx {
 
         std::optional<ASTVal>
         VisitForLoopStmt(ForLoopStmt *fls);
+
+        std::optional<ASTVal>
+        VisitBreakStmt(BreakStmt *bs);
+
+        std::optional<ASTVal>
+        VisitContinueStmt(ContinueStmt *cs);
         
         std::optional<ASTVal>
         VisitBinaryExpr(BinaryExpr *be);
