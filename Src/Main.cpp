@@ -51,7 +51,7 @@ main(int argc, char **argv) {
 
     onyx::SemanticAnalyzer sema(diag);
     for (auto &stmt : ast) {
-        sema.visit(stmt);
+        sema.Visit(stmt);
     }
     if (diag.HasErrors()) {
         return 1;
@@ -60,7 +60,7 @@ main(int argc, char **argv) {
 
     onyx::CodeGen codegen(fileName);
     for (auto &stmt : ast) {
-        codegen.visit(stmt);
+        codegen.Visit(stmt);
     }
     if (diag.HasErrors()) {
         return 1;
@@ -98,7 +98,7 @@ main(int argc, char **argv) {
     if (onyx::EmitAction == onyx::EmitAST) {
         onyx::ASTPrinter printer;
         for (auto stmt : ast) {
-            printer.visit(stmt);
+            printer.Visit(stmt);
             llvm::outs() << '\n';
         }
         return 0; 

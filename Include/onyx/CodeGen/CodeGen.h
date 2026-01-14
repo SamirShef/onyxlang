@@ -28,35 +28,42 @@ namespace onyx {
         }
 
         llvm::Value *
-        visitVarDeclStmt(VarDeclStmt *vds);
+        VisitVarDeclStmt(VarDeclStmt *vds);
 
         llvm::Value *
-        visitVarAsgnStmt(VarAsgnStmt *vas);
+        VisitVarAsgnStmt(VarAsgnStmt *vas);
 
         llvm::Value *
-        visitFunDeclStmt(FunDeclStmt *fds);
+        VisitFunDeclStmt(FunDeclStmt *fds);
 
         llvm::Value *
-        visitFunCallStmt(FunCallStmt *fcs);
+        VisitFunCallStmt(FunCallStmt *fcs);
 
         llvm::Value *
-        visitRetStmt(RetStmt *rs);
+        VisitRetStmt(RetStmt *rs);
+
+        llvm::Value *
+        VisitIfElseStmt(IfElseStmt *ies);
+        
+        llvm::Value *
+        VisitForLoopStmt(ForLoopStmt *fls);
                 
         llvm::Value *
-        visitBinaryExpr(BinaryExpr *be);
+        VisitBinaryExpr(BinaryExpr *be);
                 
         llvm::Value *
-        visitUnaryExpr(UnaryExpr *ue);
+        VisitUnaryExpr(UnaryExpr *ue);
                 
         llvm::Value *
-        visitVarExpr(VarExpr *ve);
+        VisitVarExpr(VarExpr *ve);
                 
         llvm::Value *
-        visitLiteralExpr(LiteralExpr *le);
+        VisitLiteralExpr(LiteralExpr *le);
 
         llvm::Value *
-        visitFunCallExpr(FunCallExpr *fce);
+        VisitFunCallExpr(FunCallExpr *fce);
 
+    private:
         llvm::Type *
         getCommonType(llvm::Type *left, llvm::Type *right);
         

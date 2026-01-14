@@ -2,10 +2,10 @@
 
 namespace onyx {
     llvm::Value *
-    CodeGen::visitVarDeclStmt(VarDeclStmt *vds) {
+    CodeGen::VisitVarDeclStmt(VarDeclStmt *vds) {
         llvm::Value *initializer = nullptr;
         if (vds->GetExpr()) {
-            initializer = visit(vds->GetExpr());
+            initializer = Visit(vds->GetExpr());
             initializer = implicitlyCast(initializer, typeKindToLLVM(vds->GetType().GetTypeKind()));
         }
         else {
@@ -24,8 +24,8 @@ namespace onyx {
     }
 
     llvm::Value *
-    CodeGen::visitVarAsgnStmt(VarAsgnStmt *vas) {
-        llvm::Value *val = visit(vas->GetExpr());
+    CodeGen::VisitVarAsgnStmt(VarAsgnStmt *vas) {
+        llvm::Value *val = Visit(vas->GetExpr());
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(vas->GetName().str()); var != varsCopy.top().end()) {
@@ -42,7 +42,7 @@ namespace onyx {
     }
 
     llvm::Value *
-    CodeGen::visitFunDeclStmt(FunDeclStmt *fds) {
+    CodeGen::VisitFunDeclStmt(FunDeclStmt *fds) {
         std::vector<llvm::Type *> args(fds->GetArgs().size());
         for (int i = 0; i < fds->GetArgs().size(); ++i) {
             args[i] = typeKindToLLVM(fds->GetArgs()[i].GetType().GetTypeKind());
@@ -63,7 +63,7 @@ namespace onyx {
             ++index;
         }
         for (auto &stmt : fds->GetBody()) {
-            visit(stmt);
+            Visit(stmt);
         }
         if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Noth) {
             _builder.CreateRetVoid();
@@ -74,26 +74,36 @@ namespace onyx {
     }
 
     llvm::Value *
-    CodeGen::visitFunCallStmt(FunCallStmt *fcs) {
+    CodeGen::VisitFunCallStmt(FunCallStmt *fcs) {
         FunCallExpr *expr = new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc());
-        visit(expr);
+        Visit(expr);
         delete expr;
         return nullptr;
     }
 
     llvm::Value *
-    CodeGen::visitRetStmt(RetStmt *rs) {
+    CodeGen::VisitRetStmt(RetStmt *rs) {
         if (rs->GetExpr()) {
-            llvm::Value *val = visit(rs->GetExpr());
+            llvm::Value *val = Visit(rs->GetExpr());
             return _builder.CreateRet(implicitlyCast(val, funRetsTypes.top()));
         }
         return _builder.CreateRetVoid();
     }
+
+    llvm::Value *
+    CodeGen::VisitIfElseStmt(IfElseStmt *ies) {
+        
+    }
+
+    llvm::Value *
+    CodeGen::VisitForLoopStmt(ForLoopStmt *fls) {
+        
+    }
     
     llvm::Value *
-    CodeGen::visitBinaryExpr(BinaryExpr *be) {
-        llvm::Value *lhs = visit(be->GetLHS());
-        llvm::Value *rhs = visit(be->GetRHS());
+    CodeGen::VisitBinaryExpr(BinaryExpr *be) {
+        llvm::Value *lhs = Visit(be->GetLHS());
+        llvm::Value *rhs = Visit(be->GetRHS());
         llvm::Type *lhsType = lhs->getType();
         llvm::Type *rhsType = rhs->getType();
         llvm::Type *commonType = getCommonType(lhsType, rhsType);
@@ -175,8 +185,8 @@ namespace onyx {
     }
     
     llvm::Value *
-    CodeGen::visitUnaryExpr(UnaryExpr *ue) {
-        llvm::Value *rhs = visit(ue->GetRHS());
+    CodeGen::VisitUnaryExpr(UnaryExpr *ue) {
+        llvm::Value *rhs = Visit(ue->GetRHS());
         switch (ue->GetOp().GetKind()) {
             case TkMinus:
                 if (rhs->getType()->isFloatingPointTy()) {
@@ -191,7 +201,7 @@ namespace onyx {
     }
     
     llvm::Value *
-    CodeGen::visitVarExpr(VarExpr *ve) {
+    CodeGen::VisitVarExpr(VarExpr *ve) {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName().str()); var != varsCopy.top().end()) {
@@ -212,7 +222,7 @@ namespace onyx {
     }
     
     llvm::Value *
-    CodeGen::visitLiteralExpr(LiteralExpr *le) {
+    CodeGen::VisitLiteralExpr(LiteralExpr *le) {
         switch (le->GetVal().GetType().GetTypeKind()) {
             #define CONST_INT(func, field) llvm::ConstantInt::get(llvm::Type::func(_context), le->GetVal().GetData().field)
             #define CONST_FP(func, field) llvm::ConstantFP::get(llvm::Type::func(_context), le->GetVal().GetData().field)
@@ -238,10 +248,10 @@ namespace onyx {
     }
 
     llvm::Value *
-    CodeGen::visitFunCallExpr(FunCallExpr *fce) {
+    CodeGen::VisitFunCallExpr(FunCallExpr *fce) {
         std::vector<llvm::Value *> args(fce->GetArgs().size());
         for (int i = 0; i < fce->GetArgs().size(); ++i) {
-            args[i] = visit(fce->GetArgs()[i]);
+            args[i] = Visit(fce->GetArgs()[i]);
         }
         llvm::Function *fun = functions.at(fce->GetName().str());
         return _builder.CreateCall(fun, args, fce->GetName() + ".call");

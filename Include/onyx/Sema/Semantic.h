@@ -33,35 +33,42 @@ namespace onyx {
         }
         
         std::optional<ASTVal>
-        visitVarDeclStmt(VarDeclStmt *vds);
+        VisitVarDeclStmt(VarDeclStmt *vds);
 
         std::optional<ASTVal>
-        visitVarAsgnStmt(VarAsgnStmt *vas);
+        VisitVarAsgnStmt(VarAsgnStmt *vas);
 
         std::optional<ASTVal>
-        visitFunDeclStmt(FunDeclStmt *fds);
+        VisitFunDeclStmt(FunDeclStmt *fds);
 
         std::optional<ASTVal>
-        visitFunCallStmt(FunCallStmt *fcs);
+        VisitFunCallStmt(FunCallStmt *fcs);
 
         std::optional<ASTVal>
-        visitRetStmt(RetStmt *rs);
+        VisitRetStmt(RetStmt *rs);
+
+        std::optional<ASTVal>
+        VisitIfElseStmt(IfElseStmt *ies);
+
+        std::optional<ASTVal>
+        VisitForLoopStmt(ForLoopStmt *fls);
         
         std::optional<ASTVal>
-        visitBinaryExpr(BinaryExpr *be);
+        VisitBinaryExpr(BinaryExpr *be);
         
         std::optional<ASTVal>
-        visitUnaryExpr(UnaryExpr *ue);
+        VisitUnaryExpr(UnaryExpr *ue);
         
         std::optional<ASTVal>
-        visitVarExpr(VarExpr *ve);
+        VisitVarExpr(VarExpr *ve);
         
         std::optional<ASTVal>
-        visitLiteralExpr(LiteralExpr *le);
+        VisitLiteralExpr(LiteralExpr *le);
 
         std::optional<ASTVal>
-        visitFunCallExpr(FunCallExpr *fce);
+        VisitFunCallExpr(FunCallExpr *fce);
 
+    private:
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;
 

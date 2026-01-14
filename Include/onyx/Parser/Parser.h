@@ -20,7 +20,7 @@ namespace onyx {
         }
 
         Stmt *
-        ParseStmt();
+        ParseStmt(bool consumeSemi = true);
 
     private:
         template<typename T, typename ...Args>
@@ -41,6 +41,12 @@ namespace onyx {
         
         Stmt *
         parseRetStmt();
+
+        Stmt *
+        parseIfElseStmt();
+
+        Stmt *
+        parseForLoopStmt();
 
         Argument
         parseArgument();
