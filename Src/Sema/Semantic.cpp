@@ -106,12 +106,45 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitIfElseStmt(IfElseStmt *ies) {
-        
+        if (funRetsTypes.empty()) {
+            _diag.Report(ies->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
+        }
+        std::optional<ASTVal> cond = Visit(ies->GetCondition());
+        implicitlyCast(cond.value(), ASTType(ASTTypeKind::Bool, "bool", false), ies->GetCondition()->GetStartLoc(), ies->GetCondition()->GetEndLoc());
+        _vars.push({});
+        for (auto &stmt : ies->GetThenBody()) {
+            Visit(stmt);
+        }
+        _vars.pop();
+        _vars.push({});
+        for (auto &stmt : ies->GetElseBody()) {
+            Visit(stmt);
+        }
+        _vars.pop();
+        return std::nullopt;
     }
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitForLoopStmt(ForLoopStmt *fls) {
-        
+        if (funRetsTypes.empty()) {
+            _diag.Report(fls->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
+        }
+        _vars.push({});
+        if (fls->GetIndexator()) {
+            Visit(fls->GetIndexator());
+        }
+        if (fls->GetIteration()) {
+            Visit(fls->GetIteration());
+        }
+        std::optional<ASTVal> cond = Visit(fls->GetCondition());
+        implicitlyCast(cond.value(), ASTType(ASTTypeKind::Bool, "bool", false), fls->GetCondition()->GetStartLoc(), fls->GetCondition()->GetEndLoc());
+        for (auto &stmt : fls->GetBody()) {
+            Visit(stmt);
+        }
+        _vars.pop();
+        return std::nullopt;
     }
     
     std::optional<ASTVal>
@@ -128,6 +161,7 @@ namespace onyx {
         double lhsVal = lhs->AsDouble();
         double rhsVal = rhs->AsDouble();
         double res;
+        bool returnBool = false;
         switch (be->GetOp().GetKind()) {
             #define EVAL(op) lhsVal op rhsVal
             case TkPlus:
@@ -147,9 +181,11 @@ namespace onyx {
                 break;
             case TkLogAnd:
                 res = EVAL(&&);
+                returnBool = true;
                 break;
             case TkLogOr:
                 res = EVAL(||);
+                returnBool = true;
                 break;
             case TkAnd:
                 res = static_cast<long>(lhsVal) & static_cast<long>(rhsVal);
@@ -159,24 +195,33 @@ namespace onyx {
                 break;
             case TkGt:
                 res = EVAL(>);
+                returnBool = true;
                 break;
             case TkGtEq:
                 res = EVAL(>=);
+                returnBool = true;
                 break;
             case TkLt:
                 res = EVAL(<);
+                returnBool = true;
                 break;
             case TkLtEq:
                 res = EVAL(<=);
+                returnBool = true;
                 break;
             case TkEqEq:
                 res = EVAL(==);
+                returnBool = true;
                 break;
             case TkNotEq:
                 res = EVAL(!=);
+                returnBool = true;
                 break;
             default: {}
             #undef EVAL
+        }
+        if (returnBool) {
+            return ASTVal::GetVal(res, ASTType(ASTTypeKind::Bool, "bool", false));
         }
         return ASTVal::GetVal(res, ASTType::GetCommon(lhs->GetType(), rhs->GetType()));
     }
@@ -188,6 +233,7 @@ namespace onyx {
             return rhs;
         }
         double val = rhs->AsDouble();
+        bool returnBool = false;
         switch (ue->GetOp().GetKind()) {
             case TkMinus:
                 if (rhs->GetType().GetTypeKind() < ASTTypeKind::Char || rhs->GetType().GetTypeKind() > ASTTypeKind::F64) {
@@ -204,6 +250,7 @@ namespace onyx {
                         << rhs->GetType().ToString();
                 }
                 val = !val;
+                returnBool = true;
                 break;
             default: {}
         }
@@ -222,7 +269,7 @@ namespace onyx {
         _diag.Report(ve->GetStartLoc(), ErrUndeclaredVariable)
             << getRange(ve->GetStartLoc(), ve->GetName().size())
             << ve->GetName();
-        return std::nullopt;
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
     }
     
     std::optional<ASTVal>
@@ -270,7 +317,7 @@ namespace onyx {
         _diag.Report(fce->GetStartLoc(), ErrUndeclaredFuntion)
             << getRange(fce->GetStartLoc(), fce->GetName().size())
             << fce->GetName();
-        return std::nullopt;
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
     }
 
     llvm::SMRange
