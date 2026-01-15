@@ -140,6 +140,20 @@ namespace onyx {
     }
 
     void
+    ASTPrinter::VisitStructStmt(StructStmt *ss) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(StructStmt: " << ss->GetName().str() << " (";
+        llvm::outs() << " {\n";
+        _spaces += 2;
+        for (auto stmt : ss->GetBody()) {
+            Visit(stmt);
+            llvm::outs() << '\n';
+        }
+        _spaces -= 2;
+        llvm::outs() << "})";
+    }
+
+    void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(BinaryExpr: ";
@@ -185,6 +199,20 @@ namespace onyx {
                 llvm::outs() << ", ";
             }
         }
-        llvm::outs() << ')';
+        llvm::outs() << "))";
+    }
+
+    void
+    ASTPrinter::VisitStructExpr(StructExpr *se) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(StructExpr: " << se->GetName().str() << " { ";
+        for (int i = 0; i < se->GetInitializer().size(); ++i) {
+            llvm::outs() << se->GetInitializer()[i].first << ": ";
+            Visit(se->GetInitializer()[i].second);
+            if (i < se->GetInitializer().size() - 1) {
+                llvm::outs() << ", ";
+            }
+        }
+        llvm::outs() << " })";
     }
 }

@@ -11,8 +11,8 @@ namespace onyx {
         std::vector<Expr *> _args;
 
     public:
-        explicit FunCallStmt(llvm::StringRef name, std::vector<Expr *> args, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                           : _name(name), _args(args), Stmt(NkFunCallStmt, startLoc, endLoc) {}
+        explicit FunCallStmt(llvm::StringRef name, std::vector<Expr *> args, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                           : _name(name), _args(args), Stmt(NkFunCallStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {

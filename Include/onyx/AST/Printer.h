@@ -33,6 +33,9 @@ namespace onyx {
         VisitContinueStmt(ContinueStmt *cs);
 
         void
+        VisitStructStmt(StructStmt *ss);
+
+        void
         VisitBinaryExpr(BinaryExpr *be);
 
         void
@@ -46,5 +49,8 @@ namespace onyx {
 
         void
         VisitFunCallExpr(FunCallExpr *fce);
+
+        void
+        VisitStructExpr(StructExpr *se);
     };
 }

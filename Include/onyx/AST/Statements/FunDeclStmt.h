@@ -13,8 +13,8 @@ namespace onyx {
         std::vector<Stmt *> _block;
 
     public:
-        explicit FunDeclStmt(llvm::StringRef name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                           : _name(name), _retType(retType), _args(args), _block(block), Stmt(NkFunDeclStmt, startLoc, endLoc) {}
+        explicit FunDeclStmt(llvm::StringRef name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                           : _name(name), _retType(retType), _args(args), _block(block), Stmt(NkFunDeclStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {
