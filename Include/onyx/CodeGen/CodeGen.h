@@ -55,6 +55,9 @@ namespace onyx {
 
         llvm::Value *
         VisitContinueStmt(ContinueStmt *cs);
+
+        llvm::Value *
+        VisitStructStmt(StructStmt *ss);
                 
         llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);
@@ -70,6 +73,9 @@ namespace onyx {
 
         llvm::Value *
         VisitFunCallExpr(FunCallExpr *fce);
+
+        llvm::Value *
+        VisitStructExpr(StructExpr *se);
 
     private:
         llvm::Type *

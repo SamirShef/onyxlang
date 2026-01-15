@@ -48,6 +48,9 @@ namespace onyx {
         Stmt *
         parseForLoopStmt();
 
+        Stmt *
+        parseStructStmt();
+
         Argument
         parseArgument();
         

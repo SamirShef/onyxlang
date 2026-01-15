@@ -11,8 +11,8 @@ namespace onyx {
         std::vector<Stmt *> _block;
 
     public:
-        explicit ForLoopStmt(Stmt *indexator, Expr *cond, Stmt *iteration, std::vector<Stmt *> block, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                           : _indexator(indexator), _cond(cond), _iteration(iteration), _block(block), Stmt(NkForLoopStmt, startLoc, endLoc) {}
+        explicit ForLoopStmt(Stmt *indexator, Expr *cond, Stmt *iteration, std::vector<Stmt *> block, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                           : _indexator(indexator), _cond(cond), _iteration(iteration), _block(block), Stmt(NkForLoopStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {

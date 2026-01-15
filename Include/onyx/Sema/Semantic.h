@@ -60,6 +60,9 @@ namespace onyx {
 
         std::optional<ASTVal>
         VisitContinueStmt(ContinueStmt *cs);
+
+        std::optional<ASTVal>
+        VisitStructStmt(StructStmt *ss);
         
         std::optional<ASTVal>
         VisitBinaryExpr(BinaryExpr *be);
@@ -75,6 +78,9 @@ namespace onyx {
 
         std::optional<ASTVal>
         VisitFunCallExpr(FunCallExpr *fce);
+
+        std::optional<ASTVal>
+        VisitStructExpr(StructExpr *se);
 
     private:
         llvm::SMRange

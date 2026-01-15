@@ -1,11 +1,18 @@
 #include <onyx/Parser/Parser.h>
 #include <onyx/Parser/Precedence.h>
+#include <utility>
+
+static onyx::AccessModifier access;
 
 namespace onyx {
     Stmt *
     Parser::ParseStmt(bool consumeSemi) {
         if (_curTok.Is(TkEof)) {
             return nullptr;
+        }
+        access = AccessPriv;
+        if (expect(TkPub)) {
+            access = AccessPub;
         }
         switch (_curTok.GetKind()) {
             case TkVar:
@@ -64,7 +71,7 @@ namespace onyx {
                         << ";"                  // expected
                         << _curTok.GetText();   // got
                 }
-                return createNode<BreakStmt>(firstTok.GetLoc(), _curTok.GetLoc());
+                return createNode<BreakStmt>(access, firstTok.GetLoc(), _curTok.GetLoc());
             }
             case TkContinue: {
                 Token firstTok = consume();
@@ -74,7 +81,10 @@ namespace onyx {
                         << ";"                  // expected
                         << _curTok.GetText();   // got
                 }
-                return createNode<ContinueStmt>(firstTok.GetLoc(), _curTok.GetLoc());
+                return createNode<ContinueStmt>(access, firstTok.GetLoc(), _curTok.GetLoc());
+            }
+            case TkStruct: {
+                return parseStructStmt();
             }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
@@ -115,7 +125,7 @@ namespace onyx {
         if (expect(TkEq)) {
             expr = parseExpr(PrecLowest);
         }
-        return createNode<VarDeclStmt>(name, isConst, type, expr, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<VarDeclStmt>(name, isConst, type, expr, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -132,7 +142,7 @@ namespace onyx {
         if (op.GetKind() != TkEq && isAssignmentOp(op.GetKind())) {
             expr = createCompoundAssignmentOp(op, createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
         }
-        return createNode<VarAsgnStmt>(nameToken.GetText(), expr, nameToken.GetLoc(), _curTok.GetLoc());
+        return createNode<VarAsgnStmt>(nameToken.GetText(), expr, access, nameToken.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -178,7 +188,7 @@ namespace onyx {
         while (!expect(TkRBrace)) {
             block.push_back(ParseStmt());
         }
-        return createNode<FunDeclStmt>(name, retType, args, block, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<FunDeclStmt>(name, retType, args, block, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -197,7 +207,7 @@ namespace onyx {
                 }
             }
         }
-        return createNode<FunCallStmt>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
+        return createNode<FunCallStmt>(nameToken.GetText(), args, access, nameToken.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -207,7 +217,7 @@ namespace onyx {
         if (!_curTok.Is(TkSemi)) {
             expr = parseExpr(PrecLowest);
         }
-        return createNode<RetStmt>(expr, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<RetStmt>(expr, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -237,7 +247,7 @@ namespace onyx {
                 elseBranch.push_back(ParseStmt());
             }
         }
-        return createNode<IfElseStmt>(cond, thenBranch, elseBranch, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<IfElseStmt>(cond, thenBranch, elseBranch, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -276,7 +286,29 @@ namespace onyx {
                 block.push_back(ParseStmt());
             }
         }
-        return createNode<ForLoopStmt>(indexator, cond, iteration, block, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<ForLoopStmt>(indexator, cond, iteration, block, access, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseStructStmt() {
+        Token firstTok = consume();
+        llvm::StringRef name = _curTok.GetText();
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        if (!expect(TkLBrace)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "{"                  // expected
+                << _curTok.GetText();   // got
+        }
+        std::vector<Stmt *> body;
+        while (!expect(TkRBrace)) {
+            body.push_back(ParseStmt());
+        }
+        return createNode<StructStmt>(name, body, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument
@@ -302,24 +334,54 @@ namespace onyx {
         switch (_curTok.GetKind()) {
             case TkId: {
                 Token nameToken = consume();
-                if (_curTok.GetKind() == TkLParen) {
-                    consume();
-                    std::vector<Expr *> args;
-                    while (!expect(TkRParen)) {
-                        args.push_back(parseExpr(PrecLowest));
-                        if (!_curTok.Is(TkRParen)) {
-                            if (!expect(TkComma)) {
-                                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                                    << getRangeFromTok(_curTok)
-                                    << ","                  // expected
-                                    << _curTok.GetText();   // got
+                switch (_curTok.GetKind()) {
+                    case TkLParen: {
+                        consume();
+                        std::vector<Expr *> args;
+                        while (!expect(TkRParen)) {
+                            args.push_back(parseExpr(PrecLowest));
+                            if (!_curTok.Is(TkRParen)) {
+                                if (!expect(TkComma)) {
+                                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                                        << getRangeFromTok(_curTok)
+                                        << ","                  // expected
+                                        << _curTok.GetText();   // got
+                                }
                             }
                         }
+                        return createNode<FunCallExpr>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
                     }
-                    return createNode<FunCallExpr>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
-                }
-                else {
-                    return createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
+                    case TkLBrace: {
+                        consume();
+                        std::vector<std::pair<llvm::StringRef, Expr *>> initializer;
+                        while (!expect(TkRBrace)) {
+                            llvm::StringRef name = _curTok.GetText();
+                            if (!expect(TkId)) {
+                                _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                                    << getRangeFromTok(_curTok)
+                                    << _curTok.GetText();
+                            }
+                            if (!expect(TkColon)) {
+                                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                                    << getRangeFromTok(_curTok)
+                                    << ":"                  // expected
+                                    << _curTok.GetText();   // got
+                            }
+                            initializer.push_back({ name, parseExpr(PrecLowest) });
+                            if (!_curTok.Is(TkRBrace)) {
+                                if (!expect(TkComma)) {
+                                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                                        << getRangeFromTok(_curTok)
+                                        << ","                  // expected
+                                        << _curTok.GetText();   // got
+                                }
+                            }
+                        }
+                        return createNode<StructExpr>(nameToken.GetText(), initializer, nameToken.GetLoc(), _curTok.GetLoc());
+                    }
+                    default: {
+                        return createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
+                    }
                 }
             }
             #define LIT(kind, type_val, field, val) \
@@ -413,6 +475,8 @@ namespace onyx {
                 return TYPE(F32, "f32");
             case TkF64:
                 return TYPE(F64, "f64");
+            case TkId:
+                return TYPE(Struct, type.GetText());
             default:
                 _diag.Report(type.GetLoc(), ErrExpectedType)
                     << getRangeFromTok(type)

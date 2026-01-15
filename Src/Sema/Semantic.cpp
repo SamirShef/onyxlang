@@ -166,6 +166,11 @@ namespace onyx {
         }
         return std::nullopt;
     }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitStructStmt(StructStmt *ss) {
+
+    }
     
     std::optional<ASTVal>
     SemanticAnalyzer::VisitBinaryExpr(BinaryExpr *be) {
@@ -338,6 +343,11 @@ namespace onyx {
             << getRange(fce->GetStartLoc(), fce->GetName().size())
             << fce->GetName();
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitStructExpr(StructExpr *se) {
+        
     }
 
     llvm::SMRange

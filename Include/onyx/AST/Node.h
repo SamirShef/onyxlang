@@ -13,6 +13,7 @@ namespace onyx {
         NkForLoopStmt,
         NkBreakStmt,
         NkContinueStmt,
+        NkStructStmt,
         NkEndStmts,
 
         NkStartExprs,
@@ -21,7 +22,13 @@ namespace onyx {
         NkVarExpr,
         NkLiteralExpr,
         NkFunCallExpr,
+        NkStructExpr,
         NkEndExprs,
+    };
+
+    enum AccessModifier {
+        AccessPub,
+        AccessPriv,
     };
 
     class Node {

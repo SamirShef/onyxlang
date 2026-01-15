@@ -26,6 +26,9 @@ namespace onyx {
                     return static_cast<Derived *>(this)->VisitBreakStmt(static_cast<BreakStmt *>(node));
                 case NkContinueStmt:
                     return static_cast<Derived *>(this)->VisitContinueStmt(static_cast<ContinueStmt *>(node));
+                case NkStructStmt:
+                    return static_cast<Derived *>(this)->VisitStructStmt(static_cast<StructStmt *>(node));
+                
                 case NkBinaryExpr:
                     return static_cast<Derived *>(this)->VisitBinaryExpr(static_cast<BinaryExpr *>(node));
                 case NkUnaryExpr:
@@ -36,6 +39,8 @@ namespace onyx {
                     return static_cast<Derived *>(this)->VisitLiteralExpr(static_cast<LiteralExpr *>(node));
                 case NkFunCallExpr:
                     return static_cast<Derived *>(this)->VisitFunCallExpr(static_cast<FunCallExpr *>(node));
+                case NkStructExpr:
+                    return static_cast<Derived *>(this)->VisitStructExpr(static_cast<StructExpr *>(node));
                 default: {}
             }
         }

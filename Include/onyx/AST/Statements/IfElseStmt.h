@@ -10,8 +10,8 @@ namespace onyx {
         std::vector<Stmt *> _elseBranch;
 
     public:
-        explicit IfElseStmt(Expr *cond, std::vector<Stmt *> thenBranch, std::vector<Stmt *> elseBranch, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                          : _cond(cond), _thenBranch(thenBranch), _elseBranch(elseBranch), Stmt(NkIfElseStmt, startLoc, endLoc) {}
+        explicit IfElseStmt(Expr *cond, std::vector<Stmt *> thenBranch, std::vector<Stmt *> elseBranch, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                          : _cond(cond), _thenBranch(thenBranch), _elseBranch(elseBranch), Stmt(NkIfElseStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {

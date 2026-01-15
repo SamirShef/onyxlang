@@ -10,9 +10,11 @@
 #include <onyx/AST/Statements/ForLoopStmt.h>
 #include <onyx/AST/Statements/BreakStmt.h>
 #include <onyx/AST/Statements/ContinueStmt.h>
+#include <onyx/AST/Statements/StructStmt.h>
 
 #include <onyx/AST/Expressions/BinaryExpr.h>
 #include <onyx/AST/Expressions/LiteralExpr.h>
 #include <onyx/AST/Expressions/UnaryExpr.h>
 #include <onyx/AST/Expressions/VarExpr.h>
 #include <onyx/AST/Expressions/FunCallExpr.h>
+#include <onyx/AST/Expressions/StructExpr.h>

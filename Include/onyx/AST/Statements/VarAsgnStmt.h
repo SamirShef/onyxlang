@@ -10,8 +10,8 @@ namespace onyx {
         Expr *_expr;
 
     public:
-        explicit VarAsgnStmt(llvm::StringRef name, Expr *expr, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), _expr(expr),
-                                                                                                           Stmt(NkVarAsgnStmt, startLoc, endLoc) {}
+        explicit VarAsgnStmt(llvm::StringRef name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                           : _name(name), _expr(expr), Stmt(NkVarAsgnStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {

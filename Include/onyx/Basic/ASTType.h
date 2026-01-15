@@ -10,6 +10,7 @@ namespace onyx {
         I64,
         F32,
         F64,
+        Struct,
         Noth
     };
     
@@ -58,8 +59,11 @@ namespace onyx {
         
         static ASTType
         GetCommon(ASTType lhs, ASTType rhs) {
-            if (lhs.GetTypeKind() >= ASTTypeKind::Bool && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
-                rhs.GetTypeKind() >= ASTTypeKind::Bool && rhs.GetTypeKind() <= ASTTypeKind::F64) {
+            if (lhs == rhs) {
+                return lhs;
+            }
+            if (lhs.GetTypeKind() >= ASTTypeKind::Char && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
+                rhs.GetTypeKind() >= ASTTypeKind::Char && rhs.GetTypeKind() <= ASTTypeKind::F64) {
                 return lhs.GetTypeKind() > rhs.GetTypeKind() ? lhs : rhs;
             }
             return GetNothType();
@@ -67,8 +71,11 @@ namespace onyx {
 
         static bool
         HasCommon(ASTType lhs, ASTType rhs) {
-            if (lhs.GetTypeKind() >= ASTTypeKind::Bool && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
-                rhs.GetTypeKind() >= ASTTypeKind::Bool && rhs.GetTypeKind() <= ASTTypeKind::F64) {
+            if (lhs == rhs) {
+                return true;
+            }
+            if (lhs.GetTypeKind() >= ASTTypeKind::Char && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
+                rhs.GetTypeKind() >= ASTTypeKind::Char && rhs.GetTypeKind() <= ASTTypeKind::F64) {
                 return true;
             }
             return false;

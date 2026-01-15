@@ -174,6 +174,11 @@ namespace onyx {
         _builder.CreateBr(_loopDeth.top().second);
         return nullptr;
     }
+
+    llvm::Value *
+    CodeGen::VisitStructStmt(StructStmt *ss) {
+        
+    }
     
     llvm::Value *
     CodeGen::VisitBinaryExpr(BinaryExpr *be) {
@@ -332,6 +337,11 @@ namespace onyx {
         return _builder.CreateCall(fun, args, fce->GetName() + ".call");
     }
 
+    llvm::Value *
+    CodeGen::VisitStructExpr(StructExpr *se) {
+
+    }
+    
     llvm::Type *
     CodeGen::getCommonType(llvm::Type *left, llvm::Type *right) {
         if (left == right) {
