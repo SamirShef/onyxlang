@@ -39,7 +39,7 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarAsgnStmt(VarAsgnStmt *vas) {
-        if (_vars.size() != 1) {
+        if (_vars.size() == 1) {
             _diag.Report(vas->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(vas->GetStartLoc(), vas->GetEndLoc());
         }
@@ -268,6 +268,33 @@ namespace onyx {
     
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
+        if (_vars.size() == 1) {
+            _diag.Report(fas->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
+        }
+        std::optional<ASTVal> obj = Visit(fas->GetObject());
+        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+            _diag.Report(fas->GetStartLoc(), ErrAccessFromNonStruct)
+                << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
+        }
+        else {
+            Struct s = _structs.at(obj->GetType().GetVal().str());
+            auto field = s.Fields.find(fas->GetName().str());
+            if (field == s.Fields.end()) {
+                _diag.Report(fas->GetStartLoc(), ErrUndeclaredField)
+                    << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                    << fas->GetName()
+                    << s.Name;
+            }
+            else {
+                if (field->second.Access == AccessPriv) {
+                    _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
+                        << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                        << fas->GetName();
+                }
+                implicitlyCast(Visit(fas->GetExpr()).value(), s.Fields.at(fas->GetName().str()).Type, fas->GetStartLoc(), fas->GetEndLoc());
+            }
+        }
         return std::nullopt;
     }
 
