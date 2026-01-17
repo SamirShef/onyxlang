@@ -215,4 +215,34 @@ namespace onyx {
         }
         llvm::outs() << " })";
     }
+
+
+    void
+    ASTPrinter::VisitFieldAccessExpr(FieldAccessExpr *fae) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(FieldAccessExpr: " << fae->GetName().str() << " from ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(fae->GetObject());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
+
+    void
+    ASTPrinter::VisitMethodCallExpr(MethodCallExpr *mce) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(MethodCallExpr: " << mce->GetName().str() << " (";
+        for (int i = 0; i < mce->GetArgs().size(); ++i) {
+            Visit(mce->GetArgs()[i]);
+            if (i < mce->GetArgs().size() - 1) {
+                llvm::outs() << ", ";
+            }
+        }
+        llvm::outs() << ") from ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(mce->GetObject());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
 }

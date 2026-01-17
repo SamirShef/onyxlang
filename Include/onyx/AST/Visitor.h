@@ -41,6 +41,10 @@ namespace onyx {
                     return static_cast<Derived *>(this)->VisitFunCallExpr(static_cast<FunCallExpr *>(node));
                 case NkStructExpr:
                     return static_cast<Derived *>(this)->VisitStructExpr(static_cast<StructExpr *>(node));
+                case NkFieldAccessExpr:
+                    return static_cast<Derived *>(this)->VisitFieldAccessExpr(static_cast<FieldAccessExpr *>(node));
+                case NkMethodCallExpr:
+                    return static_cast<Derived *>(this)->VisitMethodCallExpr(static_cast<MethodCallExpr *>(node));
                 default: {}
             }
         }

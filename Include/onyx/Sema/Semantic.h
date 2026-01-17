@@ -96,6 +96,12 @@ namespace onyx {
         std::optional<ASTVal>
         VisitStructExpr(StructExpr *se);
 
+        std::optional<ASTVal>
+        VisitFieldAccessExpr(FieldAccessExpr *fae);
+
+        std::optional<ASTVal>
+        VisitMethodCallExpr(MethodCallExpr *mce);
+
     private:
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;

@@ -60,6 +60,9 @@ namespace onyx {
         Expr *
         parseExpr(int minPrec);
     
+        Expr *
+        parseChainExpr(Expr *base);
+
         Token
         consume();
 

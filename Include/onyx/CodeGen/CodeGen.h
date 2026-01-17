@@ -92,6 +92,12 @@ namespace onyx {
         llvm::Value *
         VisitStructExpr(StructExpr *se);
 
+        llvm::Value *
+        VisitFieldAccessExpr(FieldAccessExpr *fae);
+
+        llvm::Value *
+        VisitMethodCallExpr(MethodCallExpr *mce);
+
     private:
         llvm::Type *
         getCommonType(llvm::Type *left, llvm::Type *right);

@@ -349,7 +349,11 @@ namespace onyx {
                                 }
                             }
                         }
-                        return createNode<FunCallExpr>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
+                        Expr *expr = createNode<FunCallExpr>(nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
+                        if (expect(TkDot)) {
+                            return parseChainExpr(expr);
+                        }
+                        return expr;
                     }
                     case TkLBrace: {
                         consume();
@@ -380,7 +384,11 @@ namespace onyx {
                         return createNode<StructExpr>(nameToken.GetText(), initializer, nameToken.GetLoc(), _curTok.GetLoc());
                     }
                     default: {
-                        return createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
+                        Expr *expr = createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
+                        if (expect(TkDot)) {
+                            return parseChainExpr(expr);
+                        }
+                        return expr;
                     }
                 }
             }
@@ -445,6 +453,39 @@ namespace onyx {
         }
 
         return lhs;
+    }
+
+    Expr *
+    Parser::parseChainExpr(Expr *base) {
+        Token nameToken = _curTok; 
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        Expr *expr;
+        if (expect(TkLParen)) {
+            std::vector<Expr *> args;
+            while (!expect(TkRParen)) {
+                args.push_back(parseExpr(PrecLowest));
+                if (!_curTok.Is(TkRParen)) {
+                    if (!expect(TkComma)) {
+                        _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                            << getRangeFromTok(_curTok)
+                            << ","                  // expected
+                            << _curTok.GetText();   // got
+                    }
+                }
+            }
+            expr = createNode<MethodCallExpr>(base, nameToken.GetText(), args, nameToken.GetLoc(), _curTok.GetLoc());
+        }
+        else {
+            expr = createNode<FieldAccessExpr>(base, nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
+        }
+        if (expect(TkDot)) {
+            return parseChainExpr(expr);
+        }
+        return expr;
     }
     
     Token

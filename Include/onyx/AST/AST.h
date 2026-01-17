@@ -18,3 +18,5 @@
 #include <onyx/AST/Expressions/VarExpr.h>
 #include <onyx/AST/Expressions/FunCallExpr.h>
 #include <onyx/AST/Expressions/StructExpr.h>
+#include <onyx/AST/Expressions/FieldAccessExpr.h>
+#include <onyx/AST/Expressions/MethodCallExpr.h>

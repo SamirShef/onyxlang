@@ -471,6 +471,17 @@ namespace onyx {
         return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(_structsInstances.size() - 1) });
     }
 
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitFieldAccessExpr(FieldAccessExpr *fae) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitMethodCallExpr(MethodCallExpr *mce) {
+        return std::nullopt;
+    }
+
     llvm::SMRange
     SemanticAnalyzer::getRange(llvm::SMLoc start, int len) const {
         return llvm::SMRange(start, llvm::SMLoc::getFromPointer(start.getPointer() + len));
