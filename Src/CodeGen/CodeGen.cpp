@@ -1,5 +1,8 @@
 #include <llvm/Support/Casting.h>
 #include <onyx/CodeGen/CodeGen.h>
+#include <ostream>
+
+static bool createLoad = true;
 
 namespace onyx {
     llvm::Value *
@@ -24,6 +27,15 @@ namespace onyx {
         else {
             var = _builder.CreateAlloca(typeToLLVM(vds->GetType()), nullptr, vds->GetName());
             _builder.CreateStore(initializer, var);
+        }
+        if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct) {
+            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, vds->GetType().GetVal()));
+            if (_vars.size() == 1) {
+                llvm::cast<llvm::GlobalVariable>(var)->setMetadata("struct_name", metadata);
+            }
+            else {
+                llvm::cast<llvm::AllocaInst>(var)->setMetadata("struct_name", metadata);
+            }
         }
         _vars.top().emplace(vds->GetName().str(), var);
         return nullptr;
@@ -301,14 +313,16 @@ namespace onyx {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName().str()); var != varsCopy.top().end()) {
-                if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second)) {
-                    if (_vars.size() == 1) {
-                        return glob->getInitializer();
+                if (createLoad) {
+                    if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second)) {
+                        if (_vars.size() == 1) {
+                            return glob->getInitializer();
+                        }
+                        return _builder.CreateLoad(glob->getValueType(), glob, var->first + ".load");
                     }
-                    return _builder.CreateLoad(glob->getValueType(), glob, var->first + ".load");
-                }
-                if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second)) {
-                    return _builder.CreateLoad(local->getAllocatedType(), local, var->first + ".load");
+                    if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second)) {
+                        return _builder.CreateLoad(local->getAllocatedType(), local, var->first + ".load");
+                    }
                 }
                 return var->second;
             }
@@ -390,14 +404,21 @@ namespace onyx {
         }
     }
 
-
     llvm::Value *
     CodeGen::VisitFieldAccessExpr(FieldAccessExpr *fae) {
-        return nullptr;
+        createLoad = false;
+        llvm::Value *obj = Visit(fae->GetObject());
+        createLoad = true;
+        Struct s = _structs.at(resolveStructName(fae->GetObject()));
+        Field field = s.Fields[fae->GetName().str()];
+        llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
+        // TODO: create logic for field accessing in global space
+        return _builder.CreateLoad(s.Type->getTypeAtIndex(field.Index), gep, fae->GetName() + ".load");
     }
 
     llvm::Value *
     CodeGen::VisitMethodCallExpr(MethodCallExpr *mce) {
+        // TODO: create logic (when create methods)
         return nullptr;
     }
     
@@ -503,5 +524,43 @@ namespace onyx {
             }
         }
         return llvm::ConstantStruct::get(s.Type, fields);
+    }
+
+    
+    std::string
+    CodeGen::resolveStructName(Expr *expr) {
+        switch (expr->GetKind()) {
+            case NkVarExpr: {
+                std::string name = llvm::dyn_cast<VarExpr>(expr)->GetName().str();
+                auto varsCopy = _vars;
+                while (!varsCopy.empty()) {
+                    for (auto var : varsCopy.top()) {
+                        if (var.first == name) {
+                            if (auto *glob = llvm::dyn_cast<llvm::GlobalVariable>(var.second)) {
+                                if (auto *metadata = glob->getMetadata("struct_name")) {
+                                    if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
+                                        return mdStr->getString().str();
+                                    }
+                                }
+                            } 
+                            else if (auto *local = llvm::dyn_cast<llvm::AllocaInst>(var.second)) {
+                                if (auto *metadata = local->getMetadata("struct_name")) {
+                                    if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
+                                        return mdStr->getString().str();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    varsCopy.pop();
+                }
+                return "";
+            }
+            case NkFieldAccessExpr:
+                return resolveStructName(llvm::dyn_cast<FieldAccessExpr>(expr)->GetObject());
+            case NkMethodCallExpr:
+                return resolveStructName(llvm::dyn_cast<MethodCallExpr>(expr)->GetObject());
+            default: {}
+        }
     }
 }
