@@ -1,3 +1,4 @@
+#include <llvm/Support/Casting.h>
 #include <onyx/CodeGen/CodeGen.h>
 
 namespace onyx {
@@ -6,17 +7,22 @@ namespace onyx {
         llvm::Value *initializer = nullptr;
         if (vds->GetExpr()) {
             initializer = Visit(vds->GetExpr());
-            initializer = implicitlyCast(initializer, typeKindToLLVM(vds->GetType().GetTypeKind()));
+            initializer = implicitlyCast(initializer, typeToLLVM(vds->GetType()));
         }
-        else {
-            initializer = llvm::Constant::getNullValue(typeKindToLLVM(vds->GetType().GetTypeKind()));
+        else { 
+            if (vds->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+                initializer = llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
+            }
+            else {
+                initializer = defaultStructConst(vds->GetType());
+            }
         }
         llvm::Value *var;
         if (_vars.size() == 1) {
-            var = new llvm::GlobalVariable(*_module, typeKindToLLVM(vds->GetType().GetTypeKind()), vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer), vds->GetName());
+            var = new llvm::GlobalVariable(*_module, typeToLLVM(vds->GetType()), vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer), vds->GetName());
         }
         else {
-            var = _builder.CreateAlloca(typeKindToLLVM(vds->GetType().GetTypeKind()), nullptr, vds->GetName());
+            var = _builder.CreateAlloca(typeToLLVM(vds->GetType()), nullptr, vds->GetName());
             _builder.CreateStore(initializer, var);
         }
         _vars.top().emplace(vds->GetName().str(), var);
@@ -45,15 +51,15 @@ namespace onyx {
     CodeGen::VisitFunDeclStmt(FunDeclStmt *fds) {
         std::vector<llvm::Type *> args(fds->GetArgs().size());
         for (int i = 0; i < fds->GetArgs().size(); ++i) {
-            args[i] = typeKindToLLVM(fds->GetArgs()[i].GetType().GetTypeKind());
+            args[i] = typeToLLVM(fds->GetArgs()[i].GetType());
         }
-        llvm::FunctionType *retType = llvm::FunctionType::get(typeKindToLLVM(fds->GetRetType().GetTypeKind()), args, false);
+        llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
         llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName(), *_module);
         llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
         _builder.SetInsertPoint(entry);
         _vars.push({});
-        funRetsTypes.push(fun->getReturnType());
-        functions.emplace(fun->getName(), fun);
+        _funRetsTypes.push(fun->getReturnType());
+        _functions.emplace(fun->getName(), fun);
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
@@ -68,7 +74,7 @@ namespace onyx {
         if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Noth) {
             _builder.CreateRetVoid();
         }
-        funRetsTypes.pop();
+        _funRetsTypes.pop();
         _vars.pop();
         return nullptr;
     }
@@ -85,7 +91,7 @@ namespace onyx {
     CodeGen::VisitRetStmt(RetStmt *rs) {
         if (rs->GetExpr()) {
             llvm::Value *val = Visit(rs->GetExpr());
-            return _builder.CreateRet(implicitlyCast(val, funRetsTypes.top()));
+            return _builder.CreateRet(implicitlyCast(val, _funRetsTypes.top()));
         }
         return _builder.CreateRetVoid();
     }
@@ -177,7 +183,17 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitStructStmt(StructStmt *ss) {
-        
+        std::vector<llvm::Type *> fieldsTypes(ss->GetBody().size());
+        std::unordered_map<std::string, Field> fields(ss->GetBody().size());
+        for (int i = 0; i < fieldsTypes.size(); ++i) {
+            VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
+            fieldsTypes[i] = typeToLLVM(vds->GetType());
+            fields.emplace(vds->GetName(), Field { vds->GetName(), typeToLLVM(vds->GetType()), vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, false, i });
+        }
+        llvm::StructType *structType = llvm::StructType::create(_context, fieldsTypes, ss->GetName(), false);
+        Struct s { ss->GetName(), structType, fields };
+        _structs.emplace(ss->GetName().str(), s);
+        return nullptr;
     }
     
     llvm::Value *
@@ -333,13 +349,45 @@ namespace onyx {
         for (int i = 0; i < fce->GetArgs().size(); ++i) {
             args[i] = Visit(fce->GetArgs()[i]);
         }
-        llvm::Function *fun = functions.at(fce->GetName().str());
+        llvm::Function *fun = _functions.at(fce->GetName().str());
         return _builder.CreateCall(fun, args, fce->GetName() + ".call");
     }
 
     llvm::Value *
     CodeGen::VisitStructExpr(StructExpr *se) {
-
+        Struct s = _structs.at(se->GetName().str());
+        if (_vars.size() != 1) {
+            llvm::AllocaInst *alloca = _builder.CreateAlloca(s.Type, nullptr, s.Name + ".alloca");
+            for (int i = 0; i < se->GetInitializer().size(); ++i) {
+                std::string name = se->GetInitializer()[i].first.str();
+                llvm::Value *fieldPtr = _builder.CreateStructGEP(s.Type, alloca, s.Fields.at(name).Index, name + ".gep");
+                _builder.CreateStore(Visit(se->GetInitializer()[i].second), fieldPtr);
+                s.Fields.at(name).ManualInitialized = true;
+            }
+            for (auto &field : s.Fields) {
+                if (!field.second.ManualInitialized) {
+                    llvm::Value *fieldPtr = _builder.CreateStructGEP(s.Type, alloca, field.second.Index, field.second.Name + ".gep");
+                    _builder.CreateStore(llvm::Constant::getNullValue(field.second.Type), fieldPtr);
+                }
+            }
+            return _builder.CreateLoad(s.Type, alloca, s.Name + ".alloca.load");
+        }
+        else {
+            std::vector<llvm::Constant *> fields(s.Fields.size());
+            for (int i = 0; i < se->GetInitializer().size(); ++i) {
+                std::string name = se->GetInitializer()[i].first.str();
+                fields[i] = llvm::dyn_cast<llvm::Constant>(Visit(se->GetInitializer()[i].second));
+                s.Fields.at(name).ManualInitialized = true;
+            }
+            int i = 0;
+            for (auto &field : s.Fields) {
+                if (!field.second.ManualInitialized) {
+                    fields[i] = llvm::Constant::getNullValue(field.second.Type);
+                }
+                ++i;
+            }
+            return llvm::ConstantStruct::get(s.Type, fields);
+        }
     }
     
     llvm::Type *
@@ -404,8 +452,8 @@ namespace onyx {
     }
 
     llvm::Type *
-    CodeGen::typeKindToLLVM(ASTTypeKind kind) {
-        switch (kind) {
+    CodeGen::typeToLLVM(ASTType type) {
+        switch (type.GetTypeKind()) {
             #define TYPE(func) llvm::Type::func(_context);
             case ASTTypeKind::Bool:
                 return TYPE(getInt1Ty);
@@ -421,9 +469,28 @@ namespace onyx {
                 return TYPE(getFloatTy);
             case ASTTypeKind::F64:
                 return TYPE(getDoubleTy);
+            case ASTTypeKind::Struct:
+                return _structs.at(type.GetVal().str()).Type;
             case ASTTypeKind::Noth:
                 return TYPE(getVoidTy);
             #undef TYPE
         }
+    }
+
+    llvm::Value *
+    CodeGen::defaultStructConst(ASTType type) {
+        Struct s = _structs.at(type.GetVal().str());
+        std::vector<llvm::Constant *> fields(s.Fields.size());
+        int i = 0;
+        for (auto &field : s.Fields) {
+            if (field.second.Val) {
+                fields[i] = llvm::cast<llvm::Constant>(field.second.Val);
+            }
+            else {
+                // TODO: add logic for initializing of structures in structures
+                fields[i] = llvm::Constant::getNullValue(field.second.Type);
+            }
+        }
+        return llvm::ConstantStruct::get(s.Type, fields);
     }
 }

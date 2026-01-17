@@ -1,7 +1,7 @@
 #pragma once
-#include <llvm/IR/Module.h>
 #include <onyx/AST/Visitor.h>
 #include <onyx/Basic/DiagnosticEngine.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 #include <stack>
 
@@ -13,10 +13,25 @@ namespace onyx {
 
         std::stack<std::unordered_map<std::string, llvm::Value *>> _vars;
 
-        std::unordered_map<std::string, llvm::Function *> functions;
-        std::stack<llvm::Type *> funRetsTypes;
+        std::unordered_map<std::string, llvm::Function *> _functions;
+        std::stack<llvm::Type *> _funRetsTypes;
 
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
+
+        struct Field {
+            const llvm::StringRef Name;
+            llvm::Type *Type;
+            llvm::Value *Val;
+            bool ManualInitialized;
+            long Index;
+        };
+
+        struct Struct {
+            const llvm::StringRef Name;
+            llvm::StructType *Type;
+            std::unordered_map<std::string, Field> Fields;
+        };
+        std::unordered_map<std::string, Struct> _structs;
 
     public:
         explicit CodeGen(std::string fileName) : _context(), _builder(_context),
@@ -88,6 +103,9 @@ namespace onyx {
         getRange(llvm::SMLoc start, int len) const;
 
         llvm::Type *
-        typeKindToLLVM(ASTTypeKind kind);
+        typeToLLVM(ASTType type);
+
+        llvm::Value *
+        defaultStructConst(ASTType type);
     };
 }

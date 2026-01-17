@@ -24,8 +24,8 @@ namespace onyx {
             std::vector<Argument> Args;
             std::vector<Stmt *> Body;
         };
-        std::unordered_map<std::string, Function> functions;
-        std::stack<ASTType> funRetsTypes;
+        std::unordered_map<std::string, Function> _functions;
+        std::stack<ASTType> _funRetsTypes;
 
         int _loopDeth = 0;
 
@@ -40,8 +40,8 @@ namespace onyx {
             const llvm::StringRef Name;
             std::unordered_map<std::string, Field> Fields;
         };
-        std::unordered_map<std::string, Struct> structs;
-        std::vector<Struct> structsInstances;
+        std::unordered_map<std::string, Struct> _structs;
+        std::vector<Struct> _structsInstances;
         
     public:
         explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {

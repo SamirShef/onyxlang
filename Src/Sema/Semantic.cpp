@@ -24,9 +24,9 @@ namespace onyx {
         else {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
-                Struct s = structs.at(vds->GetType().GetVal().str());
-                structsInstances.push_back(s);
-                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(structsInstances.size() - 1) });
+                Struct s = _structs.at(vds->GetType().GetVal().str());
+                _structsInstances.push_back(s);
+                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(_structsInstances.size() - 1) });
             }
             Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
             if (vds->GetExpr()) {
@@ -78,7 +78,7 @@ namespace onyx {
             _diag.Report(fds->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
         }
-        if (functions.find(fds->GetName().str()) != functions.end()) {
+        if (_functions.find(fds->GetName().str()) != _functions.end()) {
             _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
                 << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
                 << fds->GetName();
@@ -90,8 +90,8 @@ namespace onyx {
                                                                    .IsConst = arg.GetType().IsConst() });
             }
             Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody() };
-            functions.emplace(fds->GetName().str(), fun);
-            funRetsTypes.push(fds->GetRetType());
+            _functions.emplace(fds->GetName().str(), fun);
+            _funRetsTypes.push(fds->GetRetType());
             bool hasRet;
             for (auto stmt : fds->GetBody()) {
                 if (stmt->GetKind() == NkRetStmt) {
@@ -99,7 +99,7 @@ namespace onyx {
                 }
                 Visit(stmt);
             }
-            funRetsTypes.pop();
+            _funRetsTypes.pop();
             _vars.pop();
 
             if (!hasRet && fds->GetRetType().GetTypeKind() != ASTTypeKind::Noth) {
@@ -132,7 +132,7 @@ namespace onyx {
         if (rs->GetExpr()) {
             val = Visit(rs->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
         }
-        implicitlyCast(val, funRetsTypes.top(), rs->GetStartLoc(), rs->GetEndLoc());
+        implicitlyCast(val, _funRetsTypes.top(), rs->GetStartLoc(), rs->GetEndLoc());
         return std::nullopt;
     }
 
@@ -146,7 +146,7 @@ namespace onyx {
             _diag.Report(ies->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
         }
-        if (funRetsTypes.empty()) {
+        if (_funRetsTypes.empty()) {
             _diag.Report(ies->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
         }
@@ -175,7 +175,7 @@ namespace onyx {
             _diag.Report(fls->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
         }
-        if (funRetsTypes.empty()) {
+        if (_funRetsTypes.empty()) {
             _diag.Report(fls->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
         }
@@ -233,7 +233,7 @@ namespace onyx {
             _diag.Report(ss->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
         }
-        if (structs.find(ss->GetName().str()) != structs.end()) {
+        if (_structs.find(ss->GetName().str()) != _structs.end()) {
             _diag.Report(ss->GetStartLoc(), ErrRedefinitionStruct)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc())
                 << ss->GetName();
@@ -261,7 +261,7 @@ namespace onyx {
             }
             s.Fields.emplace(vds->GetName().str(), Field { vds->GetName(), val, vds->GetType(), false });
         }
-        structs.emplace(s.Name, s);
+        _structs.emplace(s.Name, s);
 
         return std::nullopt;
     }
@@ -398,9 +398,9 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFunCallExpr(FunCallExpr *fce) {
-        if (functions.find(fce->GetName().str()) != functions.end()) {
+        if (_functions.find(fce->GetName().str()) != _functions.end()) {
             _vars.push({});
-            Function fun = functions.at(fce->GetName().str());
+            Function fun = _functions.at(fce->GetName().str());
             if (fun.Args.size() != fce->GetArgs().size()) {
                 _diag.Report(fce->GetStartLoc(), ErrFewArgs)
                     << llvm::SMRange(fce->GetStartLoc(), fce->GetEndLoc())
@@ -414,7 +414,7 @@ namespace onyx {
                 implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), fun.Args[i].GetType(),
                                fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
                 _vars.top().emplace(fun.Args[i].GetName(), Variable { .Name = fun.Args[i].GetName(), .Type = fun.Args[i].GetType(),
-                                                                           .Val = val, .IsConst = fun.Args[i].GetType().IsConst() });
+                                                                      .Val = val, .IsConst = fun.Args[i].GetType().IsConst() });
             }
             for (auto stmt : fun.Body) {
                 if (stmt->GetKind() == NkRetStmt) {
@@ -441,13 +441,13 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitStructExpr(StructExpr *se) {
-        if (structs.find(se->GetName().str()) == structs.end()) {
+        if (_structs.find(se->GetName().str()) == _structs.end()) {
             _diag.Report(se->GetStartLoc(), ErrUndeclaredStructure)
                 << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
                 << se->GetName();
             return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
         }
-        Struct s = structs.at(se->GetName().str());
+        Struct s = _structs.at(se->GetName().str());
         for (int i = 0; i < se->GetInitializer().size(); ++i) {
             std::string name = se->GetInitializer()[i].first.str();
             if (s.Fields.find(name) != s.Fields.end()) {
@@ -467,8 +467,8 @@ namespace onyx {
                     << name;
             }
         }
-        structsInstances.push_back(s);
-        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(structsInstances.size() - 1) });
+        _structsInstances.push_back(s);
+        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(_structsInstances.size() - 1) });
     }
 
     llvm::SMRange
