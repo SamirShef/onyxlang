@@ -1,6 +1,5 @@
 #include <onyx/Parser/Parser.h>
 #include <onyx/Parser/Precedence.h>
-#include <utility>
 
 static onyx::AccessModifier access;
 
@@ -40,17 +39,7 @@ namespace onyx {
                 return stmt;
             }
             case TkId: {
-                if (_nextTok.Is(TkLParen)) {
-                    Stmt *stmt = parseFunCallStmt();
-                    if (consumeSemi && !expect(TkSemi)) {
-                        _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                            << getRangeFromTok(_curTok)
-                            << ";"                  // expected
-                            << _curTok.GetText();   // got
-                    }
-                    return stmt;
-                }
-                Stmt *stmt = parseVarAsgn();
+                Stmt *stmt = parseIdStartStmt();
                 if (consumeSemi && !expect(TkSemi)) {
                     _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                         << getRangeFromTok(_curTok)
@@ -103,6 +92,21 @@ namespace onyx {
     }
 
     Stmt *
+    Parser::parseIdStartStmt() {
+        Expr *expr = parsePrefixExpr();
+        switch (expr->GetKind()) {
+            case NkVarExpr:
+                return parseVarAsgn();
+            case NkFunCallExpr:
+                return parseFunCallStmt();
+            case NkFieldAccessExpr:
+                return parseFieldAsgnStmt(llvm::dyn_cast<FieldAccessExpr>(expr)->GetObject());
+            default: {}
+        }
+        return nullptr;
+    }
+
+    Stmt *
     Parser::parseVarDeclStmt() {
         Token firstTok = _curTok;
         bool isConst = consume().Is(TkConst);
@@ -130,7 +134,7 @@ namespace onyx {
 
     Stmt *
     Parser::parseVarAsgn() {
-        Token nameToken = consume();
+        Token nameToken = _lastTok;
         if (!isAssignmentOp(_curTok.GetKind())) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                 << getRangeFromTok(_curTok)
@@ -143,6 +147,23 @@ namespace onyx {
             expr = createCompoundAssignmentOp(op, createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
         }
         return createNode<VarAsgnStmt>(nameToken.GetText(), expr, access, nameToken.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseFieldAsgnStmt(Expr *base) {
+        Token nameToken = _lastTok;
+        if (!isAssignmentOp(_curTok.GetKind())) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "=` or `+=` or `-=` or `*=` or `/=` or `%="
+                << _curTok.GetText().str();
+        }
+        Token op = consume();
+        Expr *expr = parseExpr(PrecLowest);
+        if (op.GetKind() != TkEq && isAssignmentOp(op.GetKind())) {
+            expr = createCompoundAssignmentOp(op, createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
+        }
+        return createNode<FieldAsgnStmt>(base, nameToken.GetText(), expr, access, nameToken.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -193,7 +214,7 @@ namespace onyx {
 
     Stmt *
     Parser::parseFunCallStmt() {
-        Token nameToken = consume();
+        Token nameToken = _lastTok;
         consume();
         std::vector<Expr *> args;
         while (!expect(TkRParen)) {
@@ -490,10 +511,10 @@ namespace onyx {
     
     Token
     Parser::consume() {
-        Token tok = _curTok;
+        _lastTok = _curTok;
         _curTok = _nextTok;
         _nextTok = _lex.NextToken();
-        return tok;
+        return _lastTok;
     }
 
     ASTType

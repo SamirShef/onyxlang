@@ -154,6 +154,19 @@ namespace onyx {
     }
 
     void
+    ASTPrinter::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(FieldAsgnStmt: " << fas->GetName().str() << " from ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(fas->GetObject());
+        llvm::outs() << " = ";
+        Visit(fas->GetExpr());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
+    
+    void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(BinaryExpr: ";
