@@ -7,46 +7,48 @@ namespace onyx {
     public:
         RetType
         Visit(Node *node) {
+            #define NODE(fun, obj) static_cast<Derived *>(this)->fun(static_cast<obj *>(node))
             switch (node->GetKind()) {
                 case NkVarDeclStmt:
-                    return static_cast<Derived *>(this)->VisitVarDeclStmt(static_cast<VarDeclStmt *>(node));
+                    return NODE(VisitVarDeclStmt, VarDeclStmt);
                 case NkVarAsgnStmt:
-                    return static_cast<Derived *>(this)->VisitVarAsgnStmt(static_cast<VarAsgnStmt *>(node));
+                    return NODE(VisitVarAsgnStmt, VarAsgnStmt);
                 case NkFunDeclStmt:
-                    return static_cast<Derived *>(this)->VisitFunDeclStmt(static_cast<FunDeclStmt *>(node));
+                    return NODE(VisitFunDeclStmt, FunDeclStmt);
                 case NkFunCallStmt:
-                    return static_cast<Derived *>(this)->VisitFunCallStmt(static_cast<FunCallStmt *>(node));
+                    return NODE(VisitFunCallStmt, FunCallStmt);
                 case NkRetStmt:
-                    return static_cast<Derived *>(this)->VisitRetStmt(static_cast<RetStmt *>(node));
+                    return NODE(VisitRetStmt, RetStmt);
                 case NkIfElseStmt:
-                    return static_cast<Derived *>(this)->VisitIfElseStmt(static_cast<IfElseStmt *>(node));
+                    return NODE(VisitIfElseStmt, IfElseStmt);
                 case NkForLoopStmt:
-                    return static_cast<Derived *>(this)->VisitForLoopStmt(static_cast<ForLoopStmt *>(node));
+                    return NODE(VisitForLoopStmt, ForLoopStmt);
                 case NkBreakStmt:
-                    return static_cast<Derived *>(this)->VisitBreakStmt(static_cast<BreakStmt *>(node));
+                    return NODE(VisitBreakStmt, BreakStmt);
                 case NkContinueStmt:
-                    return static_cast<Derived *>(this)->VisitContinueStmt(static_cast<ContinueStmt *>(node));
+                    return NODE(VisitContinueStmt, ContinueStmt);
                 case NkStructStmt:
-                    return static_cast<Derived *>(this)->VisitStructStmt(static_cast<StructStmt *>(node));
+                    return NODE(VisitStructStmt, StructStmt);
                 
                 case NkBinaryExpr:
-                    return static_cast<Derived *>(this)->VisitBinaryExpr(static_cast<BinaryExpr *>(node));
+                    return NODE(VisitBinaryExpr, BinaryExpr);
                 case NkUnaryExpr:
-                    return static_cast<Derived *>(this)->VisitUnaryExpr(static_cast<UnaryExpr *>(node));
+                    return NODE(VisitUnaryExpr, UnaryExpr);
                 case NkVarExpr:
-                    return static_cast<Derived *>(this)->VisitVarExpr(static_cast<VarExpr *>(node));
+                    return NODE(VisitVarExpr, VarExpr);
                 case NkLiteralExpr:
-                    return static_cast<Derived *>(this)->VisitLiteralExpr(static_cast<LiteralExpr *>(node));
+                    return NODE(VisitLiteralExpr, LiteralExpr);
                 case NkFunCallExpr:
-                    return static_cast<Derived *>(this)->VisitFunCallExpr(static_cast<FunCallExpr *>(node));
+                    return NODE(VisitFunCallExpr, FunCallExpr);
                 case NkStructExpr:
-                    return static_cast<Derived *>(this)->VisitStructExpr(static_cast<StructExpr *>(node));
+                    return NODE(VisitStructExpr, StructExpr);
                 case NkFieldAccessExpr:
-                    return static_cast<Derived *>(this)->VisitFieldAccessExpr(static_cast<FieldAccessExpr *>(node));
+                    return NODE(VisitFieldAccessExpr, FieldAccessExpr);
                 case NkMethodCallExpr:
-                    return static_cast<Derived *>(this)->VisitMethodCallExpr(static_cast<MethodCallExpr *>(node));
+                    return NODE(VisitMethodCallExpr, MethodCallExpr);
                 default: {}
             }
+            #undef NODE
         }
     };
 }

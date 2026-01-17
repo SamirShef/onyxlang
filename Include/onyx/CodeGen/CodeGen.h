@@ -113,5 +113,8 @@ namespace onyx {
 
         llvm::Value *
         defaultStructConst(ASTType type);
+
+        std::string
+        resolveStructName(Expr *expr);
     };
 }
