@@ -30,5 +30,7 @@ namespace onyx {
         ErrCannotBeHere,
         ErrCannotHaveAccessBeHere,
         ErrFieldInitialized,
+        ErrAccessFromNonStruct,
+        ErrFieldIsPrivate
     };
 }
