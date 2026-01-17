@@ -23,6 +23,8 @@ namespace onyx {
         NkLiteralExpr,
         NkFunCallExpr,
         NkStructExpr,
+        NkFieldAccessExpr,
+        NkMethodCallExpr,
         NkEndExprs,
     };
 

@@ -389,6 +389,17 @@ namespace onyx {
             return llvm::ConstantStruct::get(s.Type, fields);
         }
     }
+
+
+    llvm::Value *
+    CodeGen::VisitFieldAccessExpr(FieldAccessExpr *fae) {
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitMethodCallExpr(MethodCallExpr *mce) {
+        return nullptr;
+    }
     
     llvm::Type *
     CodeGen::getCommonType(llvm::Type *left, llvm::Type *right) {

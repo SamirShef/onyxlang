@@ -52,5 +52,11 @@ namespace onyx {
 
         void
         VisitStructExpr(StructExpr *se);
+
+        void
+        VisitFieldAccessExpr(FieldAccessExpr *fae);
+
+        void
+        VisitMethodCallExpr(MethodCallExpr *mce);
     };
 }
