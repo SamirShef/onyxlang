@@ -206,7 +206,7 @@ namespace onyx {
         for (int i = 0; i < fieldsTypes.size(); ++i) {
             VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
             fieldsTypes[i] = typeToLLVM(vds->GetType());
-            fields.emplace(vds->GetName(), Field { vds->GetName(), typeToLLVM(vds->GetType()), vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, false, i });
+            fields.emplace(vds->GetName(), Field { vds->GetName(), typeToLLVM(vds->GetType()), vds->GetType(), vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, false, i });
         }
         llvm::StructType *structType = llvm::StructType::create(_context, fieldsTypes, ss->GetName(), false);
         Struct s { ss->GetName(), structType, fields };
@@ -220,7 +220,7 @@ namespace onyx {
         llvm::Value *obj = Visit(fas->GetObject());
         createLoad = true;
         Struct s = _structs.at(resolveStructName(fas->GetObject()));
-        Field field = s.Fields[fas->GetName().str()];
+        Field field = s.Fields.at(fas->GetName().str());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
         _builder.CreateStore(Visit(fas->GetExpr()), gep);
         return nullptr;
@@ -399,24 +399,34 @@ namespace onyx {
             for (auto &field : s.Fields) {
                 if (!field.second.ManualInitialized) {
                     llvm::Value *fieldPtr = _builder.CreateStructGEP(s.Type, alloca, field.second.Index, field.second.Name + ".gep");
-                    _builder.CreateStore(llvm::Constant::getNullValue(field.second.Type), fieldPtr);
+                    llvm::Value *val;
+                    if (field.second.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
+                        val = defaultStructConst(field.second.ASTType);
+                    }
+                    else {
+                        val = llvm::Constant::getNullValue(field.second.Type);
+                    }
+                    _builder.CreateStore(val, fieldPtr);
                 }
             }
             return _builder.CreateLoad(s.Type, alloca, s.Name + ".alloca.load");
         }
         else {
-            std::vector<llvm::Constant *> fields(s.Fields.size());
+            std::vector<llvm::Constant *> fields;
             for (int i = 0; i < se->GetInitializer().size(); ++i) {
                 std::string name = se->GetInitializer()[i].first.str();
-                fields[i] = llvm::dyn_cast<llvm::Constant>(Visit(se->GetInitializer()[i].second));
+                fields.push_back(llvm::dyn_cast<llvm::Constant>(Visit(se->GetInitializer()[i].second)));
                 s.Fields.at(name).ManualInitialized = true;
             }
-            int i = 0;
             for (auto &field : s.Fields) {
                 if (!field.second.ManualInitialized) {
-                    fields[i] = llvm::Constant::getNullValue(field.second.Type);
+                    if (field.second.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
+                        fields.push_back(llvm::dyn_cast<llvm::Constant>(defaultStructConst(field.second.ASTType)));
+                    }
+                    else {
+                        fields.push_back(llvm::Constant::getNullValue(field.second.Type));
+                    }
                 }
-                ++i;
             }
             return llvm::ConstantStruct::get(s.Type, fields);
         }
@@ -433,9 +443,8 @@ namespace onyx {
             obj = tempAlloca;
         }
         Struct s = _structs.at(resolveStructName(fae->GetObject()));
-        Field field = s.Fields[fae->GetName().str()];
+        Field field = s.Fields.at(fae->GetName().str());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
-        // TODO: create logic for field accessing in global space
         if (_vars.size() == 1) {
             if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(obj)) {
                 if (globalVar->hasInitializer()) {
@@ -556,8 +565,12 @@ namespace onyx {
                 fields[i] = llvm::cast<llvm::Constant>(field.second.Val);
             }
             else {
-                // TODO: add logic for initializing of structures in structures
-                fields[i] = llvm::Constant::getNullValue(field.second.Type);
+                if (field.second.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
+                    fields[i] = llvm::dyn_cast<llvm::Constant>(defaultStructConst(field.second.ASTType));
+                }
+                else {
+                    fields[i] = llvm::Constant::getNullValue(field.second.Type);
+                }
             }
         }
         return llvm::ConstantStruct::get(s.Type, fields);
@@ -603,8 +616,26 @@ namespace onyx {
                 }
                 return "";
             }
-            case NkFieldAccessExpr:
-                return resolveStructName(llvm::dyn_cast<FieldAccessExpr>(expr)->GetObject());
+            case NkFieldAccessExpr: {
+                auto *fae = llvm::dyn_cast<FieldAccessExpr>(expr);
+                std::string parentStructName = resolveStructName(fae->GetObject());
+                if (parentStructName.empty()) {
+                    return "";
+                }
+
+                if (_structs.count(parentStructName)) {
+                    Struct &s = _structs.at(parentStructName);
+                    std::string fieldName = fae->GetName().str();
+                    
+                    if (s.Fields.count(fieldName)) {
+                        Field &f = s.Fields.at(fieldName);
+                        if (f.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
+                            return f.ASTType.GetVal().str();
+                        }
+                    }
+                }
+                return "";
+            }
             case NkMethodCallExpr:
                 return resolveStructName(llvm::dyn_cast<MethodCallExpr>(expr)->GetObject());
             default: {

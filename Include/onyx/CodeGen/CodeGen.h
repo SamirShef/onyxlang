@@ -21,6 +21,7 @@ namespace onyx {
         struct Field {
             const llvm::StringRef Name;
             llvm::Type *Type;
+            ASTType ASTType;
             llvm::Value *Val;
             bool ManualInitialized;
             long Index;
