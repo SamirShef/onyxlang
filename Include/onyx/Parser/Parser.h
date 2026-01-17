@@ -8,13 +8,14 @@ namespace onyx {
     class Parser {
         Lexer &_lex;
         DiagnosticEngine &_diag;
+        Token _lastTok;
         Token _curTok;
         Token _nextTok;
         llvm::BumpPtrAllocator _allocator;
 
     public:
-        explicit Parser(Lexer &lex, DiagnosticEngine &diag) : _lex(lex), _diag(diag), _curTok(Token(TkUnknown, "", llvm::SMLoc())),
-                                                              _nextTok(Token(TkUnknown, "", llvm::SMLoc())) {
+        explicit Parser(Lexer &lex, DiagnosticEngine &diag) : _lex(lex), _diag(diag), _lastTok(Token(TkUnknown, "", llvm::SMLoc())),
+                                                              _curTok(Token(TkUnknown, "", llvm::SMLoc())), _nextTok(Token(TkUnknown, "", llvm::SMLoc())) {
             consume();
             consume();
         }
@@ -28,10 +29,16 @@ namespace onyx {
         createNode(Args &&... args);
     
         Stmt *
+        parseIdStartStmt();
+
+        Stmt *
         parseVarDeclStmt();
 
         Stmt *
         parseVarAsgn();
+
+        Stmt *
+        parseFieldAsgnStmt(Expr *base);
 
         Stmt *
         parseFunDeclStmt();

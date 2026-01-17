@@ -267,6 +267,11 @@ namespace onyx {
     }
     
     std::optional<ASTVal>
+    SemanticAnalyzer::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
     SemanticAnalyzer::VisitBinaryExpr(BinaryExpr *be) {
         checkBinaryExpr(be);
         std::optional<ASTVal> lhs = Visit(be->GetLHS());

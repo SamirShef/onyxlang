@@ -1,6 +1,5 @@
 #include <llvm/Support/Casting.h>
 #include <onyx/CodeGen/CodeGen.h>
-#include <ostream>
 
 static bool createLoad = true;
 
@@ -22,7 +21,8 @@ namespace onyx {
         }
         llvm::Value *var;
         if (_vars.size() == 1) {
-            var = new llvm::GlobalVariable(*_module, typeToLLVM(vds->GetType()), vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer), vds->GetName());
+            var = new llvm::GlobalVariable(*_module, typeToLLVM(vds->GetType()), vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer),
+                                           vds->GetName());
         }
         else {
             var = _builder.CreateAlloca(typeToLLVM(vds->GetType()), nullptr, vds->GetName());
@@ -208,6 +208,11 @@ namespace onyx {
         return nullptr;
     }
     
+    llvm::Value *
+    CodeGen::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
+        return nullptr;
+    }
+
     llvm::Value *
     CodeGen::VisitBinaryExpr(BinaryExpr *be) {
         llvm::Value *lhs = Visit(be->GetLHS());

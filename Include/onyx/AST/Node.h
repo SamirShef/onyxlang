@@ -6,6 +6,7 @@ namespace onyx {
         NkStartStmts,
         NkVarDeclStmt,
         NkVarAsgnStmt,
+        NkFieldAsgnStmt,
         NkFunDeclStmt,
         NkFunCallStmt,
         NkRetStmt,

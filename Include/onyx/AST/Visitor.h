@@ -13,6 +13,8 @@ namespace onyx {
                     return NODE(VisitVarDeclStmt, VarDeclStmt);
                 case NkVarAsgnStmt:
                     return NODE(VisitVarAsgnStmt, VarAsgnStmt);
+                case NkFieldAsgnStmt:
+                    return NODE(VisitFieldAsgnStmt, FieldAsgnStmt);
                 case NkFunDeclStmt:
                     return NODE(VisitFunDeclStmt, FunDeclStmt);
                 case NkFunCallStmt:
