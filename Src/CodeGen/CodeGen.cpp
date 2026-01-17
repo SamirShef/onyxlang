@@ -1,4 +1,3 @@
-#include <llvm/Support/Casting.h>
 #include <onyx/CodeGen/CodeGen.h>
 
 static bool createLoad = true;
@@ -67,6 +66,13 @@ namespace onyx {
         }
         llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
         llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName(), *_module);
+
+        
+        if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
+            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
+            fun->setMetadata("struct_name", metadata);
+        }
+
         llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
         _builder.SetInsertPoint(entry);
         _vars.push({});
@@ -421,6 +427,11 @@ namespace onyx {
         createLoad = false;
         llvm::Value *obj = Visit(fae->GetObject());
         createLoad = true;
+        if (!obj->getType()->isPointerTy()) {
+            llvm::AllocaInst *tempAlloca = _builder.CreateAlloca(obj->getType(), nullptr, "rvalue.tmp");
+            _builder.CreateStore(obj, tempAlloca);
+            obj = tempAlloca;
+        }
         Struct s = _structs.at(resolveStructName(fae->GetObject()));
         Field field = s.Fields[fae->GetName().str()];
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
@@ -568,11 +579,23 @@ namespace onyx {
                 }
                 return "";
             }
+            case NkFunCallExpr: {
+                std::string name = llvm::dyn_cast<FunCallExpr>(expr)->GetName().str();
+                llvm::Function *fun = _functions.at(name);
+                if (auto *metadata = fun->getMetadata("struct_name")) {
+                    if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
+                        return mdStr->getString().str();
+                    }
+                }
+                return "";
+            }
             case NkFieldAccessExpr:
                 return resolveStructName(llvm::dyn_cast<FieldAccessExpr>(expr)->GetObject());
             case NkMethodCallExpr:
                 return resolveStructName(llvm::dyn_cast<MethodCallExpr>(expr)->GetObject());
-            default: {}
+            default: {
+                return "";
+            }
         }
     }
 }
