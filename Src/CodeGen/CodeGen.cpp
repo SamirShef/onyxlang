@@ -436,6 +436,20 @@ namespace onyx {
         Field field = s.Fields[fae->GetName().str()];
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
         // TODO: create logic for field accessing in global space
+        if (_vars.size() == 1) {
+            if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(obj)) {
+                if (globalVar->hasInitializer()) {
+                    obj = globalVar->getInitializer();
+                }
+                else {
+                    return nullptr; 
+                }
+            }
+            if (auto *constantVal = llvm::dyn_cast<llvm::Constant>(obj)) {
+                return constantVal->getAggregateElement(field.Index);
+            }
+            return nullptr;
+        }
         return _builder.CreateLoad(s.Type->getTypeAtIndex(field.Index), gep, fae->GetName() + ".load");
     }
 
