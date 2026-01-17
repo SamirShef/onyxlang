@@ -19,6 +19,8 @@ namespace onyx {
                 return TO_STR(f32Val);
             case ASTTypeKind::F64:
                 return TO_STR(f64Val);
+            case ASTTypeKind::Struct:
+                return _type.GetVal().str();
             case ASTTypeKind::Noth:
                 return "<noth>";
         }
@@ -41,6 +43,8 @@ namespace onyx {
                 return _data.f32Val;
             case ASTTypeKind::F64:
                 return _data.f64Val;
+            case ASTTypeKind::Struct:
+                return _data.structInstanceIndex;
             case ASTTypeKind::Noth:
                 return 0;
         }
@@ -67,6 +71,7 @@ namespace onyx {
                     return VAL(f32Val, float);
                 case ASTTypeKind::F64:
                     return VAL(f64Val, double);
+                default: {}
                 #undef VAL
             }
         }
@@ -91,6 +96,8 @@ namespace onyx {
                 return VAL(f32Val, float);
             case ASTTypeKind::F64:
                 return VAL(f64Val, double);
+            case ASTTypeKind::Struct:
+                return VAL(structInstanceIndex, long);
             case ASTTypeKind::Noth:
                 return ASTVal(type, ASTValData { .i32Val = 0 });
             #undef VAL
@@ -115,6 +122,8 @@ namespace onyx {
                 return VAL(f32Val);
             case ASTTypeKind::F64:
                 return VAL(f64Val);
+            case ASTTypeKind::Struct:
+                return VAL(structInstanceIndex);
             case ASTTypeKind::Noth:
                 return ASTVal(type, ASTValData { .i32Val = 0 });
             #undef VAL

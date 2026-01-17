@@ -1,18 +1,21 @@
-#include "onyx/Basic/ASTType.h"
 #include <onyx/Sema/Semantic.h>
 #include <cmath>
 
 namespace onyx {
     static std::unordered_map<ASTTypeKind, std::vector<ASTTypeKind>> implicitlyCastAllowed {
         { ASTTypeKind::Char, { ASTTypeKind::I16, ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64 } },
-        { ASTTypeKind::I16,  { ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64                       } },
-        { ASTTypeKind::I32,  { ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64                                             } },
-        { ASTTypeKind::I64,  { ASTTypeKind::F32, ASTTypeKind::F64                                                                   } },
-        { ASTTypeKind::F32,  { ASTTypeKind::F64                                                                                         } },
+        { ASTTypeKind::I16,  { ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64                   } },
+        { ASTTypeKind::I32,  { ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64                                     } },
+        { ASTTypeKind::I64,  { ASTTypeKind::F32, ASTTypeKind::F64                                                       } },
+        { ASTTypeKind::F32,  { ASTTypeKind::F64                                                                         } },
     };
     
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
+        if (vds->GetAccess() == AccessPub && _vars.size() != 1) {
+            _diag.Report(vds->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc());
+        }
         if (_vars.top().find(vds->GetName().str()) != _vars.top().end()) {
             _diag.Report(llvm::SMLoc::getFromPointer(vds->GetName().data()), ErrRedefinitionVar)
                 << getRange(llvm::SMLoc::getFromPointer(vds->GetName().data()), vds->GetName().size())
@@ -20,6 +23,11 @@ namespace onyx {
         }
         else {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
+            if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
+                Struct s = structs.at(vds->GetType().GetVal().str());
+                structsInstances.push_back(s);
+                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(structsInstances.size() - 1) });
+            }
             Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
             if (vds->GetExpr()) {
                 implicitlyCast(var.Val.value(), var.Type, vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
@@ -31,6 +39,14 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarAsgnStmt(VarAsgnStmt *vas) {
+        if (_vars.size() != 1) {
+            _diag.Report(vas->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(vas->GetStartLoc(), vas->GetEndLoc());
+        }
+        if (vas->GetAccess() == AccessPub) {
+            _diag.Report(vas->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(vas->GetStartLoc(), vas->GetEndLoc());
+        }
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(vas->GetName().str()); var != varsCopy.top().end()) {
@@ -54,6 +70,14 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFunDeclStmt(FunDeclStmt *fds) {
+        if (_vars.size() != 1) {
+            _diag.Report(fds->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+        }
+        if (fds->GetAccess() == AccessPub && _vars.size() != 1) {
+            _diag.Report(fds->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+        }
         if (functions.find(fds->GetName().str()) != functions.end()) {
             _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
                 << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
@@ -88,6 +112,10 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFunCallStmt(FunCallStmt *fcs) {
+        if (fcs->GetAccess() == AccessPub) {
+            _diag.Report(fcs->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(fcs->GetStartLoc(), fcs->GetEndLoc());
+        }
         FunCallExpr *expr = new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc());
         VisitFunCallExpr(expr);
         delete expr;
@@ -96,6 +124,10 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitRetStmt(RetStmt *rs) {
+        if (rs->GetAccess() == AccessPub) {
+            _diag.Report(rs->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(rs->GetStartLoc(), rs->GetEndLoc());
+        }
         ASTVal val = ASTVal::GetDefaultByType(ASTType::GetNothType());
         if (rs->GetExpr()) {
             val = Visit(rs->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
@@ -106,6 +138,14 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitIfElseStmt(IfElseStmt *ies) {
+        if (_vars.size() != 1) {
+            _diag.Report(ies->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
+        }
+        if (ies->GetAccess() == AccessPub) {
+            _diag.Report(ies->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
+        }
         if (funRetsTypes.empty()) {
             _diag.Report(ies->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
@@ -127,6 +167,14 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitForLoopStmt(ForLoopStmt *fls) {
+        if (_vars.size() != 1) {
+            _diag.Report(fls->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
+        }
+        if (fls->GetAccess() == AccessPub) {
+            _diag.Report(fls->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
+        }
         if (funRetsTypes.empty()) {
             _diag.Report(fls->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
@@ -151,6 +199,10 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitBreakStmt(BreakStmt *bs) {
+        if (bs->GetAccess() == AccessPub) {
+            _diag.Report(bs->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(bs->GetStartLoc(), bs->GetEndLoc());
+        }
         if (_loopDeth == 0) {
             _diag.Report(bs->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(bs->GetStartLoc(), bs->GetEndLoc());
@@ -160,6 +212,10 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitContinueStmt(ContinueStmt *cs) {
+        if (cs->GetAccess() == AccessPub) {
+            _diag.Report(cs->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(cs->GetStartLoc(), cs->GetEndLoc());
+        }
         if (_loopDeth == 0) {
             _diag.Report(cs->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(cs->GetStartLoc(), cs->GetEndLoc());
@@ -169,7 +225,45 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitStructStmt(StructStmt *ss) {
+        if (_vars.size() != 1) {
+            _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
+        }
+        if (ss->GetAccess() == AccessPub && _vars.size() != 1) {
+            _diag.Report(ss->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
+        }
+        if (structs.find(ss->GetName().str()) != structs.end()) {
+            _diag.Report(ss->GetStartLoc(), ErrRedefinitionStruct)
+                << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc())
+                << ss->GetName();
+            return std::nullopt;
+        }
 
+        Struct s { ss->GetName(), {} };
+        for (int i = 0; i < ss->GetBody().size(); ++i) {
+            if (ss->GetBody()[i]->GetKind() != NkVarDeclStmt) {
+                _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
+                    << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
+                continue;
+            }
+
+            VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
+            if (s.Fields.find(vds->GetName().str()) != s.Fields.end()) {
+                _diag.Report(vds->GetStartLoc(), ErrRedefinitionField)
+                    << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
+                    << vds->GetName();
+                continue;
+            }
+            std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
+            if (vds->GetExpr()) {
+                implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
+            }
+            s.Fields.emplace(vds->GetName().str(), Field { vds->GetName(), val, vds->GetType(), false });
+        }
+        structs.emplace(s.Name, s);
+
+        return std::nullopt;
     }
     
     std::optional<ASTVal>
@@ -347,7 +441,34 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitStructExpr(StructExpr *se) {
-        
+        if (structs.find(se->GetName().str()) == structs.end()) {
+            _diag.Report(se->GetStartLoc(), ErrUndeclaredStructure)
+                << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
+                << se->GetName();
+            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+        }
+        Struct s = structs.at(se->GetName().str());
+        for (int i = 0; i < se->GetInitializer().size(); ++i) {
+            std::string name = se->GetInitializer()[i].first.str();
+            if (s.Fields.find(name) != s.Fields.end()) {
+                if (s.Fields.at(name).ManualInitialized) {
+                    _diag.Report(se->GetStartLoc(), ErrFieldInitialized)
+                        << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
+                        << name;
+                }
+                else {
+                    s.Fields.at(name).Val = Visit(se->GetInitializer()[i].second);
+                    s.Fields.at(name).ManualInitialized = true;
+                }
+            }
+            else {
+                _diag.Report(se->GetStartLoc(), ErrUndeclaredField)
+                    << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
+                    << name;
+            }
+        }
+        structsInstances.push_back(s);
+        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(structsInstances.size() - 1) });
     }
 
     llvm::SMRange
