@@ -210,6 +210,13 @@ namespace onyx {
     
     llvm::Value *
     CodeGen::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
+        createLoad = false;
+        llvm::Value *obj = Visit(fas->GetObject());
+        createLoad = true;
+        Struct s = _structs.at(resolveStructName(fas->GetObject()));
+        Field field = s.Fields[fas->GetName().str()];
+        llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
+        _builder.CreateStore(Visit(fas->GetExpr()), gep);
         return nullptr;
     }
 
