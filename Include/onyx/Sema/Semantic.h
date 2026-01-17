@@ -33,6 +33,7 @@ namespace onyx {
             const llvm::StringRef Name;
             std::optional<ASTVal> Val;
             ASTType Type;
+            AccessModifier Access;
             bool ManualInitialized;
         };
         

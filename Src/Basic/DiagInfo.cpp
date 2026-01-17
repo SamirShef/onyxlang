@@ -29,7 +29,7 @@ namespace onyx {
             case ErrUndeclaredStructure:
                 return ERR("structure `%0` is undeclared");
             case ErrUndeclaredField:
-                return ERR("field `%0` is undeclared");
+                return ERR("field `%0` is undeclared in structure `%1`");
             case ErrRedefinitionVar:
                 return ERR("redefinition the variable `%0`");
             case ErrRedefinitionFun:
@@ -60,6 +60,10 @@ namespace onyx {
                 return ERR("this statement cannot have an access modifier be here");
             case ErrFieldInitialized:
                 return ERR("field `%0` has already been initialized");
+            case ErrAccessFromNonStruct:
+                return ERR("accessing a member from non-struct");
+            case ErrFieldIsPrivate:
+                return ERR("field `%0` is private");
         }
     }
 }

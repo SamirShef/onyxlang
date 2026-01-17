@@ -259,7 +259,7 @@ namespace onyx {
             if (vds->GetExpr()) {
                 implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
             }
-            s.Fields.emplace(vds->GetName().str(), Field { vds->GetName(), val, vds->GetType(), false });
+            s.Fields.emplace(vds->GetName().str(), Field { vds->GetName(), val, vds->GetType(), vds->GetAccess(), false });
         }
         _structs.emplace(s.Name, s);
 
@@ -464,7 +464,8 @@ namespace onyx {
             else {
                 _diag.Report(se->GetStartLoc(), ErrUndeclaredField)
                     << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
-                    << name;
+                    << name
+                    << s.Name;
             }
         }
         _structsInstances.push_back(s);
@@ -474,12 +475,36 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFieldAccessExpr(FieldAccessExpr *fae) {
-        return std::nullopt;
+        std::optional<ASTVal> obj = Visit(fae->GetObject());
+        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+            _diag.Report(fae->GetStartLoc(), ErrAccessFromNonStruct)
+                << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc());
+        }
+        else {
+            Struct s = _structs.at(obj->GetType().GetVal().str());
+            auto field = s.Fields.find(fae->GetName().str());
+            if (field == s.Fields.end()) {
+                _diag.Report(fae->GetStartLoc(), ErrUndeclaredField)
+                    << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                    << fae->GetName()
+                    << s.Name;
+            }
+            else {
+                if (field->second.Access == AccessPriv) {
+                    _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << fae->GetName();
+                }
+                return s.Fields.at(fae->GetName().str()).Val;
+            }
+        }
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
     }
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitMethodCallExpr(MethodCallExpr *mce) {
-        return std::nullopt;
+        // TODO: create logic (when create methods)
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
     }
 
     llvm::SMRange
