@@ -10,6 +10,7 @@ namespace onyx {
         long    i64Val;
         float   f32Val;
         double  f64Val;
+        long    structInstanceIndex;
     };
 
     class ASTVal {

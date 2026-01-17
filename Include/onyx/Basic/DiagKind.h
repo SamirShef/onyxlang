@@ -13,8 +13,12 @@ namespace onyx {
         ErrExpectedType,
         ErrUndeclaredVariable,
         ErrUndeclaredFuntion,
+        ErrUndeclaredStructure,
+        ErrUndeclaredField,
         ErrRedefinitionVar,
         ErrRedefinitionFun,
+        ErrRedefinitionStruct,
+        ErrRedefinitionField,
         ErrTypeMismatchNotNum,
         ErrTypeMismatchNotBool,
         ErrCannotCast,
@@ -24,5 +28,7 @@ namespace onyx {
         ErrFewArgs,
         ErrAssignmentConst,
         ErrCannotBeHere,
+        ErrCannotHaveAccessBeHere,
+        ErrFieldInitialized,
     };
 }

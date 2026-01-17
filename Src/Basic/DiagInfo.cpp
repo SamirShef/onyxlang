@@ -26,10 +26,18 @@ namespace onyx {
                 return ERR("variable `%0` is undeclared");
             case ErrUndeclaredFuntion:
                 return ERR("function `%0` is undeclared");
+            case ErrUndeclaredStructure:
+                return ERR("structure `%0` is undeclared");
+            case ErrUndeclaredField:
+                return ERR("field `%0` is undeclared");
             case ErrRedefinitionVar:
                 return ERR("redefinition the variable `%0`");
             case ErrRedefinitionFun:
                 return ERR("redefinition the function `%0`");
+            case ErrRedefinitionStruct:
+                return ERR("redefinition the structure `%0`");
+            case ErrRedefinitionField:
+                return ERR("redefinition the field `%0`");
             case ErrTypeMismatchNotNum:
                 return ERR("expected number, but got `%0`");
             case ErrTypeMismatchNotBool:
@@ -48,6 +56,10 @@ namespace onyx {
                 return ERR("assigning a value to a constant");
             case ErrCannotBeHere:
                 return ERR("this statement cannot be here");
+            case ErrCannotHaveAccessBeHere:
+                return ERR("this statement cannot have an access modifier be here");
+            case ErrFieldInitialized:
+                return ERR("field `%0` has already been initialized");
         }
     }
 }

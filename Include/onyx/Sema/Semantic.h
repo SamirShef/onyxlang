@@ -28,6 +28,20 @@ namespace onyx {
         std::stack<ASTType> funRetsTypes;
 
         int _loopDeth = 0;
+
+        struct Field {
+            const llvm::StringRef Name;
+            std::optional<ASTVal> Val;
+            ASTType Type;
+            bool ManualInitialized;
+        };
+        
+        struct Struct {
+            const llvm::StringRef Name;
+            std::unordered_map<std::string, Field> Fields;
+        };
+        std::unordered_map<std::string, Struct> structs;
+        std::vector<Struct> structsInstances;
         
     public:
         explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {
