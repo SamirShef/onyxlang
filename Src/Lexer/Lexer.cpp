@@ -63,6 +63,12 @@ namespace onyx {
                         << *(_curPtr - 1);
                 }
                 return TOKEN(TkI16Lit);
+            case 'l':
+                if (hasDot) {
+                    _diag.Report(llvm::SMLoc::getFromPointer(_curPtr - 1), ErrIntegerSuffixForFloatingPoint)
+                        << *(_curPtr - 1);
+                }
+                return TOKEN(TkI64Lit);
             case 'f':
                 return TOKEN(TkF32Lit);
             case 'd':
