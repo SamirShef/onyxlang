@@ -38,12 +38,7 @@ namespace onyx {
 
         llvm::ModulePassManager MPM;
 
-        if (LLVMLvl == llvm::OptimizationLevel::O3) {
-            MPM = PB.buildPerModuleDefaultPipeline(LLVMLvl);
-        }
-        else {
-            MPM = PB.buildPerModuleDefaultPipeline(LLVMLvl);
-        }
+        MPM = PB.buildPerModuleDefaultPipeline(LLVMLvl);
 
         MPM.run(mod, MAM);
     }
