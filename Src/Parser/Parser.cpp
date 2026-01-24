@@ -75,6 +75,9 @@ namespace onyx {
             case TkStruct: {
                 return parseStructStmt();
             }
+            case TkImpl: {
+                return parseImplStmt();
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -330,6 +333,28 @@ namespace onyx {
             body.push_back(ParseStmt());
         }
         return createNode<StructStmt>(name, body, access, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseImplStmt() {
+        Token firstTok = consume();
+        llvm::StringRef structName = _curTok.GetText();
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        if (!expect(TkLBrace)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "{"                  // expected
+                << _curTok.GetText();   // got
+        }
+        std::vector<Stmt *> body;
+        while (!expect(TkRBrace)) {
+            body.push_back(ParseStmt());
+        }
+        return createNode<ImplStmt>(structName, body, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument

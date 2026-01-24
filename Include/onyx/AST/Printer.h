@@ -36,6 +36,9 @@ namespace onyx {
         VisitStructStmt(StructStmt *ss);
 
         void
+        VisitImplStmt(ImplStmt *is);
+
+        void
         VisitFieldAsgnStmt(FieldAsgnStmt *fas);
 
         void

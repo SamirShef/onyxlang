@@ -15,6 +15,7 @@ namespace onyx {
         NkBreakStmt,
         NkContinueStmt,
         NkStructStmt,
+        NkImplStmt,
         NkEndStmts,
 
         NkStartExprs,

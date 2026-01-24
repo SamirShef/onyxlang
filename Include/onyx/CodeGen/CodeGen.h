@@ -76,6 +76,9 @@ namespace onyx {
         VisitStructStmt(StructStmt *ss);
         
         llvm::Value *
+        VisitImplStmt(ImplStmt *is);
+
+        llvm::Value *
         VisitFieldAsgnStmt(FieldAsgnStmt *fas);
 
         llvm::Value *

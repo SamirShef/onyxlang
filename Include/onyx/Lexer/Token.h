@@ -24,6 +24,7 @@ namespace onyx {
         TkContinue,         // keyword `continue`
         TkStruct,           // keyword `struct`
         TkPub,              // keyword `pub`
+        TkImpl,             // keyword `impl`
         
         TkBoolLit,          // bool literal
         TkCharLit,          // character literal
