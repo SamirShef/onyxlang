@@ -165,6 +165,19 @@ namespace onyx {
         _spaces = spaces;
         llvm::outs() << ')';
     }
+
+    void
+    ASTPrinter::VisitImplStmt(ImplStmt *is) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(ImplStmt: " << is->GetStructName().str() << " {\n";
+        _spaces += 2;
+        for (auto stmt : is->GetBody()) {
+            Visit(stmt);
+            llvm::outs() << '\n';
+        }
+        _spaces -= 2;
+        llvm::outs() << "})";
+    }
     
     void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {

@@ -83,6 +83,9 @@ namespace onyx {
         VisitFieldAsgnStmt(FieldAsgnStmt *fas);
 
         std::optional<ASTVal>
+        VisitImplStmt(ImplStmt *is);
+
+        std::optional<ASTVal>
         VisitBinaryExpr(BinaryExpr *be);
         
         std::optional<ASTVal>

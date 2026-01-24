@@ -138,7 +138,7 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitIfElseStmt(IfElseStmt *ies) {
-        if (_vars.size() != 1) {
+        if (_vars.size() == 1) {
             _diag.Report(ies->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
         }
@@ -167,7 +167,7 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitForLoopStmt(ForLoopStmt *fls) {
-        if (_vars.size() != 1) {
+        if (_vars.size() == 1) {
             _diag.Report(fls->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(fls->GetStartLoc(), fls->GetEndLoc());
         }
@@ -295,6 +295,11 @@ namespace onyx {
                 implicitlyCast(Visit(fas->GetExpr()).value(), s.Fields.at(fas->GetName().str()).Type, fas->GetStartLoc(), fas->GetEndLoc());
             }
         }
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitImplStmt(ImplStmt *is) {
         return std::nullopt;
     }
 

@@ -31,6 +31,8 @@ namespace onyx {
                     return NODE(VisitContinueStmt, ContinueStmt);
                 case NkStructStmt:
                     return NODE(VisitStructStmt, StructStmt);
+                case NkImplStmt:
+                    return NODE(VisitImplStmt, ImplStmt);
                 
                 case NkBinaryExpr:
                     return NODE(VisitBinaryExpr, BinaryExpr);
