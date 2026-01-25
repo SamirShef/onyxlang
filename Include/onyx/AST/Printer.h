@@ -39,6 +39,9 @@ namespace onyx {
         VisitImplStmt(ImplStmt *is);
 
         void
+        VisitMethodCallStmt(MethodCallStmt *mcs);
+
+        void
         VisitFieldAsgnStmt(FieldAsgnStmt *fas);
 
         void

@@ -12,7 +12,7 @@ namespace onyx {
 
     public:
         explicit FieldAsgnStmt(Expr *obj, llvm::StringRef name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                           : _object(obj), _name(name), _expr(expr), Stmt(NkFieldAsgnStmt, access, startLoc, endLoc) {}
+                             : _object(obj), _name(name), _expr(expr), Stmt(NkFieldAsgnStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {

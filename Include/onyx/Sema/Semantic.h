@@ -95,6 +95,9 @@ namespace onyx {
         VisitImplStmt(ImplStmt *is);
 
         std::optional<ASTVal>
+        VisitMethodCallStmt(MethodCallStmt *mcs);
+
+        std::optional<ASTVal>
         VisitBinaryExpr(BinaryExpr *be);
         
         std::optional<ASTVal>

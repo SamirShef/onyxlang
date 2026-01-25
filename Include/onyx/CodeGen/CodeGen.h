@@ -87,6 +87,9 @@ namespace onyx {
         VisitImplStmt(ImplStmt *is);
 
         llvm::Value *
+        VisitMethodCallStmt(MethodCallStmt *mcs);
+
+        llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);
         
         llvm::Value *

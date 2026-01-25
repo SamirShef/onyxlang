@@ -362,6 +362,18 @@ namespace onyx {
     }
 
     std::optional<ASTVal>
+    SemanticAnalyzer::VisitMethodCallStmt(MethodCallStmt *mcs) {
+        if (mcs->GetAccess() == AccessPub) {
+            _diag.Report(mcs->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(mcs->GetStartLoc(), mcs->GetEndLoc());
+        }
+        MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
+        VisitMethodCallExpr(expr);
+        delete expr;
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
     SemanticAnalyzer::VisitBinaryExpr(BinaryExpr *be) {
         checkBinaryExpr(be);
         std::optional<ASTVal> lhs = Visit(be->GetLHS());

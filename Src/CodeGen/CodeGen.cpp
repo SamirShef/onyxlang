@@ -241,7 +241,6 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitImplStmt(ImplStmt *is) {
-        //_manglingParts.push(is->GetStructName().str());
         Struct s = _structs.at(is->GetStructName().str());
         for (auto &stmt : is->GetBody()) {
             FunDeclStmt *method = llvm::cast<FunDeclStmt>(stmt);
@@ -279,7 +278,14 @@ namespace onyx {
             _funRetsTypes.pop();
             _vars.pop();
         }
-        //_manglingParts.pop();
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitMethodCallStmt(MethodCallStmt *mcs) {
+        MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
+        Visit(expr);
+        delete expr;
         return nullptr;
     }
 

@@ -217,6 +217,23 @@ namespace onyx {
     }
     
     void
+    ASTPrinter::VisitMethodCallStmt(MethodCallStmt *mcs) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(MethodCallStmt: " << mcs->GetName().str() << " (";
+        for (int i = 0; i < mcs->GetArgs().size(); ++i) {
+            Visit(mcs->GetArgs()[i]);
+            if (i < mcs->GetArgs().size() - 1) {
+                llvm::outs() << ", ";
+            }
+        }
+        llvm::outs() << ") from ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(mcs->GetObject());
+        _spaces = spaces;
+    }
+    
+    void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(BinaryExpr: ";

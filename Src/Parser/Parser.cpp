@@ -100,10 +100,16 @@ namespace onyx {
         switch (expr->GetKind()) {
             case NkVarExpr:
                 return parseVarAsgn();
-            case NkFunCallExpr:
-                return parseFunCallStmt();
+            case NkFunCallExpr: {
+                FunCallExpr *fce = llvm::cast<FunCallExpr>(expr);
+                return createNode<FunCallStmt>(fce->GetName(), fce->GetArgs(), access, fce->GetStartLoc(), _curTok.GetLoc());
+            }
             case NkFieldAccessExpr:
                 return parseFieldAsgnStmt(llvm::dyn_cast<FieldAccessExpr>(expr)->GetObject());
+            case NkMethodCallExpr: {
+                MethodCallExpr *mce = llvm::cast<MethodCallExpr>(expr);
+                return createNode<MethodCallStmt>(mce->GetObject(), mce->GetName(), mce->GetArgs(), access, mce->GetStartLoc(), _curTok.GetLoc());
+            }
             default: {}
         }
         return nullptr;
@@ -214,25 +220,6 @@ namespace onyx {
             block.push_back(ParseStmt());
         }
         return createNode<FunDeclStmt>(name, retType, args, block, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
-    }
-
-    Stmt *
-    Parser::parseFunCallStmt() {
-        Token nameToken = _lastTok;
-        consume();
-        std::vector<Expr *> args;
-        while (!expect(TkRParen)) {
-            args.push_back(parseExpr(PrecLowest));
-            if (!_curTok.Is(TkRParen)) {
-                if (!expect(TkComma)) {
-                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                        << getRangeFromTok(_curTok)
-                        << ","                  // expected
-                        << _curTok.GetText();   // got
-                }
-            }
-        }
-        return createNode<FunCallStmt>(nameToken.GetText(), args, access, nameToken.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *

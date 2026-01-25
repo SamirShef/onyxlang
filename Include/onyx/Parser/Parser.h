@@ -44,9 +44,6 @@ namespace onyx {
         parseFunDeclStmt();
 
         Stmt *
-        parseFunCallStmt();
-        
-        Stmt *
         parseRetStmt();
 
         Stmt *

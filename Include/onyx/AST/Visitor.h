@@ -33,6 +33,8 @@ namespace onyx {
                     return NODE(VisitStructStmt, StructStmt);
                 case NkImplStmt:
                     return NODE(VisitImplStmt, ImplStmt);
+                case NkMethodCallStmt:
+                    return NODE(VisitMethodCallStmt, MethodCallStmt);
                 
                 case NkBinaryExpr:
                     return NODE(VisitBinaryExpr, BinaryExpr);
