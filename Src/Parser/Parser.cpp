@@ -208,11 +208,12 @@ namespace onyx {
                 << "{"                  // expected
                 << _curTok.GetText();   // got
         }
+        AccessModifier accessCopy = access;
         std::vector<Stmt *> block;
         while (!expect(TkRBrace)) {
             block.push_back(ParseStmt());
         }
-        return createNode<FunDeclStmt>(name, retType, args, block, access, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<FunDeclStmt>(name, retType, args, block, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -246,6 +247,7 @@ namespace onyx {
 
     Stmt *
     Parser::parseIfElseStmt() {
+        AccessModifier accessCopy = access;
         Token firstTok = consume();
         Expr *cond = parseExpr(PrecLowest);
         std::vector<Stmt *> thenBranch;
@@ -271,11 +273,12 @@ namespace onyx {
                 elseBranch.push_back(ParseStmt());
             }
         }
-        return createNode<IfElseStmt>(cond, thenBranch, elseBranch, access, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<IfElseStmt>(cond, thenBranch, elseBranch, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
     Parser::parseForLoopStmt() {
+        AccessModifier accessCopy = access;
         Token firstTok = consume();
         Stmt *indexator = nullptr;
         if (_curTok.Is(TkVar) || _curTok.Is(TkId) && isAssignmentOp(_nextTok.GetKind())) {
@@ -310,11 +313,12 @@ namespace onyx {
                 block.push_back(ParseStmt());
             }
         }
-        return createNode<ForLoopStmt>(indexator, cond, iteration, block, access, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<ForLoopStmt>(indexator, cond, iteration, block, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
     Parser::parseStructStmt() {
+        AccessModifier accessCopy = access;
         Token firstTok = consume();
         llvm::StringRef name = _curTok.GetText();
         if (!expect(TkId)) {
@@ -332,11 +336,12 @@ namespace onyx {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        return createNode<StructStmt>(name, body, access, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<StructStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
     Parser::parseImplStmt() {
+        AccessModifier accessCopy = access;
         Token firstTok = consume();
         llvm::StringRef structName = _curTok.GetText();
         if (!expect(TkId)) {
@@ -354,7 +359,7 @@ namespace onyx {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        return createNode<ImplStmt>(structName, body, access, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<ImplStmt>(structName, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument

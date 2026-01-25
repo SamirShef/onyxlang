@@ -36,13 +36,19 @@ namespace onyx {
                 llvm::outs() << ", ";
             }
         }
-        llvm::outs() << " {\n";
+        llvm::outs() << ") {";
+        if (fds->GetBody().size() != 0) {
+            llvm::outs() << '\n';
+        }
         _spaces += 2;
         for (auto stmt : fds->GetBody()) {
             Visit(stmt);
             llvm::outs() << '\n';
         }
         _spaces -= 2;
+        if (fds->GetBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
         llvm::outs() << "})";
     }
 
@@ -82,6 +88,9 @@ namespace onyx {
         _spaces = spaces;
 
         llvm::outs() << "then {";
+        if (ies->GetThenBody().size() != 0) {
+            llvm::outs() << '\n';
+        }
         _spaces += 2;
         for (auto stmt : ies->GetThenBody()) {
             Visit(stmt);
@@ -89,7 +98,14 @@ namespace onyx {
         }
         _spaces -= 2;
 
-        llvm::outs() << "else {";
+        if (ies->GetThenBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
+        llvm::outs() << "} else {";
+        for (auto stmt : ies->GetElseBody()) {
+            Visit(stmt);
+            llvm::outs() << '\n';
+        }
         _spaces += 2;
         for (auto stmt : ies->GetElseBody()) {
             Visit(stmt);
@@ -97,13 +113,16 @@ namespace onyx {
         }
         _spaces -= 2;
 
+        if (ies->GetElseBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
         llvm::outs() << "})";
     }
     
     void
     ASTPrinter::VisitForLoopStmt(ForLoopStmt *fls) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(IfElseStmt: ";
+        llvm::outs() << "(FopLoopStmt: ";
         int spaces = _spaces;
         _spaces = 0;
         if (fls->GetIndexator()) {
@@ -118,12 +137,18 @@ namespace onyx {
         _spaces = spaces;
 
         llvm::outs() << " {";
+        if (fls->GetBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
         _spaces += 2;
         for (auto stmt : fls->GetBody()) {
             Visit(stmt);
             llvm::outs() << '\n';
         }
         _spaces -= 2;
+        if (fls->GetBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
         llvm::outs() << "})";
     }
 
@@ -143,13 +168,19 @@ namespace onyx {
     ASTPrinter::VisitStructStmt(StructStmt *ss) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(StructStmt: " << ss->GetName().str() << " (";
-        llvm::outs() << " {\n";
+        llvm::outs() << " {";
+        if (ss->GetBody().size() != 0) {
+            llvm::outs() << '\n';
+        }
         _spaces += 2;
         for (auto stmt : ss->GetBody()) {
             Visit(stmt);
             llvm::outs() << '\n';
         }
         _spaces -= 2;
+        if (ss->GetBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
         llvm::outs() << "})";
     }
 
@@ -169,13 +200,19 @@ namespace onyx {
     void
     ASTPrinter::VisitImplStmt(ImplStmt *is) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(ImplStmt: " << is->GetStructName().str() << " {\n";
+        llvm::outs() << "(ImplStmt: " << is->GetStructName().str() << " {";
+        if (is->GetBody().size() != 0) {
+            llvm::outs() << '\n';
+        }
         _spaces += 2;
         for (auto stmt : is->GetBody()) {
             Visit(stmt);
             llvm::outs() << '\n';
         }
         _spaces -= 2;
+        if (is->GetBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
         llvm::outs() << "})";
     }
     
