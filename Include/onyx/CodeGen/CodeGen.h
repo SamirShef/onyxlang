@@ -76,10 +76,10 @@ namespace onyx {
         VisitStructStmt(StructStmt *ss);
         
         llvm::Value *
-        VisitImplStmt(ImplStmt *is);
+        VisitFieldAsgnStmt(FieldAsgnStmt *fas);
 
         llvm::Value *
-        VisitFieldAsgnStmt(FieldAsgnStmt *fas);
+        VisitImplStmt(ImplStmt *is);
 
         llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);

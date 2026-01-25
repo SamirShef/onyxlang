@@ -30,6 +30,8 @@ namespace onyx {
                 return ERR("structure `%0` is undeclared");
             case ErrUndeclaredField:
                 return ERR("field `%0` is undeclared in structure `%1`");
+            case ErrUndeclaredMethod:
+                return ERR("method `%0` is undeclared in structure `%1`");
             case ErrRedefinitionVar:
                 return ERR("redefinition the variable `%0`");
             case ErrRedefinitionFun:
@@ -38,6 +40,8 @@ namespace onyx {
                 return ERR("redefinition the structure `%0`");
             case ErrRedefinitionField:
                 return ERR("redefinition the field `%0`");
+            case ErrRedefinitionMethod:
+                return ERR("redefinition the method `%0`");
             case ErrTypeMismatchNotNum:
                 return ERR("expected number, but got `%0`");
             case ErrTypeMismatchNotBool:
@@ -49,6 +53,8 @@ namespace onyx {
             case ErrNotAllPathsReturnsValue:
                 return ERR("not all paths return a value");
             case ErrFuntionCannotReturnValue:
+                return ERR("function cannot return a value");
+            case ErrMethodCannotReturnValue:
                 return ERR("function cannot return a value");
             case ErrFewArgs:
                 return ERR("function `%0` expected %1 arguments, but received %2");
@@ -64,6 +70,8 @@ namespace onyx {
                 return ERR("accessing a member from non-struct");
             case ErrFieldIsPrivate:
                 return ERR("field `%0` is private");
+            case ErrMethodIsPrivate:
+                return ERR("method `%0` is private");
         }
     }
 }

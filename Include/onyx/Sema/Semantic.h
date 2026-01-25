@@ -33,13 +33,19 @@ namespace onyx {
             const llvm::StringRef Name;
             std::optional<ASTVal> Val;
             ASTType Type;
-            AccessModifier Access;
+            const AccessModifier Access;
             bool ManualInitialized;
         };
         
+        struct Method {
+            const Function Fun;
+            const AccessModifier Access;
+        };
+
         struct Struct {
             const llvm::StringRef Name;
             std::unordered_map<std::string, Field> Fields;
+            std::unordered_map<std::string, Method> Methods;
         };
         std::unordered_map<std::string, Struct> _structs;
         std::vector<Struct> _structsInstances;

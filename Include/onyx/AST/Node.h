@@ -31,8 +31,8 @@ namespace onyx {
     };
 
     enum AccessModifier {
-        AccessPub,
         AccessPriv,
+        AccessPub,
     };
 
     class Node {

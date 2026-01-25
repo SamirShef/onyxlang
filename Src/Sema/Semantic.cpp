@@ -240,7 +240,7 @@ namespace onyx {
             return std::nullopt;
         }
 
-        Struct s { ss->GetName(), {} };
+        Struct s { ss->GetName(), {}, {} };
         for (int i = 0; i < ss->GetBody().size(); ++i) {
             if (ss->GetBody()[i]->GetKind() != NkVarDeclStmt) {
                 _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
@@ -300,6 +300,57 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitImplStmt(ImplStmt *is) {
+        if (_vars.size() != 1) {
+            _diag.Report(is->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc());
+        }
+        Struct s = _structs.at(is->GetStructName().str());
+        std::vector<FunDeclStmt *> methods;
+        for (auto &stmt : is->GetBody()) {
+            if (stmt->GetKind() != NkFunDeclStmt) {
+                _diag.Report(stmt->GetStartLoc(), ErrCannotBeHere)
+                    << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc());
+                continue;
+            }
+            FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
+            if (s.Methods.find(method->GetName().str()) != s.Methods.end()) {
+                _diag.Report(stmt->GetStartLoc(), ErrRedefinitionMethod)
+                    << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc())
+                    << method->GetName();
+            }
+            else {
+                methods.push_back(method);
+                Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody() };
+                s.Methods.emplace(method->GetName().str(), Method { .Fun = fun, .Access = method->GetAccess() });
+            }
+        }
+        _structs.at(is->GetStructName().str()).Methods = s.Methods;
+
+        for (auto &method : methods) {
+            _vars.push({});
+            ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name.str(), false);
+            _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType),  // TODO: create real logic for .Val
+                                                   .IsConst = false });
+            for (auto arg : method->GetArgs()) {
+                _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
+                                                              .IsConst = arg.GetType().IsConst() });
+            }
+            _funRetsTypes.push(method->GetRetType());
+            bool hasRet;
+            for (auto stmt : method->GetBody()) {
+                if (stmt->GetKind() == NkRetStmt) {
+                    hasRet = true;
+                }
+                Visit(stmt);
+            }
+            _funRetsTypes.pop();
+            _vars.pop();
+
+            if (!hasRet && method->GetRetType().GetTypeKind() != ASTTypeKind::Noth) {
+                _diag.Report(method->GetStartLoc(), ErrNotAllPathsReturnsValue)
+                    << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc());
+            }
+        }
         return std::nullopt;
     }
 
@@ -468,7 +519,7 @@ namespace onyx {
             }
             _vars.pop();
             _diag.Report(fce->GetStartLoc(), ErrFuntionCannotReturnValue);
-            return std::nullopt;
+            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
         }
         _diag.Report(fce->GetStartLoc(), ErrUndeclaredFuntion)
             << getRange(fce->GetStartLoc(), fce->GetName().size())
@@ -540,7 +591,61 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitMethodCallExpr(MethodCallExpr *mce) {
-        // TODO: create logic (when create methods)
+        std::optional<ASTVal> obj = Visit(mce->GetObject());
+        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+            _diag.Report(mce->GetStartLoc(), ErrAccessFromNonStruct)
+                << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc());
+        }
+        else {
+            Struct s = _structs.at(obj->GetType().GetVal().str());
+            auto method = s.Methods.find(mce->GetName().str());
+            if (method == s.Methods.end()) {
+                _diag.Report(mce->GetStartLoc(), ErrUndeclaredMethod)
+                    << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                    << mce->GetName()
+                    << s.Name;
+            }
+            else {
+                if (method->second.Access == AccessPriv) {
+                    _diag.Report(mce->GetStartLoc(), ErrMethodIsPrivate)
+                        << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                        << mce->GetName();
+                }
+
+                _vars.push({});
+                if (method->second.Fun.Args.size() != mce->GetArgs().size()) {
+                    _diag.Report(mce->GetStartLoc(), ErrFewArgs)
+                        << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                        << mce->GetName().str()
+                        << method->second.Fun.Args.size()
+                        << mce->GetArgs().size();
+                    return std::nullopt;
+                }
+                for (int i = 0; i < method->second.Fun.Args.size(); ++i) {
+                    std::optional<ASTVal> val = Visit(mce->GetArgs()[i]);
+                    implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), method->second.Fun.Args[i].GetType(),
+                                   mce->GetArgs()[i]->GetStartLoc(), mce->GetArgs()[i]->GetEndLoc());
+                    _vars.top().emplace(method->second.Fun.Args[i].GetName(), Variable { .Name = method->second.Fun.Args[i].GetName(),
+                                        .Type = method->second.Fun.Args[i].GetType(), .Val = val, .IsConst = method->second.Fun.Args[i].GetType().IsConst() });
+                }
+                for (auto stmt : method->second.Fun.Body) {
+                    if (stmt->GetKind() == NkRetStmt) {
+                        Expr *expr = llvm::dyn_cast<RetStmt>(stmt)->GetExpr();
+                        std::optional<ASTVal> val = expr ? Visit(expr) : ASTVal::GetDefaultByType(ASTType::GetNothType());
+                        implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), method->second.Fun.RetType, mce->GetStartLoc(),
+                                       mce->GetEndLoc());
+                        _vars.pop();
+                        return val;
+                    }
+                    else {
+                        Visit(stmt);
+                    }
+                }
+                _vars.pop();
+                _diag.Report(mce->GetStartLoc(), ErrMethodCannotReturnValue);
+                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+            }
+        }
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
     }
 
