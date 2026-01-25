@@ -1,4 +1,3 @@
-#include <iostream>
 #include <onyx/CodeGen/CodeGen.h>
 
 static bool createLoad = true;
@@ -522,7 +521,6 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitMethodCallExpr(MethodCallExpr *mce) {
-        // TODO: create logic (when create methods)
         createLoad = false;
         llvm::Value *obj = Visit(mce->GetObject());
         createLoad = true;

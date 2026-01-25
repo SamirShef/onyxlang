@@ -337,8 +337,7 @@ namespace onyx {
         for (auto &method : methods) {
             _vars.push({});
             ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name.str(), false);
-            _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType),  // TODO: create real logic for .Val
-                                                   .IsConst = false });
+            _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
             for (auto arg : method->GetArgs()) {
                 _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
                                                               .IsConst = arg.GetType().IsConst() });
@@ -644,8 +643,7 @@ namespace onyx {
                     return std::nullopt;
                 }
                 ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name.str(), false);
-                _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType),  // TODO: create real logic for .Val
-                                                       .IsConst = false });
+                _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
                 for (int i = 0; i < method->second.Fun.Args.size(); ++i) {
                     std::optional<ASTVal> val = Visit(mce->GetArgs()[i]);
                     implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), method->second.Fun.Args[i].GetType(),
