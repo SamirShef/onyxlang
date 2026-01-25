@@ -9,6 +9,23 @@ namespace onyx {
         { ASTTypeKind::I64,  { ASTTypeKind::F32, ASTTypeKind::F64                                                       } },
         { ASTTypeKind::F32,  { ASTTypeKind::F64                                                                         } },
     };
+
+    void
+    SemanticAnalyzer::DeclareFunctions(std::vector<Stmt *> &ast) {
+        for (auto &stmt : ast) {
+            if (stmt->GetKind() == NkFunDeclStmt) {
+                FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
+                if (_functions.find(fds->GetName().str()) != _functions.end()) {
+                    _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
+                        << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
+                        << fds->GetName();
+                    continue;
+                }
+                Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody() };
+                _functions.emplace(fds->GetName().str(), fun);
+            }
+        }
+    }
     
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
@@ -78,34 +95,25 @@ namespace onyx {
             _diag.Report(fds->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
         }
-        if (_functions.find(fds->GetName().str()) != _functions.end()) {
-            _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
-                << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
-                << fds->GetName();
+        _vars.push({});
+        for (auto arg : fds->GetArgs()) {
+            _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
+                                                               .IsConst = arg.GetType().IsConst() });
         }
-        else {
-            _vars.push({});
-            for (auto arg : fds->GetArgs()) {
-                _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
-                                                                   .IsConst = arg.GetType().IsConst() });
+        _funRetsTypes.push(fds->GetRetType());
+        bool hasRet;
+        for (auto stmt : fds->GetBody()) {
+            if (stmt->GetKind() == NkRetStmt) {
+                hasRet = true;
             }
-            Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody() };
-            _functions.emplace(fds->GetName().str(), fun);
-            _funRetsTypes.push(fds->GetRetType());
-            bool hasRet;
-            for (auto stmt : fds->GetBody()) {
-                if (stmt->GetKind() == NkRetStmt) {
-                    hasRet = true;
-                }
-                Visit(stmt);
-            }
-            _funRetsTypes.pop();
-            _vars.pop();
+            Visit(stmt);
+        }
+        _funRetsTypes.pop();
+        _vars.pop();
 
-            if (!hasRet && fds->GetRetType().GetTypeKind() != ASTTypeKind::Noth) {
-                _diag.Report(fds->GetStartLoc(), ErrNotAllPathsReturnsValue)
-                    << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
-            }
+        if (!hasRet && fds->GetRetType().GetTypeKind() != ASTTypeKind::Noth) {
+            _diag.Report(fds->GetStartLoc(), ErrNotAllPathsReturnsValue)
+                << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
         }
         return std::nullopt;
     }

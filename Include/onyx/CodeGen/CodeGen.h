@@ -45,6 +45,9 @@ namespace onyx {
             return std::move(_module);
         }
 
+        void
+        DeclareFunctions(std::vector<Stmt *> &ast);
+
         llvm::Value *
         VisitVarDeclStmt(VarDeclStmt *vds);
 

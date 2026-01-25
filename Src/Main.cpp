@@ -50,6 +50,7 @@ main(int argc, char **argv) {
     diag.ResetErrors();
 
     onyx::SemanticAnalyzer sema(diag);
+    sema.DeclareFunctions(ast);
     for (auto &stmt : ast) {
         sema.Visit(stmt);
     }
@@ -59,6 +60,7 @@ main(int argc, char **argv) {
     diag.ResetErrors();
 
     onyx::CodeGen codegen(fileName);
+    codegen.DeclareFunctions(ast);
     for (auto &stmt : ast) {
         codegen.Visit(stmt);
     }

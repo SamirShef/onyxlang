@@ -3,6 +3,27 @@
 static bool createLoad = true;
 
 namespace onyx {
+    void
+    CodeGen::DeclareFunctions(std::vector<Stmt *> &ast) {
+        for (auto &stmt : ast) {
+            if (stmt->GetKind() == NkFunDeclStmt) {
+                FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
+                std::vector<llvm::Type *> args(fds->GetArgs().size());
+                for (int i = 0; i < fds->GetArgs().size(); ++i) {
+                    args[i] = typeToLLVM(fds->GetArgs()[i].GetType());
+                }
+                llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
+                llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName(), *_module);
+                
+                if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
+                    llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
+                    fun->setMetadata("struct_name", metadata);
+                }
+                _functions.emplace(fun->getName(), fun);
+            }
+        }
+    }
+
     llvm::Value *
     CodeGen::VisitVarDeclStmt(VarDeclStmt *vds) {
         llvm::Value *initializer = nullptr;
@@ -60,14 +81,7 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitFunDeclStmt(FunDeclStmt *fds) {
-        std::vector<llvm::Type *> args(fds->GetArgs().size());
-        for (int i = 0; i < fds->GetArgs().size(); ++i) {
-            args[i] = typeToLLVM(fds->GetArgs()[i].GetType());
-        }
-        llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
-        llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName(), *_module);
-
-        
+        llvm::Function *fun = _functions.at(fds->GetName().str());
         if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
             llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
             fun->setMetadata("struct_name", metadata);
@@ -77,7 +91,6 @@ namespace onyx {
         _builder.SetInsertPoint(entry);
         _vars.push({});
         _funRetsTypes.push(fun->getReturnType());
-        _functions.emplace(fun->getName(), fun);
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());

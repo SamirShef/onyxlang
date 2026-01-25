@@ -55,6 +55,9 @@ namespace onyx {
             _vars.push({});
         }
         
+        void
+        DeclareFunctions(std::vector<Stmt *> &ast);
+
         std::optional<ASTVal>
         VisitVarDeclStmt(VarDeclStmt *vds);
 
