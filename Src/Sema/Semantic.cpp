@@ -577,6 +577,13 @@ namespace onyx {
                 << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc());
         }
         else {
+            bool objIsThis = false;
+            if (fae->GetObject()->GetKind() == NkVarExpr) {
+                VarExpr *ve = llvm::cast<VarExpr>(fae->GetObject());
+                if (ve->GetName() == "this") {
+                    objIsThis = true;
+                }
+            }
             Struct s = _structs.at(obj->GetType().GetVal().str());
             auto field = s.Fields.find(fae->GetName().str());
             if (field == s.Fields.end()) {
@@ -586,7 +593,7 @@ namespace onyx {
                     << s.Name;
             }
             else {
-                if (field->second.Access == AccessPriv) {
+                if (field->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
                         << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
                         << fae->GetName();
@@ -605,6 +612,13 @@ namespace onyx {
                 << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc());
         }
         else {
+            bool objIsThis = false;
+            if (mce->GetObject()->GetKind() == NkVarExpr) {
+                VarExpr *ve = llvm::cast<VarExpr>(mce->GetObject());
+                if (ve->GetName() == "this") {
+                    objIsThis = true;
+                }
+            }
             Struct s = _structs.at(obj->GetType().GetVal().str());
             auto method = s.Methods.find(mce->GetName().str());
             if (method == s.Methods.end()) {
@@ -614,7 +628,7 @@ namespace onyx {
                     << s.Name;
             }
             else {
-                if (method->second.Access == AccessPriv) {
+                if (method->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(mce->GetStartLoc(), ErrMethodIsPrivate)
                         << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
                         << mce->GetName();
@@ -629,6 +643,9 @@ namespace onyx {
                         << mce->GetArgs().size();
                     return std::nullopt;
                 }
+                ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name.str(), false);
+                _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType),  // TODO: create real logic for .Val
+                                                       .IsConst = false });
                 for (int i = 0; i < method->second.Fun.Args.size(); ++i) {
                     std::optional<ASTVal> val = Visit(mce->GetArgs()[i]);
                     implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), method->second.Fun.Args[i].GetType(),

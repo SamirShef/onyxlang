@@ -34,6 +34,8 @@ namespace onyx {
         };
         std::unordered_map<std::string, Struct> _structs;
 
+        //std::stack<std::string> _manglingParts;
+
     public:
         explicit CodeGen(std::string fileName) : _context(), _builder(_context),
                                                  _module(std::make_unique<llvm::Module>(fileName, _context)) {
@@ -126,5 +128,8 @@ namespace onyx {
 
         std::string
         resolveStructName(Expr *expr);
+
+        //std::string
+        //getMangledName(std::string base) const;
     };
 }
