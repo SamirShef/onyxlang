@@ -6,6 +6,7 @@ struct Human {
 }
 
 fun main() : i32 {
-   var human: Human = Human { age: 16, height: 1.75f };
-   return 0;
+    var human: Human = Human { age: 16, height: 1.75f };  // it's me :)
+    human.age = 16;
+    return 0;
 }
