@@ -60,7 +60,7 @@ main(int argc, char **argv) {
     diag.ResetErrors();
 
     onyx::CodeGen codegen(fileName);
-    codegen.DeclareFunctions(ast);
+    codegen.DeclareFunctionsAndStructures(ast);
     for (auto &stmt : ast) {
         codegen.Visit(stmt);
     }

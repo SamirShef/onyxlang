@@ -34,8 +34,6 @@ namespace onyx {
         };
         std::unordered_map<std::string, Struct> _structs;
 
-        //std::stack<std::string> _manglingParts;
-
     public:
         explicit CodeGen(std::string fileName) : _context(), _builder(_context),
                                                  _module(std::make_unique<llvm::Module>(fileName, _context)) {
@@ -48,7 +46,7 @@ namespace onyx {
         }
 
         void
-        DeclareFunctions(std::vector<Stmt *> &ast);
+        DeclareFunctionsAndStructures(std::vector<Stmt *> &ast);
 
         llvm::Value *
         VisitVarDeclStmt(VarDeclStmt *vds);

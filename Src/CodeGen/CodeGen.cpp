@@ -4,10 +4,9 @@ static bool createLoad = true;
 
 namespace onyx {
     void
-    CodeGen::DeclareFunctions(std::vector<Stmt *> &ast) {
+    CodeGen::DeclareFunctionsAndStructures(std::vector<Stmt *> &ast) {
         for (auto &stmt : ast) {
-            if (stmt->GetKind() == NkFunDeclStmt) {
-                FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
+            if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt)) {
                 std::vector<llvm::Type *> args(fds->GetArgs().size());
                 for (int i = 0; i < fds->GetArgs().size(); ++i) {
                     args[i] = typeToLLVM(fds->GetArgs()[i].GetType());
@@ -20,6 +19,39 @@ namespace onyx {
                     fun->setMetadata("struct_name", metadata);
                 }
                 _functions.emplace(fun->getName(), fun);
+            }
+            else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
+                for (auto stmt : is->GetBody()) {
+                    FunDeclStmt *fds = llvm::cast<FunDeclStmt>(stmt);
+                    std::vector<llvm::Type *> args(fds->GetArgs().size() + 1);
+                    args[0] = llvm::PointerType::get(_structs.at(is->GetStructName().str()).Type, 0);
+                    for (int i = 0; i < fds->GetArgs().size(); ++i) {
+                        args[i + 1] = typeToLLVM(fds->GetArgs()[i].GetType());
+                    }
+                    llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
+                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, is->GetStructName() + "." + fds->GetName().str(), *_module);
+                    
+                    if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
+                        llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
+                        fun->setMetadata("struct_name", metadata);
+                    }
+                    llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, is->GetStructName()));
+                    fun->setMetadata("this_struct_name", metadata);
+                    _functions.emplace(fun->getName(), fun);
+                }
+            }
+            else if (StructStmt *ss = llvm::dyn_cast<StructStmt>(stmt)) {
+                std::vector<llvm::Type *> fieldsTypes(ss->GetBody().size());
+                std::unordered_map<std::string, Field> fields(ss->GetBody().size());
+                for (int i = 0; i < fieldsTypes.size(); ++i) {
+                    VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
+                    fieldsTypes[i] = typeToLLVM(vds->GetType());
+                    fields.emplace(vds->GetName(), Field { vds->GetName(), typeToLLVM(vds->GetType()), vds->GetType(), vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr,
+                                   false, i });
+                }
+                llvm::StructType *structType = llvm::StructType::create(_context, fieldsTypes, ss->GetName(), false);
+                Struct s { ss->GetName(), structType, fields };
+                _structs.emplace(ss->GetName().str(), s);
             }
         }
     }
@@ -214,16 +246,6 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitStructStmt(StructStmt *ss) {
-        std::vector<llvm::Type *> fieldsTypes(ss->GetBody().size());
-        std::unordered_map<std::string, Field> fields(ss->GetBody().size());
-        for (int i = 0; i < fieldsTypes.size(); ++i) {
-            VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
-            fieldsTypes[i] = typeToLLVM(vds->GetType());
-            fields.emplace(vds->GetName(), Field { vds->GetName(), typeToLLVM(vds->GetType()), vds->GetType(), vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, false, i });
-        }
-        llvm::StructType *structType = llvm::StructType::create(_context, fieldsTypes, ss->GetName(), false);
-        Struct s { ss->GetName(), structType, fields };
-        _structs.emplace(ss->GetName().str(), s);
         return nullptr;
     }
 
@@ -244,25 +266,11 @@ namespace onyx {
         Struct s = _structs.at(is->GetStructName().str());
         for (auto &stmt : is->GetBody()) {
             FunDeclStmt *method = llvm::cast<FunDeclStmt>(stmt);
-            std::vector<llvm::Type *> args(method->GetArgs().size() + 1);
-            args[0] = llvm::PointerType::get(s.Type, 0);
-            for (int i = 0; i < method->GetArgs().size(); ++i) {
-                args[i + 1] = typeToLLVM(method->GetArgs()[i].GetType());
-            }
-            llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(method->GetRetType()), args, false);
-            llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, s.Name + "." + method->GetName(), *_module);
-            if (method->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
-                llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, method->GetRetType().GetVal()));
-                fun->setMetadata("struct_name", metadata);
-            }
-            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, s.Name));
-            fun->setMetadata("this_struct_name", metadata);
-
+            llvm::Function *fun = _functions.at((s.Name + "." + method->GetName()).str());
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
             _builder.SetInsertPoint(entry);
             _vars.push({});
             _funRetsTypes.push(fun->getReturnType());
-            _functions.emplace(fun->getName().str(), fun);
             int index = 0;
             for (auto &arg : fun->args()) {
                 arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
@@ -728,16 +736,4 @@ namespace onyx {
             }
         }
     }
-
-
-    /*std::string
-    CodeGen::getMangledName(std::string base) const {
-        auto manglingParts = _manglingParts;
-        std::string res = base;
-        while (!manglingParts.empty()) {
-            res = manglingParts.top() + "." + res;
-            manglingParts.pop();
-        }
-        return res;
-    }*/
 }
