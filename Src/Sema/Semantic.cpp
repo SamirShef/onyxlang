@@ -42,8 +42,7 @@ namespace onyx {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
                 Struct s = _structs.at(vds->GetType().GetVal().str());
-                _structsInstances.push_back(s);
-                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(_structsInstances.size() - 1) });
+                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .i32Val = 0 });
             }
             Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
             if (vds->GetExpr()) {
@@ -98,7 +97,7 @@ namespace onyx {
         _vars.push({});
         for (auto arg : fds->GetArgs()) {
             _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
-                                                               .IsConst = arg.GetType().IsConst() });
+                                                          .IsConst = arg.GetType().IsConst() });
         }
         _funRetsTypes.push(fds->GetRetType());
         bool hasRet;
@@ -575,8 +574,7 @@ namespace onyx {
                     << s.Name;
             }
         }
-        _structsInstances.push_back(s);
-        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .structInstanceIndex = (long)(_structsInstances.size() - 1) });
+        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .i32Val = 0 });
     }
 
 

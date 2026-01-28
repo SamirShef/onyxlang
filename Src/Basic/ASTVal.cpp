@@ -44,7 +44,7 @@ namespace onyx {
             case ASTTypeKind::F64:
                 return _data.f64Val;
             case ASTTypeKind::Struct:
-                return _data.structInstanceIndex;
+                return _data.i32Val;
             case ASTTypeKind::Noth:
                 return 0;
         }
@@ -97,7 +97,7 @@ namespace onyx {
             case ASTTypeKind::F64:
                 return VAL(f64Val, double);
             case ASTTypeKind::Struct:
-                return VAL(structInstanceIndex, long);
+                return VAL(i32Val, int);
             case ASTTypeKind::Noth:
                 return ASTVal(type, ASTValData { .i32Val = 0 });
             #undef VAL
@@ -123,7 +123,7 @@ namespace onyx {
             case ASTTypeKind::F64:
                 return VAL(f64Val);
             case ASTTypeKind::Struct:
-                return VAL(structInstanceIndex);
+                return VAL(i32Val);
             case ASTTypeKind::Noth:
                 return ASTVal(type, ASTValData { .i32Val = 0 });
             #undef VAL

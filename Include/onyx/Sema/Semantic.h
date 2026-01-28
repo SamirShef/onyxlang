@@ -48,7 +48,6 @@ namespace onyx {
             std::unordered_map<std::string, Method> Methods;
         };
         std::unordered_map<std::string, Struct> _structs;
-        std::vector<Struct> _structsInstances;
         
     public:
         explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {
