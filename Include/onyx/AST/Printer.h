@@ -42,6 +42,9 @@ namespace onyx {
         VisitMethodCallStmt(MethodCallStmt *mcs);
 
         void
+        VisitEchoStmt(EchoStmt *es);
+
+        void
         VisitFieldAsgnStmt(FieldAsgnStmt *fas);
 
         void

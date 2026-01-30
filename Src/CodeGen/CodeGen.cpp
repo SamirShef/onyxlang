@@ -5,6 +5,9 @@ static bool createLoad = true;
 namespace onyx {
     void
     CodeGen::DeclareFunctionsAndStructures(std::vector<Stmt *> &ast) {
+        llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(_context), { llvm::PointerType::getInt8Ty(_context) }, true);
+        llvm::Function *printfFun = llvm::Function::Create(printfType, llvm::GlobalValue::ExternalLinkage, "printf", *_module);
+
         for (auto &stmt : ast) {
             if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt)) {
                 std::vector<llvm::Type *> args(fds->GetArgs().size());
@@ -114,11 +117,6 @@ namespace onyx {
     llvm::Value *
     CodeGen::VisitFunDeclStmt(FunDeclStmt *fds) {
         llvm::Function *fun = _functions.at(fds->GetName().str());
-        if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
-            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
-            fun->setMetadata("struct_name", metadata);
-        }
-
         llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
         _builder.SetInsertPoint(entry);
         _vars.push({});
@@ -126,8 +124,6 @@ namespace onyx {
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
-            /*llvm::AllocaInst *alloca = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName());
-            _builder.CreateStore(&arg, alloca);*/
             _vars.top().emplace(arg.getName().str(), &arg);
             ++index;
         }
@@ -294,6 +290,25 @@ namespace onyx {
         MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
         Visit(expr);
         delete expr;
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitEchoStmt(EchoStmt *es) {
+        std::string format;
+        llvm::Value *val = Visit(es->GetRHS());
+        llvm::Type *type = val->getType();
+        if (type->isIntegerTy()) {
+            format = "%ld";
+        }
+        else if (type->isFloatingPointTy()) {
+            format = "%g";
+        }
+        else if (type->isPointerTy()) {
+            format = "%p";
+        }
+        format += "\n";
+        _builder.CreateCall(_module->getFunction("printf"), { _builder.CreateGlobalString(format, "printf.format"), val });
         return nullptr;
     }
 

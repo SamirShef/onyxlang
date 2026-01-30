@@ -78,6 +78,17 @@ namespace onyx {
             case TkImpl: {
                 return parseImplStmt();
             }
+            case TkEcho: {
+                Token first = consume();
+                Expr *expr = parseExpr(PrecLowest);
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return createNode<EchoStmt>(expr, access, first.GetLoc(), _curTok.GetLoc());
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)

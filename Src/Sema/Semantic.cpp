@@ -236,10 +236,6 @@ namespace onyx {
             _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
         }
-        if (ss->GetAccess() == AccessPub && _vars.size() != 1) {
-            _diag.Report(ss->GetStartLoc(), ErrCannotHaveAccessBeHere)
-                << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
-        }
         if (_structs.find(ss->GetName().str()) != _structs.end()) {
             _diag.Report(ss->GetStartLoc(), ErrRedefinitionStruct)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc())
@@ -370,6 +366,19 @@ namespace onyx {
         VisitMethodCallExpr(expr);
         delete expr;
         return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitEchoStmt(EchoStmt *es) {
+        if (_vars.size() == 1) {
+            _diag.Report(es->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(es->GetStartLoc(), es->GetEndLoc());
+        }
+        if (es->GetAccess() != AccessPriv) {
+            _diag.Report(es->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(es->GetStartLoc(), es->GetEndLoc());
+        }
+        return Visit(es->GetRHS());
     }
 
     std::optional<ASTVal>
