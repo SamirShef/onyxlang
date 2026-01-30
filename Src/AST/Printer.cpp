@@ -232,6 +232,17 @@ namespace onyx {
         Visit(mcs->GetObject());
         _spaces = spaces;
     }
+
+    void
+    ASTPrinter::VisitEchoStmt(EchoStmt *es) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(EchoStmt: ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(es->GetRHS());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
     
     void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {

@@ -14,6 +14,7 @@
 #include <onyx/AST/Statements/StructStmt.h>
 #include <onyx/AST/Statements/ImplStmt.h>
 #include <onyx/AST/Statements/MethodCallStmt.h>
+#include <onyx/AST/Statements/EchoStmt.h>
 
 #include <onyx/AST/Expressions/BinaryExpr.h>
 #include <onyx/AST/Expressions/LiteralExpr.h>

@@ -88,6 +88,9 @@ namespace onyx {
         VisitMethodCallStmt(MethodCallStmt *mcs);
 
         llvm::Value *
+        VisitEchoStmt(EchoStmt *es);
+
+        llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);
         
         llvm::Value *

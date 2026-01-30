@@ -25,6 +25,7 @@ namespace onyx {
         { "continue", TkContinue },
         { "struct", TkStruct },
         { "pub", TkPub },
-        { "impl", TkImpl }
+        { "impl", TkImpl },
+        { "echo", TkEcho }
     };
 }
