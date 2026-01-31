@@ -1,6 +1,6 @@
 // 'while' and 'for' loops in Onyx is the just 'for' loop
 
-fun main() : i32 {
+fun main(): i32 {
     for var i: i32, i < 10, i += 1 {}   // just 'for' loop
 
     var i: i32;

@@ -14,6 +14,7 @@ namespace onyx {
         ErrUndeclaredVariable,
         ErrUndeclaredFuntion,
         ErrUndeclaredStructure,
+        ErrUndeclaredTrait,
         ErrUndeclaredField,
         ErrUndeclaredMethod,
         ErrRedefinitionVar,
@@ -21,6 +22,7 @@ namespace onyx {
         ErrRedefinitionStruct,
         ErrRedefinitionField,
         ErrRedefinitionMethod,
+        ErrRedefinitionTrait,
         ErrTypeMismatchNotNum,
         ErrTypeMismatchNotBool,
         ErrCannotCast,
@@ -36,5 +38,12 @@ namespace onyx {
         ErrAccessFromNonStruct,
         ErrFieldIsPrivate,
         ErrMethodIsPrivate,
+        ErrCannotDeclareHere,
+        ErrUndeclaredType,
+        ErrMethodNotInTrait,
+        ErrCannotImplTraitMethod_RetTypeMismatch,
+        ErrCannotImplTraitMethod_FewArgs,
+        ErrCannotImplTraitMethod_ArgTypeMismatch,
+        ErrNotImplTraitMethod,
     };
 }

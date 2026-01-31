@@ -3,6 +3,8 @@
 
 static onyx::AccessModifier access;
 
+static std::unordered_map<std::string, onyx::ASTType> types;
+
 namespace onyx {
     Stmt *
     Parser::ParseStmt(bool consumeSemi) {
@@ -340,6 +342,7 @@ namespace onyx {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
+        types.emplace(name.str(), ASTType(ASTTypeKind::Struct, name.str(), false));
         return createNode<StructStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -399,6 +402,7 @@ namespace onyx {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
+        types.emplace(name.str(), ASTType(ASTTypeKind::Trait, name.str(), false));
         return createNode<TraitDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -609,8 +613,19 @@ namespace onyx {
                 return TYPE(F64, "f64");
             case TkNoth:
                 return TYPE(Noth, "noth");
-            case TkId:
-                return TYPE(Struct, type.GetText());
+            case TkId: {
+                if (types.find(type.GetText().str()) == types.end()) {
+                    _diag.Report(_lastTok.GetLoc(), ErrUndeclaredType)
+                        << llvm::SMRange(_lastTok.GetLoc(), _curTok.GetLoc())
+                        << type.GetText();
+                    return TYPE(I32, "i32");
+                }
+                ASTTypeKind t = types.at(type.GetText().str()).GetTypeKind();
+                if (t == ASTTypeKind::Struct) {
+                    return TYPE(Struct, type.GetText());
+                }
+                return TYPE(Trait, type.GetText());
+            }
             default:
                 _diag.Report(type.GetLoc(), ErrExpectedType)
                     << getRangeFromTok(type)

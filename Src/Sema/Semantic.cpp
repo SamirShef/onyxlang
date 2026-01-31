@@ -15,13 +15,18 @@ namespace onyx {
         for (auto &stmt : ast) {
             if (stmt->GetKind() == NkFunDeclStmt) {
                 FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
+                if (fds->IsDeclaration()) {
+                    _diag.Report(fds->GetStartLoc(), ErrCannotDeclareHere)
+                        << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                    continue;
+                }
                 if (_functions.find(fds->GetName().str()) != _functions.end()) {
                     _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
                         << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
                         << fds->GetName();
                     continue;
                 }
-                Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody() };
+                Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(), .IsDeclaration = fds->IsDeclaration() };
                 _functions.emplace(fds->GetName().str(), fun);
             }
         }
@@ -96,6 +101,11 @@ namespace onyx {
         }
         _vars.push({});
         for (auto arg : fds->GetArgs()) {
+            if (_vars.top().find(arg.GetName().str()) != _vars.top().end()) {
+                _diag.Report(fds->GetStartLoc(), ErrRedefinitionVar)
+                    << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc())
+                    << arg.GetName();
+            }
             _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
                                                           .IsConst = arg.GetType().IsConst() });
         }
@@ -243,7 +253,7 @@ namespace onyx {
             return std::nullopt;
         }
 
-        Struct s { ss->GetName(), {}, {} };
+        Struct s { .Name = ss->GetName(), .Fields = {}, .Methods = {}, .TraitsImplements = {} };
         for (int i = 0; i < ss->GetBody().size(); ++i) {
             if (ss->GetBody()[i]->GetKind() != NkVarDeclStmt) {
                 _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
@@ -262,7 +272,7 @@ namespace onyx {
             if (vds->GetExpr()) {
                 implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
             }
-            s.Fields.emplace(vds->GetName().str(), Field { vds->GetName(), val, vds->GetType(), vds->GetAccess(), false });
+            s.Fields.emplace(vds->GetName().str(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .Access = vds->GetAccess(), .ManualInitialized = false });
         }
         _structs.emplace(s.Name, s);
 
@@ -307,7 +317,32 @@ namespace onyx {
             _diag.Report(is->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc());
         }
+        if (_structs.find(is->GetStructName().str()) == _structs.end()) {
+            _diag.Report(is->GetStartLoc(), ErrUndeclaredStructure)
+                 << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                 << is->GetStructName();
+            return std::nullopt;
+        }
         Struct s = _structs.at(is->GetStructName().str());
+        bool isTraitImpl = !is->GetTraitName().empty();
+        const Trait *traitDef = nullptr;
+        std::unordered_map<std::string, bool> implementedTraitMethods;
+        
+        if (isTraitImpl) {
+            auto tIt = _traits.find(is->GetTraitName().str());
+            if (tIt == _traits.end()) {
+                _diag.Report(is->GetStartLoc(), ErrUndeclaredTrait)
+                    << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                    << is->GetTraitName();
+                return std::nullopt;
+            }
+            traitDef = &tIt->second;
+            
+            for (auto &method : traitDef->Methods) {
+                implementedTraitMethods[method.first] = !method.second.Fun.IsDeclaration;
+            }
+        }
+
         std::vector<FunDeclStmt *> methods;
         for (auto &stmt : is->GetBody()) {
             if (stmt->GetKind() != NkFunDeclStmt) {
@@ -316,24 +351,90 @@ namespace onyx {
                 continue;
             }
             FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
+            if (method->IsDeclaration()) {
+                _diag.Report(method->GetStartLoc(), ErrCannotDeclareHere)
+                    << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc());
+                continue;
+            }
             if (s.Methods.find(method->GetName().str()) != s.Methods.end()) {
                 _diag.Report(stmt->GetStartLoc(), ErrRedefinitionMethod)
                     << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc())
                     << method->GetName();
+                continue;
             }
-            else {
-                methods.push_back(method);
-                Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody() };
-                s.Methods.emplace(method->GetName().str(), Method { .Fun = fun, .Access = method->GetAccess() });
+            if (isTraitImpl) {
+                auto tMethodIt = traitDef->Methods.find(method->GetName().str());
+                if (tMethodIt == traitDef->Methods.end()) {
+                    _diag.Report(method->GetStartLoc(), ErrMethodNotInTrait)
+                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
+                        << method->GetName()
+                        << traitDef->Name;
+                    continue;
+                }
+
+                const Function &traitFun = tMethodIt->second.Fun;
+                if (method->GetRetType() != traitFun.RetType) {
+                    _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_RetTypeMismatch)
+                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
+                        << method->GetName()
+                        << traitDef->Name
+                        << traitFun.RetType.ToString()
+                        << method->GetRetType().ToString();
+                }
+                if (method->GetArgs().size() != traitFun.Args.size()) {
+                     _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_FewArgs)
+                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
+                        << method->GetName()
+                        << traitDef->Name
+                        << traitFun.Args.size()
+                        << method->GetArgs().size();
+                }
+                else {
+                    for (int i = 0; i < method->GetArgs().size(); ++i) {
+                        if (method->GetArgs()[i].GetType() != traitFun.Args[i].GetType()) {
+                            _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_ArgTypeMismatch)
+                                << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
+                                << method->GetArgs()[i].GetName()
+                                << traitDef->Name
+                                << method->GetArgs()[i].GetName()
+                                << traitFun.Args[i].GetType().ToString()
+                                << method->GetArgs()[i].GetType().ToString(); 
+                        }
+                    }
+                }
+
+                implementedTraitMethods[method->GetName().str()] = true;
             }
+            methods.push_back(method);
+            Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
+                           .IsDeclaration = method->IsDeclaration() };
+            s.Methods.emplace(method->GetName().str(), Method { .Fun = fun, .Access = method->GetAccess() });
+        }
+
+        if (isTraitImpl) {
+            for (auto const &[name, implemented] : implementedTraitMethods) {
+                if (!implemented) {
+                    _diag.Report(is->GetStartLoc(), ErrNotImplTraitMethod)
+                        << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                        << name
+                        << traitDef->Name;
+                }
+            }
+            s.TraitsImplements.emplace(traitDef->Name.str(), *traitDef);
         }
         _structs.at(is->GetStructName().str()).Methods = s.Methods;
+        _structs.at(is->GetStructName().str()).TraitsImplements = s.TraitsImplements;
 
         for (auto &method : methods) {
             _vars.push({});
             ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name.str(), false);
             _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
             for (auto arg : method->GetArgs()) {
+                if (_vars.top().find(arg.GetName().str()) != _vars.top().end()) {
+                    _diag.Report(method->GetStartLoc(), ErrRedefinitionVar)
+                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
+                        << arg.GetName();
+                }
                 _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
                                                               .IsConst = arg.GetType().IsConst() });
             }
@@ -370,6 +471,24 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitTraitDeclStmt(TraitDeclStmt *tds) {
+        if (_traits.find(tds->GetName().str()) != _traits.end()) {
+            _diag.Report(tds->GetStartLoc(), ErrRedefinitionTrait)
+                << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc())
+                << tds->GetName();
+        }
+        Trait t { .Name = tds->GetName(), .Methods = {} };
+        for (auto stmt : tds->GetBody()) {
+            if (FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt)) {
+                Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
+                               .IsDeclaration = method->IsDeclaration() };
+                t.Methods.emplace(method->GetName().str(), Method { .Fun = fun, .Access = method->GetAccess() });
+            }
+            else {
+                _diag.Report(stmt->GetStartLoc(), ErrCannotBeHere)
+                    << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc());
+            }
+        }
+        _traits.emplace(tds->GetName().str(), t);
         return std::nullopt;
     }
 
@@ -519,7 +638,6 @@ namespace onyx {
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFunCallExpr(FunCallExpr *fce) {
         if (_functions.find(fce->GetName().str()) != _functions.end()) {
-            _vars.push({});
             Function fun = _functions.at(fce->GetName().str());
             if (fun.Args.size() != fce->GetArgs().size()) {
                 _diag.Report(fce->GetStartLoc(), ErrFewArgs)
@@ -527,31 +645,15 @@ namespace onyx {
                     << fce->GetName().str()
                     << fun.Args.size()
                     << fce->GetArgs().size();
-                return std::nullopt;
+                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
             }
             for (int i = 0; i < fun.Args.size(); ++i) {
-                std::optional<ASTVal> val = Visit(fce->GetArgs()[i]);
-                implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), fun.Args[i].GetType(),
-                               fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
-                _vars.top().emplace(fun.Args[i].GetName(), Variable { .Name = fun.Args[i].GetName(), .Type = fun.Args[i].GetType(),
-                                                                      .Val = val, .IsConst = fun.Args[i].GetType().IsConst() });
+                implicitlyCast(Visit(fce->GetArgs()[i]).value(), fun.Args[i].GetType(), fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
             }
-            for (auto stmt : fun.Body) {
-                if (stmt->GetKind() == NkRetStmt) {
-                    Expr *expr = llvm::dyn_cast<RetStmt>(stmt)->GetExpr();
-                    std::optional<ASTVal> val = expr ? Visit(expr) : ASTVal::GetDefaultByType(ASTType::GetNothType());
-                    implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), fun.RetType, fce->GetStartLoc(),
-                                   fce->GetEndLoc());
-                    _vars.pop();
-                    return val;
-                }
-                else {
-                    Visit(stmt);
-                }
+            if (fun.RetType.GetTypeKind() != ASTTypeKind::Noth) {
+                return ASTVal::GetDefaultByType(fun.RetType);
             }
-            _vars.pop();
-            _diag.Report(fce->GetStartLoc(), ErrFuntionCannotReturnValue);
-            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+            return ASTVal::GetDefaultByType(ASTType::GetNothType());
         }
         _diag.Report(fce->GetStartLoc(), ErrUndeclaredFuntion)
             << getRange(fce->GetStartLoc(), fce->GetName().size())
@@ -630,7 +732,8 @@ namespace onyx {
     std::optional<ASTVal>
     SemanticAnalyzer::VisitMethodCallExpr(MethodCallExpr *mce) {
         std::optional<ASTVal> obj = Visit(mce->GetObject());
-        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct &&
+            obj->GetType().GetTypeKind() != ASTTypeKind::Trait) {
             _diag.Report(mce->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc());
         }
@@ -642,13 +745,24 @@ namespace onyx {
                     objIsThis = true;
                 }
             }
-            Struct s = _structs.at(obj->GetType().GetVal().str());
-            auto method = s.Methods.find(mce->GetName().str());
-            if (method == s.Methods.end()) {
+            std::unordered_map<std::string, Method> *methods = nullptr;
+            std::string contextName;
+            if (obj->GetType().GetTypeKind() == ASTTypeKind::Struct) {
+                Struct &s = _structs.at(obj->GetType().GetVal().str());
+                methods = &s.Methods;
+                contextName = s.Name.str();
+            }
+            else {
+                Trait &t = _traits.at(obj->GetType().GetVal().str());
+                methods = &t.Methods;
+                contextName = t.Name.str();
+            }
+            auto method = methods->find(mce->GetName().str());
+            if (method == methods->end()) {
                 _diag.Report(mce->GetStartLoc(), ErrUndeclaredMethod)
                     << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
                     << mce->GetName()
-                    << s.Name;
+                    << contextName;
             }
             else {
                 if (method->second.Access == AccessPriv && !objIsThis) {
@@ -657,40 +771,21 @@ namespace onyx {
                         << mce->GetName();
                 }
 
-                _vars.push({});
                 if (method->second.Fun.Args.size() != mce->GetArgs().size()) {
                     _diag.Report(mce->GetStartLoc(), ErrFewArgs)
                         << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
                         << mce->GetName().str()
                         << method->second.Fun.Args.size()
                         << mce->GetArgs().size();
-                    return std::nullopt;
+                    return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
                 }
-                ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name.str(), false);
-                _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
                 for (int i = 0; i < method->second.Fun.Args.size(); ++i) {
-                    std::optional<ASTVal> val = Visit(mce->GetArgs()[i]);
-                    implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), method->second.Fun.Args[i].GetType(),
-                                   mce->GetArgs()[i]->GetStartLoc(), mce->GetArgs()[i]->GetEndLoc());
-                    _vars.top().emplace(method->second.Fun.Args[i].GetName(), Variable { .Name = method->second.Fun.Args[i].GetName(),
-                                        .Type = method->second.Fun.Args[i].GetType(), .Val = val, .IsConst = method->second.Fun.Args[i].GetType().IsConst() });
+                    implicitlyCast(Visit(mce->GetArgs()[i]).value(), method->second.Fun.Args[i].GetType(), mce->GetArgs()[i]->GetStartLoc(), mce->GetArgs()[i]->GetEndLoc());
                 }
-                for (auto stmt : method->second.Fun.Body) {
-                    if (stmt->GetKind() == NkRetStmt) {
-                        Expr *expr = llvm::dyn_cast<RetStmt>(stmt)->GetExpr();
-                        std::optional<ASTVal> val = expr ? Visit(expr) : ASTVal::GetDefaultByType(ASTType::GetNothType());
-                        implicitlyCast(val.value_or(ASTVal::GetDefaultByType(ASTType::GetNothType())), method->second.Fun.RetType, mce->GetStartLoc(),
-                                       mce->GetEndLoc());
-                        _vars.pop();
-                        return val;
-                    }
-                    else {
-                        Visit(stmt);
-                    }
+                if (method->second.Fun.RetType.GetTypeKind() != ASTTypeKind::Noth) {
+                    return ASTVal::GetDefaultByType(method->second.Fun.RetType);
                 }
-                _vars.pop();
-                _diag.Report(mce->GetStartLoc(), ErrMethodCannotReturnValue);
-                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+                return ASTVal::GetDefaultByType(ASTType::GetNothType());
             }
         }
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
@@ -777,6 +872,12 @@ namespace onyx {
         if (src.GetType() == expectType) {
             return true;
         }
+        if (expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
+            Struct s = _structs.at(src.GetType().GetVal().str());
+            if (s.TraitsImplements.find(expectType.GetVal().str()) != s.TraitsImplements.end()) {
+                return true;
+            }
+        }
         if (auto it = implicitlyCastAllowed.find(src.GetType().GetTypeKind()); it != implicitlyCastAllowed.end()) {
             return std::find(it->second.begin(), it->second.end(), expectType.GetTypeKind()) != it->second.end();
         }
@@ -788,6 +889,12 @@ namespace onyx {
         if (src.GetType() == expectType) {
             return src;
         }
+        if (expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
+            Struct s = _structs.at(src.GetType().GetVal().str());
+            if (s.TraitsImplements.find(expectType.GetVal().str()) != s.TraitsImplements.end()) {
+                return ASTVal::GetVal(0, expectType);
+            }
+        }
         if (auto it = implicitlyCastAllowed.find(src.GetType().GetTypeKind()); it != implicitlyCastAllowed.end()) {
             if (std::find(it->second.begin(), it->second.end(), expectType.GetTypeKind()) != it->second.end()) {
                 return src.Cast(expectType);
@@ -797,6 +904,6 @@ namespace onyx {
             << llvm::SMRange(startLoc, endLoc)
             << src.GetType().ToString()
             << expectType.ToString();
-        return ASTVal::GetDefaultByType(ASTType::GetNothType());
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
     }
 }
