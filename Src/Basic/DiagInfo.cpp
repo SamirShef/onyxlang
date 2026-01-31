@@ -72,6 +72,8 @@ namespace onyx {
                 return ERR("field `%0` is private");
             case ErrMethodIsPrivate:
                 return ERR("method `%0` is private");
+            case ErrCannotDeclareHere:
+                return ERR("cannot make declaration here (only in traits)");
         }
     }
 }

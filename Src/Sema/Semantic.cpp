@@ -15,6 +15,11 @@ namespace onyx {
         for (auto &stmt : ast) {
             if (stmt->GetKind() == NkFunDeclStmt) {
                 FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
+                if (fds->IsDeclaration()) {
+                    _diag.Report(fds->GetStartLoc(), ErrCannotDeclareHere)
+                        << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                    continue;
+                }
                 if (_functions.find(fds->GetName().str()) != _functions.end()) {
                     _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
                         << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
@@ -96,6 +101,11 @@ namespace onyx {
         }
         _vars.push({});
         for (auto arg : fds->GetArgs()) {
+            if (_vars.top().find(arg.GetName().str()) != _vars.top().end()) {
+                _diag.Report(fds->GetStartLoc(), ErrRedefinitionVar)
+                    << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc())
+                    << arg.GetName();
+            }
             _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
                                                           .IsConst = arg.GetType().IsConst() });
         }
@@ -316,6 +326,11 @@ namespace onyx {
                 continue;
             }
             FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
+            if (method->IsDeclaration()) {
+                _diag.Report(method->GetStartLoc(), ErrCannotDeclareHere)
+                    << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc());
+                continue;
+            }
             if (s.Methods.find(method->GetName().str()) != s.Methods.end()) {
                 _diag.Report(stmt->GetStartLoc(), ErrRedefinitionMethod)
                     << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc())
@@ -334,6 +349,11 @@ namespace onyx {
             ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name.str(), false);
             _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
             for (auto arg : method->GetArgs()) {
+                if (_vars.top().find(arg.GetName().str()) != _vars.top().end()) {
+                    _diag.Report(method->GetStartLoc(), ErrRedefinitionVar)
+                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
+                        << arg.GetName();
+                }
                 _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
                                                               .IsConst = arg.GetType().IsConst() });
             }

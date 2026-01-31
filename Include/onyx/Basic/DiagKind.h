@@ -36,5 +36,6 @@ namespace onyx {
         ErrAccessFromNonStruct,
         ErrFieldIsPrivate,
         ErrMethodIsPrivate,
+        ErrCannotDeclareHere,
     };
 }
