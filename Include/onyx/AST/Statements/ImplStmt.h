@@ -5,18 +5,24 @@
 
 namespace onyx {
     class ImplStmt : public Stmt {
+        llvm::StringRef _traitName;
         llvm::StringRef _structName;
         std::vector<Stmt *> _body;
 
     public:
-        explicit ImplStmt(llvm::StringRef name, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                        : _structName(name), _body(body), Stmt(NkImplStmt, access, startLoc, endLoc) {}
+        explicit ImplStmt(llvm::StringRef traitName, llvm::StringRef name, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                        : _traitName(traitName), _structName(name), _body(body), Stmt(NkImplStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {
             return node->GetKind() == NkImplStmt;
         }
         
+        llvm::StringRef
+        GetTraitName() const {
+            return _traitName;
+        }
+
         llvm::StringRef
         GetStructName() const {
             return _structName;

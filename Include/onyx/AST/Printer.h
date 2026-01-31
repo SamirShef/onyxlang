@@ -42,6 +42,9 @@ namespace onyx {
         VisitMethodCallStmt(MethodCallStmt *mcs);
 
         void
+        VisitTraitDeclStmt(TraitDeclStmt *tds);
+
+        void
         VisitEchoStmt(EchoStmt *es);
 
         void

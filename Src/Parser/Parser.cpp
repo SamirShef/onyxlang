@@ -89,6 +89,9 @@ namespace onyx {
                 }
                 return createNode<EchoStmt>(expr, access, first.GetLoc(), _curTok.GetLoc());
             }
+            case TkTrait: {
+                return parseTraitDeclStmt();
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -219,10 +222,13 @@ namespace onyx {
             retType = consumeType();
         }
 
+        if (expect(TkSemi)) {
+            return createNode<FunDeclStmt>(name, retType, args, std::vector<Stmt *> {}, true, access, firstTok.GetLoc(), _curTok.GetLoc());
+        }
         if (!expect(TkLBrace)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                 << getRangeFromTok(_curTok)
-                << "{"                  // expected
+                << "{ or ';"            // expected
                 << _curTok.GetText();   // got
         }
         AccessModifier accessCopy = access;
@@ -230,7 +236,7 @@ namespace onyx {
         while (!expect(TkRBrace)) {
             block.push_back(ParseStmt());
         }
-        return createNode<FunDeclStmt>(name, retType, args, block, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<FunDeclStmt>(name, retType, args, block, false, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -341,7 +347,43 @@ namespace onyx {
     Parser::parseImplStmt() {
         AccessModifier accessCopy = access;
         Token firstTok = consume();
-        llvm::StringRef structName = _curTok.GetText();
+        llvm::StringRef traitName = _curTok.GetText();
+        llvm::StringRef structName = "";
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        if (expect(TkFor)) {
+            structName = _curTok.GetText();
+            if (!expect(TkId)) {
+                _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                    << getRangeFromTok(_curTok)
+                    << _curTok.GetText();
+            }
+        }
+        else {
+            structName = traitName;
+            traitName = "";
+        }
+        if (!expect(TkLBrace)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "{"                  // expected
+                << _curTok.GetText();   // got
+        }
+        std::vector<Stmt *> body;
+        while (!expect(TkRBrace)) {
+            body.push_back(ParseStmt());
+        }
+        return createNode<ImplStmt>(traitName, structName, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseTraitDeclStmt() {
+        AccessModifier accessCopy = access;
+        Token firstTok = consume();
+        llvm::StringRef name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
@@ -357,7 +399,7 @@ namespace onyx {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        return createNode<ImplStmt>(structName, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<TraitDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument
@@ -565,6 +607,8 @@ namespace onyx {
                 return TYPE(F32, "f32");
             case TkF64:
                 return TYPE(F64, "f64");
+            case TkNoth:
+                return TYPE(Noth, "noth");
             case TkId:
                 return TYPE(Struct, type.GetText());
             default:

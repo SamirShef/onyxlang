@@ -9,7 +9,6 @@ namespace onyx {
         NkFieldAsgnStmt,
         NkFunDeclStmt,
         NkFunCallStmt,
-        NkMethodCallStmt,
         NkRetStmt,
         NkIfElseStmt,
         NkForLoopStmt,
@@ -17,6 +16,8 @@ namespace onyx {
         NkContinueStmt,
         NkStructStmt,
         NkImplStmt,
+        NkMethodCallStmt,
+        NkTraitDeclStmt,
         NkEchoStmt,
         NkEndStmts,
 
