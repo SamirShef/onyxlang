@@ -23,6 +23,7 @@ namespace onyx {
             const ASTType RetType;
             std::vector<Argument> Args;
             std::vector<Stmt *> Body;
+            bool IsDeclaration;
         };
         std::unordered_map<std::string, Function> _functions;
         std::stack<ASTType> _funRetsTypes;
@@ -42,10 +43,17 @@ namespace onyx {
             const AccessModifier Access;
         };
 
+        struct Trait {
+            const llvm::StringRef Name;
+            std::unordered_map<std::string, Method> Methods;
+        };
+        std::unordered_map<std::string, Trait> _traits;
+
         struct Struct {
             const llvm::StringRef Name;
             std::unordered_map<std::string, Field> Fields;
             std::unordered_map<std::string, Method> Methods;
+            std::unordered_map<std::string, Trait> TraitsImplements;
         };
         std::unordered_map<std::string, Struct> _structs;
         

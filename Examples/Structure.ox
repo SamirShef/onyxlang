@@ -5,7 +5,7 @@ struct Human {
     var height: f32;    // private field -> you cannot access of this field
 }
 
-fun main() : i32 {
+fun main(): i32 {
     var human: Human = Human { age: 16, height: 1.75f };  // it's me :)
     human.age = 16;
     return 0;

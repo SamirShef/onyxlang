@@ -1,6 +1,6 @@
 // simple condition statements
 
-fun main() : i32 {
+fun main(): i32 {
     var a: i32 = 10;
     if a == 20 {
         return 1;

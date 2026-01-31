@@ -11,6 +11,7 @@ namespace onyx {
         F32,
         F64,
         Struct,
+        Trait,
         Noth
     };
     
@@ -26,7 +27,22 @@ namespace onyx {
         operator==(ASTType &other) {
             return _kind == other._kind && _val == other._val;
         }
+
+        bool
+        operator!=(ASTType &other) {
+            return !(*this == other);
+        }
         
+        bool
+        operator==(const ASTType &other) {
+            return _kind == other._kind && _val == other._val;
+        }
+
+        bool
+        operator!=(const ASTType &other) {
+            return !(*this == other);
+        }
+
         ASTTypeKind
         GetTypeKind() const {
             return _kind;

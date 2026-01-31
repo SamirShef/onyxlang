@@ -28,6 +28,8 @@ namespace onyx {
                 return ERR("function `%0` is undeclared");
             case ErrUndeclaredStructure:
                 return ERR("structure `%0` is undeclared");
+            case ErrUndeclaredTrait:
+                return ERR("trait `%0` is undeclared");
             case ErrUndeclaredField:
                 return ERR("field `%0` is undeclared in structure `%1`");
             case ErrUndeclaredMethod:
@@ -42,6 +44,8 @@ namespace onyx {
                 return ERR("redefinition the field `%0`");
             case ErrRedefinitionMethod:
                 return ERR("redefinition the method `%0`");
+            case ErrRedefinitionTrait:
+                return ERR("redefinition the trait `%0`");
             case ErrTypeMismatchNotNum:
                 return ERR("expected number, but got `%0`");
             case ErrTypeMismatchNotBool:
@@ -57,7 +61,7 @@ namespace onyx {
             case ErrMethodCannotReturnValue:
                 return ERR("function cannot return a value");
             case ErrFewArgs:
-                return ERR("function `%0` expected %1 arguments, but received %2");
+                return ERR("function `%0` expected %1 argument(s), but received %2");
             case ErrAssignmentConst:
                 return ERR("assigning a value to a constant");
             case ErrCannotBeHere:
@@ -74,6 +78,18 @@ namespace onyx {
                 return ERR("method `%0` is private");
             case ErrCannotDeclareHere:
                 return ERR("cannot make declaration here (only in traits)");
+            case ErrUndeclaredType:
+                return ERR("type `%0` is undeclared");
+            case ErrMethodNotInTrait:
+                return ERR("method `%0` not contained in trait `%1`");
+            case ErrCannotImplTraitMethod_RetTypeMismatch:
+                return ERR("cannot imlement method `%0` from trait `%1`: expected return type `%2`, but received `%3`");
+            case ErrCannotImplTraitMethod_FewArgs:
+                return ERR("cannot imlement method `%0` from trait `%1: expected %2 argument(s), but received %3");
+            case ErrCannotImplTraitMethod_ArgTypeMismatch:
+                return ERR("cannot imlement method `%0` from trait `%1: argument `%2` expected type `%3`, but received `%4`");
+            case ErrNotImplTraitMethod:
+                return ERR("method `%0` from trait `%1` does not implemented");
         }
     }
 }
