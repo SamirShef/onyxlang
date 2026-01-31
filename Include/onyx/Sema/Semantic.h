@@ -97,6 +97,9 @@ namespace onyx {
         VisitMethodCallStmt(MethodCallStmt *mcs);
 
         std::optional<ASTVal>
+        VisitTraitDeclStmt(TraitDeclStmt *tds);
+
+        std::optional<ASTVal>
         VisitEchoStmt(EchoStmt *es);
 
         std::optional<ASTVal>

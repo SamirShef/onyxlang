@@ -58,6 +58,9 @@ namespace onyx {
         Stmt *
         parseImplStmt();
 
+        Stmt *
+        parseTraitDeclStmt();
+
         Argument
         parseArgument();
         

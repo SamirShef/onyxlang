@@ -88,6 +88,9 @@ namespace onyx {
         VisitMethodCallStmt(MethodCallStmt *mcs);
 
         llvm::Value *
+        VisitTraitDeclStmt(TraitDeclStmt *tds);
+
+        llvm::Value *
         VisitEchoStmt(EchoStmt *es);
 
         llvm::Value *

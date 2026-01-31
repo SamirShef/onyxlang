@@ -369,6 +369,11 @@ namespace onyx {
     }
 
     std::optional<ASTVal>
+    SemanticAnalyzer::VisitTraitDeclStmt(TraitDeclStmt *tds) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
     SemanticAnalyzer::VisitEchoStmt(EchoStmt *es) {
         if (_vars.size() == 1) {
             _diag.Report(es->GetStartLoc(), ErrCannotBeHere)

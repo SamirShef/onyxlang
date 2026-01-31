@@ -294,6 +294,11 @@ namespace onyx {
     }
 
     llvm::Value *
+    CodeGen::VisitTraitDeclStmt(TraitDeclStmt *tds) {
+        return nullptr;
+    }
+
+    llvm::Value *
     CodeGen::VisitEchoStmt(EchoStmt *es) {
         std::string format;
         llvm::Value *val = Visit(es->GetRHS());

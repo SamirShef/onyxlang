@@ -36,20 +36,24 @@ namespace onyx {
                 llvm::outs() << ", ";
             }
         }
-        llvm::outs() << ") {";
-        if (fds->GetBody().size() != 0) {
-            llvm::outs() << '\n';
+        llvm::outs() << ")";
+        if (!fds->IsDeclaration()) {
+            llvm::outs() << " {";
+            if (fds->GetBody().size() != 0) {
+                llvm::outs() << '\n';
+            }
+            _spaces += 2;
+            for (auto stmt : fds->GetBody()) {
+                Visit(stmt);
+                llvm::outs() << '\n';
+            }
+            _spaces -= 2;
+            if (fds->GetBody().size() != 0) {
+                llvm::outs() << std::string(_spaces, ' ');
+            }
+            llvm::outs() << "}";
         }
-        _spaces += 2;
-        for (auto stmt : fds->GetBody()) {
-            Visit(stmt);
-            llvm::outs() << '\n';
-        }
-        _spaces -= 2;
-        if (fds->GetBody().size() != 0) {
-            llvm::outs() << std::string(_spaces, ' ');
-        }
-        llvm::outs() << "})";
+        llvm::outs() << ")";
     }
 
     void
@@ -200,7 +204,14 @@ namespace onyx {
     void
     ASTPrinter::VisitImplStmt(ImplStmt *is) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(ImplStmt: " << is->GetStructName().str() << " {";
+        llvm::outs() << "(ImplStmt: ";
+        if (is->GetTraitName() != "") {
+            llvm::outs() << is->GetTraitName() << " for " << is->GetStructName();
+        }
+        else {
+            llvm::outs() << is->GetStructName();
+        }
+        llvm::outs() << " {";
         if (is->GetBody().size() != 0) {
             llvm::outs() << '\n';
         }
@@ -231,6 +242,25 @@ namespace onyx {
         _spaces = 0;
         Visit(mcs->GetObject());
         _spaces = spaces;
+    }
+
+    void
+    ASTPrinter::VisitTraitDeclStmt(TraitDeclStmt *tds) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(TraitDeclStmt: " << tds->GetName().str() << " {";
+        if (tds->GetBody().size() != 0) {
+            llvm::outs() << '\n';
+        }
+        _spaces += 2;
+        for (auto stmt : tds->GetBody()) {
+            Visit(stmt);
+            llvm::outs() << '\n';
+        }
+        _spaces -= 2;
+        if (tds->GetBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
+        llvm::outs() << "})";
     }
 
     void

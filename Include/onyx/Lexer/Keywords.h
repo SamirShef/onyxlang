@@ -26,6 +26,7 @@ namespace onyx {
         { "struct", TkStruct },
         { "pub", TkPub },
         { "impl", TkImpl },
+        { "trait", TkTrait },
         { "echo", TkEcho }
     };
 }

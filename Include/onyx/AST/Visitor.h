@@ -35,6 +35,8 @@ namespace onyx {
                     return NODE(VisitImplStmt, ImplStmt);
                 case NkMethodCallStmt:
                     return NODE(VisitMethodCallStmt, MethodCallStmt);
+                case NkTraitDeclStmt:
+                    return NODE(VisitTraitDeclStmt, TraitDeclStmt);
                 case NkEchoStmt:
                     return NODE(VisitEchoStmt, EchoStmt);
                 

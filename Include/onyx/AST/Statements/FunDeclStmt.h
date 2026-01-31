@@ -11,10 +11,12 @@ namespace onyx {
         ASTType _retType;
         std::vector<Argument> _args;
         std::vector<Stmt *> _block;
+        bool _isDeclaration;
 
     public:
-        explicit FunDeclStmt(llvm::StringRef name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                           : _name(name), _retType(retType), _args(args), _block(block), Stmt(NkFunDeclStmt, access, startLoc, endLoc) {}
+        explicit FunDeclStmt(llvm::StringRef name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, bool isDeclaration, AccessModifier access,
+                             llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                           : _name(name), _retType(retType), _args(args), _block(block), _isDeclaration(isDeclaration), Stmt(NkFunDeclStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const onyx::Node *node) {
@@ -39,6 +41,11 @@ namespace onyx {
         std::vector<Stmt *>
         GetBody() const {
             return _block;
+        }
+
+        bool
+        IsDeclaration() const {
+            return _isDeclaration;
         }
     };
 }

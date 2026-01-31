@@ -25,6 +25,7 @@ namespace onyx {
         TkStruct,           // keyword `struct`
         TkPub,              // keyword `pub`
         TkImpl,             // keyword `impl`
+        TkTrait,            // keyword `trait`
         TkEcho,             // keyword `echo`
         
         TkBoolLit,          // bool literal
