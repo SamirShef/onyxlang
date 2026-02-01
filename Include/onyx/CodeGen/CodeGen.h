@@ -11,7 +11,7 @@ namespace onyx {
         std::unique_ptr<llvm::Module> _module;
         llvm::IRBuilder<> _builder;
 
-        std::stack<std::unordered_map<std::string, llvm::Value *>> _vars;
+        std::stack<std::unordered_map<std::string, std::pair<llvm::Value *, llvm::Type *>>> _vars;
 
         std::unordered_map<std::string, llvm::Function *> _functions;
         std::stack<llvm::Type *> _funRetsTypes;

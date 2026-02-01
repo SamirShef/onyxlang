@@ -291,6 +291,13 @@ namespace onyx {
                 << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
         }
         else {
+            bool objIsThis = false;
+            if (fas->GetObject()->GetKind() == NkVarExpr) {
+                VarExpr *ve = llvm::cast<VarExpr>(fas->GetObject());
+                if (ve->GetName() == "this") {
+                    objIsThis = true;
+                }
+            }
             Struct s = _structs.at(obj->GetType().GetVal().str());
             auto field = s.Fields.find(fas->GetName().str());
             if (field == s.Fields.end()) {
@@ -300,7 +307,7 @@ namespace onyx {
                     << s.Name;
             }
             else {
-                if (field->second.Access == AccessPriv) {
+                if (field->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
                         << fas->GetName();
@@ -471,6 +478,14 @@ namespace onyx {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitTraitDeclStmt(TraitDeclStmt *tds) {
+        if (_vars.size() != 1) {
+            _diag.Report(tds->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc());
+        }
+        if (_vars.size() != 1 && tds->GetAccess() == AccessPub) {
+            _diag.Report(tds->GetStartLoc(), ErrCannotHaveAccessBeHere)
+                << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc());
+        }
         if (_traits.find(tds->GetName().str()) != _traits.end()) {
             _diag.Report(tds->GetStartLoc(), ErrRedefinitionTrait)
                 << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc())
@@ -479,6 +494,12 @@ namespace onyx {
         Trait t { .Name = tds->GetName(), .Methods = {} };
         for (auto stmt : tds->GetBody()) {
             if (FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt)) {
+                if (!method->IsDeclaration()) {
+                    _diag.Report(method->GetStartLoc(), ErrExpectedDeclarationInTrait)
+                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
+                        << method->GetName()
+                        << tds->GetName();
+                }
                 Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
                                .IsDeclaration = method->IsDeclaration() };
                 t.Methods.emplace(method->GetName().str(), Method { .Fun = fun, .Access = method->GetAccess() });

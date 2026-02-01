@@ -61,12 +61,23 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitVarDeclStmt(VarDeclStmt *vds) {
+        llvm::Type *type = nullptr;
         llvm::Value *initializer = nullptr;
+        std::string structName;
+        bool isTraitType = vds->GetType().GetTypeKind() == ASTTypeKind::Trait;
         if (vds->GetExpr()) {
             initializer = Visit(vds->GetExpr());
-            initializer = implicitlyCast(initializer, typeToLLVM(vds->GetType()));
+            if (isTraitType) {
+                type = initializer->getType();
+                structName = resolveStructName(vds->GetExpr());
+            }
+            else {
+                type = typeToLLVM(vds->GetType());
+                initializer = implicitlyCast(initializer, typeToLLVM(vds->GetType()));
+            }
         }
         else { 
+            type = typeToLLVM(vds->GetType());
             if (vds->GetType().GetTypeKind() != ASTTypeKind::Struct) {
                 initializer = llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
             }
@@ -76,15 +87,16 @@ namespace onyx {
         }
         llvm::Value *var;
         if (_vars.size() == 1) {
-            var = new llvm::GlobalVariable(*_module, typeToLLVM(vds->GetType()), vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer),
+            var = new llvm::GlobalVariable(*_module, type, vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer),
                                            vds->GetName());
         }
         else {
-            var = _builder.CreateAlloca(typeToLLVM(vds->GetType()), nullptr, vds->GetName());
+            var = _builder.CreateAlloca(type, nullptr, vds->GetName());
             _builder.CreateStore(initializer, var);
         }
-        if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct) {
-            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, vds->GetType().GetVal()));
+        if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct ||
+            vds->GetType().GetTypeKind() == ASTTypeKind::Trait) {
+            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, isTraitType ? structName : vds->GetType().GetVal()));
             if (_vars.size() == 1) {
                 llvm::cast<llvm::GlobalVariable>(var)->setMetadata("struct_name", metadata);
             }
@@ -92,7 +104,7 @@ namespace onyx {
                 llvm::cast<llvm::AllocaInst>(var)->setMetadata("struct_name", metadata);
             }
         }
-        _vars.top().emplace(vds->GetName().str(), var);
+        _vars.top().emplace(vds->GetName().str(), std::pair<llvm::Value *, llvm::Type *> { var, type });
         return nullptr;
     }
 
@@ -102,10 +114,12 @@ namespace onyx {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(vas->GetName().str()); var != varsCopy.top().end()) {
-                if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second)) {
+                if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second.first)) {
+                    val = implicitlyCast(val, var->second.second);
                     _builder.CreateStore(val, glob);
                 }
-                if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second)) {
+                if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second.first)) {
+                    val = implicitlyCast(val, var->second.second);
                     _builder.CreateStore(val, local);
                 }
             }
@@ -124,7 +138,7 @@ namespace onyx {
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
-            _vars.top().emplace(arg.getName().str(), &arg);
+            _vars.top().emplace(arg.getName().str(), std::pair<llvm::Value *, llvm::Type *> { &arg, arg.getType()});
             ++index;
         }
         for (auto &stmt : fds->GetBody()) {
@@ -253,7 +267,9 @@ namespace onyx {
         Struct s = _structs.at(resolveStructName(fas->GetObject()));
         Field field = s.Fields.at(fas->GetName().str());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
-        _builder.CreateStore(Visit(fas->GetExpr()), gep);
+        llvm::Value *val = Visit(fas->GetExpr());
+        val = implicitlyCast(val, field.Type);
+        _builder.CreateStore(val, gep);
         return nullptr;
     }
 
@@ -270,7 +286,7 @@ namespace onyx {
             int index = 0;
             for (auto &arg : fun->args()) {
                 arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
-                _vars.top().emplace(arg.getName().str(), &arg);
+                _vars.top().emplace(arg.getName().str(), std::pair<llvm::Value *, llvm::Type *> { &arg, arg.getType() });
                 ++index;
             }
             for (auto &stmt : method->GetBody()) {
@@ -288,7 +304,7 @@ namespace onyx {
     llvm::Value *
     CodeGen::VisitMethodCallStmt(MethodCallStmt *mcs) {
         MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
-        Visit(expr);
+        VisitMethodCallExpr(expr);
         delete expr;
         return nullptr;
     }
@@ -308,6 +324,9 @@ namespace onyx {
         }
         else if (type->isFloatingPointTy()) {
             format = "%g";
+            if (type->isFloatTy()) {
+                val = _builder.CreateFPExt(val, llvm::Type::getDoubleTy(_context));
+            }
         }
         else if (type->isPointerTy()) {
             format = "%p";
@@ -423,17 +442,17 @@ namespace onyx {
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName().str()); var != varsCopy.top().end()) {
                 if (createLoad) {
-                    if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second)) {
+                    if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second.first)) {
                         if (_vars.size() == 1) {
                             return glob->getInitializer();
                         }
                         return _builder.CreateLoad(glob->getValueType(), glob, var->first + ".load");
                     }
-                    if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second)) {
+                    if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second.first)) {
                         return _builder.CreateLoad(local->getAllocatedType(), local, var->first + ".load");
                     }
                 }
-                return var->second;
+                return var->second.first;
             }
             varsCopy.pop();
         }
@@ -484,7 +503,9 @@ namespace onyx {
             for (int i = 0; i < se->GetInitializer().size(); ++i) {
                 std::string name = se->GetInitializer()[i].first.str();
                 llvm::Value *fieldPtr = _builder.CreateStructGEP(s.Type, alloca, s.Fields.at(name).Index, name + ".gep");
-                _builder.CreateStore(Visit(se->GetInitializer()[i].second), fieldPtr);
+                llvm::Value *val = Visit(se->GetInitializer()[i].second);
+                val = implicitlyCast(val, s.Fields.at(se->GetInitializer()[i].first.str()).Type);
+                _builder.CreateStore(val, fieldPtr);
                 s.Fields.at(name).ManualInitialized = true;
             }
             for (auto &field : s.Fields) {
@@ -691,21 +712,21 @@ namespace onyx {
                 while (!varsCopy.empty()) {
                     for (auto var : varsCopy.top()) {
                         if (var.first == name) {
-                            if (auto *glob = llvm::dyn_cast<llvm::GlobalVariable>(var.second)) {
+                            if (auto *glob = llvm::dyn_cast<llvm::GlobalVariable>(var.second.first)) {
                                 if (auto *metadata = glob->getMetadata("struct_name")) {
                                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
                                         return mdStr->getString().str();
                                     }
                                 }
                             } 
-                            else if (auto *local = llvm::dyn_cast<llvm::AllocaInst>(var.second)) {
+                            else if (auto *local = llvm::dyn_cast<llvm::AllocaInst>(var.second.first)) {
                                 if (auto *metadata = local->getMetadata("struct_name")) {
                                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
                                         return mdStr->getString().str();
                                     }
                                 }
                             }
-                            else if (auto *arg = llvm::dyn_cast<llvm::Argument>(var.second)) {
+                            else if (auto *arg = llvm::dyn_cast<llvm::Argument>(var.second.first)) {
                                 llvm::Function *parent = arg->getParent();
                                 if (auto *metadata = parent->getMetadata("this_struct_name")) {
                                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
@@ -730,7 +751,7 @@ namespace onyx {
                 return "";
             }
             case NkFieldAccessExpr: {
-                auto *fae = llvm::dyn_cast<FieldAccessExpr>(expr);
+                FieldAccessExpr *fae = llvm::dyn_cast<FieldAccessExpr>(expr);
                 std::string parentStructName = resolveStructName(fae->GetObject());
                 if (parentStructName.empty()) {
                     return "";
@@ -749,8 +770,21 @@ namespace onyx {
                 }
                 return "";
             }
-            case NkMethodCallExpr:
-                return resolveStructName(llvm::dyn_cast<MethodCallExpr>(expr)->GetObject());
+            case NkMethodCallExpr: {
+                MethodCallExpr *mce = llvm::dyn_cast<MethodCallExpr>(expr);
+                std::string parentStructName = resolveStructName(mce->GetObject());
+                if (parentStructName.empty()) {
+                    return "";
+                }
+
+                llvm::Function *fun = _functions.at(parentStructName + "." + mce->GetName().str());
+                if (auto *metadata = fun->getMetadata("struct_name")) {
+                    if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
+                        return mdStr->getString().str();
+                    }
+                }
+                return "";
+            }
             default: {
                 return "";
             }
