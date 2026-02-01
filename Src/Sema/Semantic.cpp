@@ -641,6 +641,9 @@ namespace onyx {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName().str()); var != varsCopy.top().end()) {
+                if (var->second.Type.GetTypeKind() == ASTTypeKind::Trait) {
+                    return ASTVal(var->second.Type, ASTValData { .i32Val = 0 });
+                }
                 return var->second.Val;
             }
             varsCopy.pop();
