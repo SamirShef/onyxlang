@@ -11,8 +11,10 @@ namespace onyx {
         for (auto &stmt : ast) {
             if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt)) {
                 std::vector<llvm::Type *> args(fds->GetArgs().size());
+                std::vector<ASTType> argsAST(fds->GetArgs().size());
                 for (int i = 0; i < fds->GetArgs().size(); ++i) {
                     args[i] = typeToLLVM(fds->GetArgs()[i].GetType());
+                    argsAST[i] = fds->GetArgs()[i].GetType();
                 }
                 llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
                 llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName().str(), *_module);
@@ -22,14 +24,22 @@ namespace onyx {
                     fun->setMetadata("struct_name", metadata);
                 }
                 _functions.emplace(fun->getName(), fun);
+                _funArgsTypes.emplace(fun->getName().str(), argsAST);
             }
             else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
+                Struct &s = _structs.at(is->GetStructName().str());
+                if (!is->GetTraitName().empty()) {
+                    s.TraitsImplements.emplace(is->GetTraitName().str(), _traits.at(is->GetTraitName().str()));
+                }
                 for (auto stmt : is->GetBody()) {
                     FunDeclStmt *fds = llvm::cast<FunDeclStmt>(stmt);
                     std::vector<llvm::Type *> args(fds->GetArgs().size() + 1);
+                    std::vector<ASTType> argsAST(fds->GetArgs().size() + 1);
                     args[0] = llvm::PointerType::get(_structs.at(is->GetStructName().str()).Type, 0);
+                    argsAST[0] = ASTType(ASTTypeKind::Struct, is->GetStructName().str(), true);
                     for (int i = 0; i < fds->GetArgs().size(); ++i) {
                         args[i + 1] = typeToLLVM(fds->GetArgs()[i].GetType());
+                        argsAST[i + 1] = fds->GetArgs()[i].GetType();
                     }
                     llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
                     llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, is->GetStructName() + "." + fds->GetName().str(), *_module);
@@ -41,6 +51,7 @@ namespace onyx {
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, is->GetStructName()));
                     fun->setMetadata("this_struct_name", metadata);
                     _functions.emplace(fun->getName(), fun);
+                    _funArgsTypes.emplace(fun->getName().str(), argsAST);
                 }
             }
             else if (StructStmt *ss = llvm::dyn_cast<StructStmt>(stmt)) {
@@ -52,9 +63,22 @@ namespace onyx {
                     fields.emplace(vds->GetName(), Field { vds->GetName(), typeToLLVM(vds->GetType()), vds->GetType(), vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr,
                                    false, i });
                 }
-                llvm::StructType *structType = llvm::StructType::create(_context, fieldsTypes, ss->GetName(), false);
-                Struct s { ss->GetName(), structType, fields };
+                llvm::StructType *structType = llvm::StructType::create(_context, fieldsTypes, ss->GetName());
+                Struct s { .Name = ss->GetName(), .Type = structType, .Fields = fields, .TraitsImplements = {} };
                 _structs.emplace(ss->GetName().str(), s);
+            }
+            else if (TraitDeclStmt *tds = llvm::dyn_cast<TraitDeclStmt>(stmt)) {
+                Trait t { .Name = tds->GetName(), .Methods = {} };
+                for (auto method : tds->GetBody()) {
+                    if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(method)) {
+                        std::vector<llvm::Type *> args(fds->GetArgs().size());
+                        for (int i = 0; i < args.size(); ++i) {
+                            args[i] = typeToLLVM(fds->GetArgs()[i].GetType());
+                        }
+                        t.Methods.push_back({ fds->GetName().str(), Method { .Name = fds->GetName().str(), .RetType = typeToLLVM(fds->GetRetType()), .Args = args } });
+                    }
+                }
+                _traits.emplace(tds->GetName().str(), t);
             }
         }
     }
@@ -114,13 +138,23 @@ namespace onyx {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(vas->GetName().str()); var != varsCopy.top().end()) {
+                val = implicitlyCast(val, var->second.second);
                 if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second.first)) {
-                    val = implicitlyCast(val, var->second.second);
                     _builder.CreateStore(val, glob);
+                    return nullptr;
                 }
                 if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second.first)) {
-                    val = implicitlyCast(val, var->second.second);
                     _builder.CreateStore(val, local);
+                    return nullptr;
+                }
+                if (auto arg = llvm::dyn_cast<llvm::Argument>(var->second.first)) {
+                    if (arg->getType()->isPointerTy()) {
+                        _builder.CreateStore(val, arg);
+                        return nullptr;
+                    }
+                    llvm::AllocaInst *alloca = _builder.CreateAlloca(arg->getType(), nullptr, arg->getName());
+                    _builder.CreateStore(val, alloca);
+                    return nullptr;
                 }
             }
             varsCopy.pop();
@@ -155,7 +189,7 @@ namespace onyx {
     llvm::Value *
     CodeGen::VisitFunCallStmt(FunCallStmt *fcs) {
         FunCallExpr *expr = new FunCallExpr(fcs->GetName(), fcs->GetArgs(), fcs->GetStartLoc(), fcs->GetEndLoc());
-        Visit(expr);
+        VisitFunCallExpr(expr);
         delete expr;
         return nullptr;
     }
@@ -487,11 +521,38 @@ namespace onyx {
 
     llvm::Value *
     CodeGen::VisitFunCallExpr(FunCallExpr *fce) {
+        llvm::Function *fun = _functions.at(fce->GetName().str());
         std::vector<llvm::Value *> args(fce->GetArgs().size());
         for (int i = 0; i < fce->GetArgs().size(); ++i) {
-            args[i] = Visit(fce->GetArgs()[i]);
+            llvm::Value *val = Visit(fce->GetArgs()[i]);
+            llvm::Type *expectedType = fun->getFunctionType()->getParamType(i);
+
+            if (expectedType->isStructTy() && expectedType->getStructNumElements() == 2 && 
+                !val->getType()->isPointerTy()) {
+                
+                std::string structName = resolveStructName(fce->GetArgs()[i]);
+                std::string traitName = _funArgsTypes.at(fce->GetName().str())[i].GetVal().str();
+
+                llvm::Value *fatPtr = llvm::UndefValue::get(expectedType);
+                
+                if (!val->getType()->isPointerTy()) {
+                    llvm::AllocaInst *tmp = _builder.CreateAlloca(val->getType());
+                    _builder.CreateStore(val, tmp);
+                    val = tmp;
+                }
+                llvm::Value *dataPtr = _builder.CreateBitCast(val, llvm::PointerType::get(_context, 0));
+                fatPtr = _builder.CreateInsertValue(fatPtr, dataPtr, 0);
+
+                llvm::Value *vtable = getOrCreateVTable(structName, traitName);
+                llvm::Value *vtablePtr = _builder.CreateBitCast(vtable, llvm::PointerType::get(llvm::PointerType::get(_context, 0), 0));
+                fatPtr = _builder.CreateInsertValue(fatPtr, vtablePtr, 1);
+                
+                args[i] = fatPtr;
+            }
+            else {
+                args[i] = implicitlyCast(val, expectedType);
+            }
         }
-        llvm::Function *fun = _functions.at(fce->GetName().str());
         return _builder.CreateCall(fun, args, fun->getName() + ".call");
     }
 
@@ -579,19 +640,96 @@ namespace onyx {
         createLoad = false;
         llvm::Value *obj = Visit(mce->GetObject());
         createLoad = true;
+
+        std::string structName = resolveStructName(mce->GetObject());
+        if (structName.empty() && obj->getType()->isStructTy()) {
+            structName = obj->getType()->getStructName().str();
+            size_t dotPos = structName.find('.');
+            if (dotPos != std::string::npos) {
+                structName = structName.substr(0, dotPos);
+            }
+        }
+
+        if (_traits.count(structName)) {
+            llvm::Value *thisPtr = _builder.CreateExtractValue(obj, 0, "trait.this");
+            llvm::Value *vtablePtr = _builder.CreateExtractValue(obj, 1, "trait.vtable");
+
+            Trait &t = _traits.at(structName);
+            int methodIndex = -1;
+            llvm::Type* retType = nullptr;
+
+            for (int i = 0; i < t.Methods.size(); ++i) {
+                if (t.Methods[i].first == mce->GetName().str()) {
+                    methodIndex = i;
+                    retType = t.Methods[i].second.RetType;
+                    break;
+                }
+            }
+
+            if (methodIndex == -1) {
+                return nullptr;
+            }
+
+            llvm::Type *voidPtrTy = llvm::PointerType::get(_context, 0);
+            llvm::Value *gep = _builder.CreateConstGEP1_32(voidPtrTy, vtablePtr, methodIndex);
+            llvm::Value *funRaw = _builder.CreateLoad(voidPtrTy, gep, "vfunc.ptr");
+
+            std::vector<llvm::Value *> args(mce->GetArgs().size() + 1);
+            args[0] = thisPtr;
+            for (int i = 0; i < mce->GetArgs().size(); ++i) {
+                args[i + 1] = implicitlyCast(Visit(mce->GetArgs()[i]), t.Methods[methodIndex].second.Args[i]);
+            }
+            llvm::FunctionType *method = llvm::FunctionType::get(retType, t.Methods[methodIndex].second.Args, false);
+
+            return _builder.CreateCall(method, funRaw, args);
+        }
+
+        std::string fullName = structName + "." + mce->GetName().str();
+        if (_functions.find(fullName) == _functions.end()) {
+            return nullptr;
+        }
+
+        llvm::Function *fun = _functions.at(fullName);
+        std::vector<llvm::Value *> args(fun->getFunctionType()->getNumParams());
+
         if (!obj->getType()->isPointerTy()) {
-            llvm::AllocaInst *tempAlloca = _builder.CreateAlloca(obj->getType(), nullptr, "rvalue.tmp");
-            _builder.CreateStore(obj, tempAlloca);
-            obj = tempAlloca;
+            llvm::AllocaInst *alloca = _builder.CreateAlloca(obj->getType());
+            _builder.CreateStore(obj, alloca);
+            obj = alloca;
         }
-        Struct s = _structs.at(resolveStructName(mce->GetObject()));
-        std::vector<llvm::Value *> args(mce->GetArgs().size() + 1);
         args[0] = obj;
+
         for (int i = 0; i < mce->GetArgs().size(); ++i) {
-            args[i + 1] = Visit(mce->GetArgs()[i]);
+            llvm::Value *val = Visit(mce->GetArgs()[i]);
+            llvm::Type *expectedType = fun->getFunctionType()->getParamType(i + 1);
+
+            if (expectedType->isStructTy() && expectedType->getStructNumElements() == 2 && 
+                !val->getType()->isPointerTy()) {
+                
+                std::string structName = resolveStructName(mce->GetArgs()[i]);
+                std::string traitName = _funArgsTypes.at(fullName)[i + 1].GetVal().str();
+
+                llvm::Value *fatPtr = llvm::UndefValue::get(expectedType);
+                
+                if (!val->getType()->isPointerTy()) {
+                    llvm::AllocaInst *tmp = _builder.CreateAlloca(val->getType());
+                    _builder.CreateStore(val, tmp);
+                    val = tmp;
+                }
+                llvm::Value *dataPtr = _builder.CreateBitCast(val, llvm::PointerType::get(_context, 0));
+                fatPtr = _builder.CreateInsertValue(fatPtr, dataPtr, 0);
+
+                llvm::Value *vtable = getOrCreateVTable(structName, traitName);
+                llvm::Value *vtablePtr = _builder.CreateBitCast(vtable, llvm::PointerType::get(llvm::PointerType::get(_context, 0), 0));
+                fatPtr = _builder.CreateInsertValue(fatPtr, vtablePtr, 1);
+                
+                args[i + 1] = fatPtr;
+            }
+            else {
+                args[i + 1] = implicitlyCast(val, expectedType);
+            }
         }
-        llvm::Function *method = _functions.at(s.Name.str() + "." + mce->GetName().str());
-        return _builder.CreateCall(method, args, method->getName() + ".call");
+        return _builder.CreateCall(fun, args);
     }
     
     llvm::Type *
@@ -625,6 +763,36 @@ namespace onyx {
         if (destType == expectType) {
             return src;
         }
+        if (expectType->isStructTy() && expectType->getStructNumElements() == 2) {
+            if (src->getType() == expectType) {
+                return src;
+            }
+
+            std::string traitName = expectType->getStructName().str();
+            size_t dotPos = traitName.find('.');
+            if (dotPos != std::string::npos) {
+                traitName = traitName.substr(0, dotPos);
+            }
+
+            if (_traits.count(traitName)) {
+                llvm::Value* fatPtr = llvm::UndefValue::get(expectType);
+
+                llvm::Value *dataPtr;
+                if (src->getType()->isPointerTy()) {
+                    dataPtr = _builder.CreateBitCast(src, llvm::PointerType::get(_context, 0));
+                }
+                else {
+                    llvm::AllocaInst *tmp = _builder.CreateAlloca(src->getType());
+                    _builder.CreateStore(src, tmp);
+                    dataPtr = _builder.CreateBitCast(tmp, llvm::PointerType::get(_context, 0));
+                }
+                fatPtr = _builder.CreateInsertValue(fatPtr, dataPtr, 0);
+                llvm::Value *vtable = getOrCreateVTable(src->getType()->getStructName().str(), traitName);
+                llvm::Value *vtablePtr = _builder.CreateBitCast(vtable, llvm::PointerType::get(llvm::PointerType::get(_context, 0), 0));
+                fatPtr = _builder.CreateInsertValue(fatPtr, vtablePtr, 1);
+                return fatPtr;
+            }
+        }
         else if (destType->isIntegerTy() && expectType->isIntegerTy()) {
             unsigned long valWidth = destType->getIntegerBitWidth();
             unsigned long expectedWidth = expectType->getIntegerBitWidth();
@@ -647,7 +815,7 @@ namespace onyx {
         else if (destType->isIntegerTy() && expectType->isFloatingPointTy()) {
             return _builder.CreateSIToFP(src, expectType, "sitofp.tmp");
         }
-        return nullptr;
+        return src;
     }
 
     llvm::SMRange
@@ -675,6 +843,15 @@ namespace onyx {
                 return TYPE(getDoubleTy);
             case ASTTypeKind::Struct:
                 return _structs.at(type.GetVal().str()).Type;
+            case ASTTypeKind::Trait: {
+                llvm::StructType *existingType = llvm::StructType::getTypeByName(_context, type.GetVal().str());
+                if (existingType) {
+                    return existingType;
+                }
+                llvm::Type *voidPtrTy = llvm::PointerType::get(_context, 0);
+                llvm::Type *vtablePtrTy = llvm::PointerType::get(voidPtrTy, 0);
+                return llvm::StructType::create(_context, { voidPtrTy, vtablePtrTy }, type.GetVal());
+            }
             case ASTTypeKind::Noth:
                 return TYPE(getVoidTy);
             #undef TYPE
@@ -728,9 +905,16 @@ namespace onyx {
                             }
                             else if (auto *arg = llvm::dyn_cast<llvm::Argument>(var.second.first)) {
                                 llvm::Function *parent = arg->getParent();
-                                if (auto *metadata = parent->getMetadata("this_struct_name")) {
-                                    if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
-                                        return mdStr->getString().str();
+                                if (parent->getFunctionType()->getParamType(0) == arg->getType()) {
+                                    if (auto *metadata = parent->getMetadata("this_struct_name")) {
+                                        if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
+                                            return mdStr->getString().str();
+                                        }
+                                    }
+                                }
+                                else {
+                                    if (arg->getType()->isStructTy()) {
+                                        return arg->getType()->getStructName().str();
                                     }
                                 }
                             }
@@ -789,5 +973,30 @@ namespace onyx {
                 return "";
             }
         }
+    }
+
+    llvm::Value *
+    CodeGen::getOrCreateVTable(const std::string &structName, const std::string &traitName) {
+        std::string vtableName = "vtable." + structName + ".as." + traitName;
+        if (auto *existingVTable = _module->getNamedGlobal(vtableName)) {
+            return existingVTable;
+        }
+
+        Trait &t = _traits.at(traitName);
+        std::vector<llvm::Constant *> functions(t.Methods.size());
+        llvm::Type *voidPtrTy = llvm::PointerType::get(_context, 0);
+
+        int i = 0;
+        for (const auto &[methodName, _] : t.Methods) {
+            std::string fullMethodName = structName + "." + methodName;
+            llvm::Function *fun = _functions.at(fullMethodName);
+            functions[i] = llvm::ConstantExpr::getBitCast(fun, voidPtrTy);
+            ++i;
+        }
+
+        llvm::ArrayType *vtableArrTy = llvm::ArrayType::get(voidPtrTy, functions.size());
+        llvm::GlobalVariable *vtable = new llvm::GlobalVariable(*_module, vtableArrTy, true, llvm::GlobalValue::InternalLinkage,
+                                                                  llvm::ConstantArray::get(vtableArrTy, functions), vtableName);
+        return vtable;
     }
 }
