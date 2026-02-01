@@ -21,6 +21,7 @@ namespace onyx {
         bool _isConst;
 
     public:
+        ASTType() = default;
         explicit ASTType(ASTTypeKind kind, llvm::StringRef val, bool isConst) : _kind(kind), _val(val), _isConst(isConst) {}
 
         bool

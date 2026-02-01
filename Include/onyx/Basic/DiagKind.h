@@ -45,5 +45,6 @@ namespace onyx {
         ErrCannotImplTraitMethod_FewArgs,
         ErrCannotImplTraitMethod_ArgTypeMismatch,
         ErrNotImplTraitMethod,
+        ErrExpectedDeclarationInTrait,
     };
 }

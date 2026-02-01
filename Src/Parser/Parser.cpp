@@ -186,7 +186,7 @@ namespace onyx {
         Token op = consume();
         Expr *expr = parseExpr(PrecLowest);
         if (op.GetKind() != TkEq && isAssignmentOp(op.GetKind())) {
-            expr = createCompoundAssignmentOp(op, createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
+            expr = createCompoundAssignmentOp(op, createNode<FieldAccessExpr>(base, nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
         }
         return createNode<FieldAsgnStmt>(base, nameToken.GetText(), expr, access, base->GetStartLoc(), _curTok.GetLoc());
     }

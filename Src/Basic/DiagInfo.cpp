@@ -90,6 +90,8 @@ namespace onyx {
                 return ERR("cannot imlement method `%0` from trait `%1: argument `%2` expected type `%3`, but received `%4`");
             case ErrNotImplTraitMethod:
                 return ERR("method `%0` from trait `%1` does not implemented");
+            case ErrExpectedDeclarationInTrait:
+                return ERR("method `%0` from trait `%1` must be a declaration");
         }
     }
 }
