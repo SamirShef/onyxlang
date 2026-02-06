@@ -6,11 +6,11 @@
 namespace marble {
     class MethodCallExpr : public Expr {
         Expr *_object;
-        llvm::StringRef _name;
+        std::string _name;
         std::vector<Expr *> _args;
 
     public:
-        explicit MethodCallExpr(Expr *obj, llvm::StringRef name, std::vector<Expr *> args, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit MethodCallExpr(Expr *obj, std::string name, std::vector<Expr *> args, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                               : _object(obj), _name(name), _args(args), Expr(NkMethodCallExpr, startLoc, endLoc) {}
         
         constexpr static bool
@@ -23,7 +23,7 @@ namespace marble {
             return _object;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

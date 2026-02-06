@@ -81,18 +81,18 @@ namespace marble {
     
     class Token {
         TokenKind _kind;
-        llvm::StringRef _text;
+        std::string _text;
         llvm::SMLoc _loc;
 
     public:
-        explicit Token(TokenKind kind, llvm::StringRef text, llvm::SMLoc loc) : _kind(kind), _text(text), _loc(loc) {}
+        explicit Token(TokenKind kind, std::string text, llvm::SMLoc loc) : _kind(kind), _text(text), _loc(loc) {}
 
         const TokenKind
         GetKind() const {
             return _kind;
         }
 
-        const llvm::StringRef
+        const std::string
         GetText() const {
             return _text;
         }

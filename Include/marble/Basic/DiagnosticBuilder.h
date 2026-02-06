@@ -21,7 +21,7 @@ namespace marble {
         ~DiagnosticBuilder();
         
         DiagnosticBuilder &
-        operator<<(llvm::StringRef s);
+        operator<<(std::string s);
 
         DiagnosticBuilder &
         operator<<(llvm::SMRange r);

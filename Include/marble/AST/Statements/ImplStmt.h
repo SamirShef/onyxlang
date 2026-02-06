@@ -5,12 +5,12 @@
 
 namespace marble {
     class ImplStmt : public Stmt {
-        llvm::StringRef _traitName;
-        llvm::StringRef _structName;
+        std::string _traitName;
+        std::string _structName;
         std::vector<Stmt *> _body;
 
     public:
-        explicit ImplStmt(llvm::StringRef traitName, llvm::StringRef name, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit ImplStmt(std::string traitName, std::string name, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                         : _traitName(traitName), _structName(name), _body(body), Stmt(NkImplStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
@@ -18,12 +18,12 @@ namespace marble {
             return node->GetKind() == NkImplStmt;
         }
         
-        llvm::StringRef
+        std::string
         GetTraitName() const {
             return _traitName;
         }
 
-        llvm::StringRef
+        std::string
         GetStructName() const {
             return _structName;
         }

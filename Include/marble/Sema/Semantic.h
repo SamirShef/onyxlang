@@ -11,7 +11,7 @@ namespace marble {
         DiagnosticEngine &_diag;
         
         struct Variable {
-            const llvm::StringRef Name;
+            const std::string Name;
             const ASTType Type;
             std::optional<ASTVal> Val;
             const bool IsConst;
@@ -19,7 +19,7 @@ namespace marble {
         std::stack<std::unordered_map<std::string, Variable>> _vars;
 
         struct Function {
-            const llvm::StringRef Name;
+            const std::string Name;
             const ASTType RetType;
             std::vector<Argument> Args;
             std::vector<Stmt *> Body;
@@ -31,7 +31,7 @@ namespace marble {
         int _loopDeth = 0;
 
         struct Field {
-            const llvm::StringRef Name;
+            const std::string Name;
             std::optional<ASTVal> Val;
             ASTType Type;
             const AccessModifier Access;
@@ -44,13 +44,13 @@ namespace marble {
         };
 
         struct Trait {
-            const llvm::StringRef Name;
+            const std::string Name;
             std::unordered_map<std::string, Method> Methods;
         };
         std::unordered_map<std::string, Trait> _traits;
 
         struct Struct {
-            const llvm::StringRef Name;
+            const std::string Name;
             std::unordered_map<std::string, Field> Fields;
             std::unordered_map<std::string, Method> Methods;
             std::unordered_map<std::string, Trait> TraitsImplements;

@@ -5,10 +5,10 @@
 namespace marble {
     class FieldAccessExpr : public Expr {
         Expr *_object;
-        llvm::StringRef _name;
+        std::string _name;
 
     public:
-        explicit FieldAccessExpr(Expr *obj, llvm::StringRef name, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit FieldAccessExpr(Expr *obj, std::string name, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                                : _object(obj), _name(name), Expr(NkFieldAccessExpr, startLoc, endLoc) {}
         
         constexpr static bool
@@ -21,7 +21,7 @@ namespace marble {
             return _object;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

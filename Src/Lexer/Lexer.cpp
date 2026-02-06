@@ -38,9 +38,9 @@ namespace marble {
         while (*_curPtr != '\0' && (isalnum(*_curPtr) || *_curPtr == '_')) {
             ++_curPtr;
         }
-        llvm::StringRef text(tokStart, _curPtr - tokStart);
-        if (keywords.find(text.str()) != keywords.end()) {
-            return Token(keywords.at(text.str()), text, llvm::SMLoc::getFromPointer(tokStart));
+        std::string text(llvm::StringRef(tokStart, _curPtr - tokStart).str());
+        if (keywords.find(text) != keywords.end()) {
+            return Token(keywords.at(text), text, llvm::SMLoc::getFromPointer(tokStart));
         }
         return Token(TkId, text, llvm::SMLoc::getFromPointer(tokStart));
     }
@@ -54,7 +54,7 @@ namespace marble {
             }
             ++_curPtr;
         }
-        llvm::StringRef text(tokStart, _curPtr - tokStart);
+        std::string text(llvm::StringRef(tokStart, _curPtr - tokStart).str());
         #define TOKEN(kind) Token(kind, text, llvm::SMLoc::getFromPointer(tokStart))
         switch (tolower(*(_curPtr++))) {    // skip suffix (maybe not suffix)
             case 's':
@@ -97,7 +97,7 @@ namespace marble {
             text += c;
         }
         ++_curPtr;  // skip "
-        return Token(TkStrLit, llvm::StringRef(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart));
+        return Token(TkStrLit, std::string(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart));
     }
 
     Token
@@ -126,7 +126,7 @@ namespace marble {
     Token
     Lexer::tokenizeOp(const char *tokStart) {
         switch (*(_curPtr++)) {
-            #define TOKEN(kind) Token(kind, llvm::StringRef(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart))
+            #define TOKEN(kind) Token(kind, std::string(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart))
             case ';':
                 return TOKEN(TkSemi);
             case ',':

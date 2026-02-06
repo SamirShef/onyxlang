@@ -7,11 +7,11 @@
 
 namespace marble {
     class FunCallStmt : public Stmt {
-        llvm::StringRef _name;
+        std::string _name;
         std::vector<Expr *> _args;
 
     public:
-        explicit FunCallStmt(llvm::StringRef name, std::vector<Expr *> args, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit FunCallStmt(std::string name, std::vector<Expr *> args, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                            : _name(name), _args(args), Stmt(NkFunCallStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
@@ -19,7 +19,7 @@ namespace marble {
             return node->GetKind() == NkFunCallStmt;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

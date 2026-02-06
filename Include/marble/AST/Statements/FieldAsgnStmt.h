@@ -7,11 +7,11 @@
 namespace marble {
     class FieldAsgnStmt : public Stmt {
         Expr *_object;
-        llvm::StringRef _name;
+        std::string _name;
         Expr *_expr;
 
     public:
-        explicit FieldAsgnStmt(Expr *obj, llvm::StringRef name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit FieldAsgnStmt(Expr *obj, std::string name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                              : _object(obj), _name(name), _expr(expr), Stmt(NkFieldAsgnStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
@@ -24,7 +24,7 @@ namespace marble {
             return _object;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

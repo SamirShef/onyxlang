@@ -8,11 +8,11 @@
 namespace marble {
     class MethodCallStmt : public Stmt {
         Expr *_object;
-        llvm::StringRef _name;
+        std::string _name;
         std::vector<Expr *> _args;
 
     public:
-        explicit MethodCallStmt(Expr *obj, llvm::StringRef name, std::vector<Expr *> args, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit MethodCallStmt(Expr *obj, std::string name, std::vector<Expr *> args, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                               : _object(obj), _name(name), _args(args), Stmt(NkMethodCallStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
@@ -25,7 +25,7 @@ namespace marble {
             return _object;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

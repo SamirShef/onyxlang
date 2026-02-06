@@ -6,11 +6,11 @@
 
 namespace marble {
     class FunCallExpr : public Expr {
-        llvm::StringRef _name;
+        std::string _name;
         std::vector<Expr *> _args;
 
     public:
-        explicit FunCallExpr(llvm::StringRef name, std::vector<Expr *> args, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit FunCallExpr(std::string name, std::vector<Expr *> args, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                            : _name(name), _args(args), Expr(NkFunCallExpr, startLoc, endLoc) {}
 
         constexpr static bool
@@ -18,7 +18,7 @@ namespace marble {
             return node->GetKind() == NkFunCallExpr;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

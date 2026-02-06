@@ -5,11 +5,11 @@
 
 namespace marble {
     class StructStmt : public Stmt {
-        llvm::StringRef _name;
+        std::string _name;
         std::vector<Stmt *> _body;
 
     public:
-        explicit StructStmt(llvm::StringRef name, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit StructStmt(std::string name, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                           : _name(name), _body(body), Stmt(NkStructStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
@@ -17,7 +17,7 @@ namespace marble {
             return node->GetKind() == NkStructStmt;
         }
         
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

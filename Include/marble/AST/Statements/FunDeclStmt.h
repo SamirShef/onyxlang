@@ -7,14 +7,14 @@
 
 namespace marble {
     class FunDeclStmt : public Stmt {
-        llvm::StringRef _name;
+        std::string _name;
         ASTType _retType;
         std::vector<Argument> _args;
         std::vector<Stmt *> _block;
         bool _isDeclaration;
 
     public:
-        explicit FunDeclStmt(llvm::StringRef name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, bool isDeclaration, AccessModifier access,
+        explicit FunDeclStmt(std::string name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, bool isDeclaration, AccessModifier access,
                              llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                            : _name(name), _retType(retType), _args(args), _block(block), _isDeclaration(isDeclaration), Stmt(NkFunDeclStmt, access, startLoc, endLoc) {}
 
@@ -23,7 +23,7 @@ namespace marble {
             return node->GetKind() == NkFunDeclStmt;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

@@ -135,7 +135,7 @@ namespace marble {
     Parser::parseVarDeclStmt() {
         Token firstTok = _curTok;
         bool isConst = consume().Is(TkConst);
-        llvm::StringRef name = _curTok.GetText();
+        std::string name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
@@ -164,7 +164,7 @@ namespace marble {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                 << getRangeFromTok(_curTok)
                 << "=` or `+=` or `-=` or `*=` or `/=` or `%="
-                << _curTok.GetText().str();
+                << _curTok.GetText();
         }
         Token op = consume();
         Expr *expr = parseExpr(PrecLowest);
@@ -181,7 +181,7 @@ namespace marble {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                 << getRangeFromTok(_curTok)
                 << "=` or `+=` or `-=` or `*=` or `/=` or `%="
-                << _curTok.GetText().str();
+                << _curTok.GetText();
         }
         Token op = consume();
         Expr *expr = parseExpr(PrecLowest);
@@ -194,7 +194,7 @@ namespace marble {
     Stmt *
     Parser::parseFunDeclStmt() {
         Token firstTok = consume();
-        llvm::StringRef name = _curTok.GetText();
+        std::string name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
@@ -326,7 +326,7 @@ namespace marble {
     Parser::parseStructStmt() {
         AccessModifier accessCopy = access;
         Token firstTok = consume();
-        llvm::StringRef name = _curTok.GetText();
+        std::string name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
@@ -342,7 +342,7 @@ namespace marble {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        types.emplace(name.str(), ASTType(ASTTypeKind::Struct, name.str(), false));
+        types.emplace(name, ASTType(ASTTypeKind::Struct, name, false));
         return createNode<StructStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -350,8 +350,8 @@ namespace marble {
     Parser::parseImplStmt() {
         AccessModifier accessCopy = access;
         Token firstTok = consume();
-        llvm::StringRef traitName = _curTok.GetText();
-        llvm::StringRef structName = "";
+        std::string traitName = _curTok.GetText();
+        std::string structName = "";
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
@@ -386,7 +386,7 @@ namespace marble {
     Parser::parseTraitDeclStmt() {
         AccessModifier accessCopy = access;
         Token firstTok = consume();
-        llvm::StringRef name = _curTok.GetText();
+        std::string name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
@@ -402,13 +402,13 @@ namespace marble {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        types.emplace(name.str(), ASTType(ASTTypeKind::Trait, name.str(), false));
+        types.emplace(name, ASTType(ASTTypeKind::Trait, name, false));
         return createNode<TraitDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument
     Parser::parseArgument() {
-        llvm::StringRef name = _curTok.GetText();
+        std::string name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                 << getRangeFromTok(_curTok)
@@ -426,6 +426,7 @@ namespace marble {
 
     Expr *
     Parser::parsePrefixExpr() {
+        std::string text = _curTok.GetText();
         switch (_curTok.GetKind()) {
             case TkId: {
                 Token nameToken = consume();
@@ -452,9 +453,9 @@ namespace marble {
                     }
                     case TkLBrace: {
                         consume();
-                        std::vector<std::pair<llvm::StringRef, Expr *>> initializer;
+                        std::vector<std::pair<std::string, Expr *>> initializer;
                         while (!expect(TkRBrace)) {
-                            llvm::StringRef name = _curTok.GetText();
+                            std::string name = _curTok.GetText();
                             if (!expect(TkId)) {
                                 _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                                     << getRangeFromTok(_curTok)
@@ -495,15 +496,15 @@ namespace marble {
             case TkCharLit:
                 return LIT(Char, "char", charVal, _curTok.GetText()[0]);
             case TkI16Lit:
-                return LIT(I16, "i16", i16Val, static_cast<short>(std::stoi(_curTok.GetText().data())));
+                return LIT(I16, "i16", i16Val, static_cast<short>(std::stoi(text)));
             case TkI32Lit:
-                return LIT(I32, "i32", i32Val, std::stoi(_curTok.GetText().data()));
+                return LIT(I32, "i32", i32Val, std::stoi(text));
             case TkI64Lit:
-                return LIT(I64, "i64", i64Val, std::stol(_curTok.GetText().data()));
+                return LIT(I64, "i64", i64Val, std::stol(text));
             case TkF32Lit:
-                return LIT(F32, "f32", f32Val, std::stof(_curTok.GetText().data()));
+                return LIT(F32, "f32", f32Val, std::stof(text));
             case TkF64Lit:
-                return LIT(F64, "f64", f64Val, std::stod(_curTok.GetText().data()));
+                return LIT(F64, "f64", f64Val, std::stod(text));
             #undef LIT
             case TkMinus:
             case TkBang: {
@@ -614,13 +615,13 @@ namespace marble {
             case TkNoth:
                 return TYPE(Noth, "noth");
             case TkId: {
-                if (types.find(type.GetText().str()) == types.end()) {
+                if (types.find(type.GetText()) == types.end()) {
                     _diag.Report(_lastTok.GetLoc(), ErrUndeclaredType)
                         << llvm::SMRange(_lastTok.GetLoc(), _curTok.GetLoc())
                         << type.GetText();
                     return TYPE(I32, "i32");
                 }
-                ASTTypeKind t = types.at(type.GetText().str()).GetTypeKind();
+                ASTTypeKind t = types.at(type.GetText()).GetTypeKind();
                 if (t == ASTTypeKind::Struct) {
                     return TYPE(Struct, type.GetText());
                 }

@@ -17,11 +17,11 @@ namespace marble {
     
     class ASTType {
         ASTTypeKind _kind;
-        llvm::StringRef _val;
+        std::string _val;
         bool _isConst;
 
     public:
-        explicit ASTType(ASTTypeKind kind, llvm::StringRef val, bool isConst) : _kind(kind), _val(val), _isConst(isConst) {}
+        explicit ASTType(ASTTypeKind kind, std::string val, bool isConst) : _kind(kind), _val(val), _isConst(isConst) {}
 
         bool
         operator==(ASTType &other) {
@@ -48,7 +48,7 @@ namespace marble {
             return _kind;
         }
 
-        llvm::StringRef
+        std::string
         GetVal() const {
             return _val;
         }

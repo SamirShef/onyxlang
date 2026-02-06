@@ -23,7 +23,7 @@ namespace marble {
                 return "noth";
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
-                return _type.GetVal().str();
+                return _type.GetVal();
         }
     }
 

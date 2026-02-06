@@ -6,13 +6,13 @@
 
 namespace marble {
     class VarDeclStmt : public Stmt {
-        llvm::StringRef _name;
+        std::string _name;
         bool _isConst;
         ASTType _type;
         Expr *_expr;
 
     public:
-        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit VarDeclStmt(std::string name, bool isConst, ASTType type, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                            : _name(name), _type(type), _isConst(isConst), _expr(expr), Stmt(NkVarDeclStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
@@ -20,7 +20,7 @@ namespace marble {
             return node->GetKind() == NkVarDeclStmt;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

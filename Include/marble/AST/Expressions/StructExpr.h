@@ -5,11 +5,11 @@
 
 namespace marble {
     class StructExpr : public Expr {
-        llvm::StringRef _name;
-        std::vector<std::pair<llvm::StringRef, Expr *>> _initializer;
+        std::string _name;
+        std::vector<std::pair<std::string, Expr *>> _initializer;
 
     public:
-        explicit StructExpr(llvm::StringRef name, std::vector<std::pair<llvm::StringRef, Expr *>> initializer, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit StructExpr(std::string name, std::vector<std::pair<std::string, Expr *>> initializer, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                           : _name(name), _initializer(initializer), Expr(NkStructExpr, startLoc, endLoc) {}
         
         constexpr static bool
@@ -17,12 +17,12 @@ namespace marble {
             return node->GetKind() == NkStructExpr;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }
 
-        std::vector<std::pair<llvm::StringRef, Expr *>>
+        std::vector<std::pair<std::string, Expr *>>
         GetInitializer() const {
             return _initializer;
         }

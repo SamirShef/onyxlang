@@ -19,8 +19,8 @@ namespace marble {
     }
 
     DiagnosticBuilder &
-    DiagnosticBuilder::operator<<(llvm::StringRef s) {
-        _args.push_back(s.str());
+    DiagnosticBuilder::operator<<(std::string s) {
+        _args.push_back(s);
         return *this;
     }
 

@@ -19,7 +19,7 @@ namespace marble {
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
 
         struct Field {
-            const llvm::StringRef Name;
+            const std::string Name;
             llvm::Type *Type;
             marble::ASTType ASTType;
             llvm::Value *Val;
@@ -28,7 +28,7 @@ namespace marble {
         };
 
         struct Struct {
-            const llvm::StringRef Name;
+            const std::string Name;
             llvm::StructType *Type;
             std::unordered_map<std::string, Field> Fields;
         };

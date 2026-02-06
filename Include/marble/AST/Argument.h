@@ -3,13 +3,13 @@
 
 namespace marble {
     class Argument {
-        const llvm::StringRef _name;
+        const std::string _name;
         const ASTType _type;
 
     public:
-        explicit Argument(llvm::StringRef name, ASTType type) : _name(name), _type(type) {}
+        explicit Argument(std::string name, ASTType type) : _name(name), _type(type) {}
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

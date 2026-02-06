@@ -6,11 +6,11 @@
 
 namespace marble {
     class VarAsgnStmt : public Stmt {
-        llvm::StringRef _name;
+        std::string _name;
         Expr *_expr;
 
     public:
-        explicit VarAsgnStmt(llvm::StringRef name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+        explicit VarAsgnStmt(std::string name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
                            : _name(name), _expr(expr), Stmt(NkVarAsgnStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
@@ -18,7 +18,7 @@ namespace marble {
             return node->GetKind() == NkVarAsgnStmt;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }

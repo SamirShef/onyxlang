@@ -4,17 +4,17 @@
 
 namespace marble {
     class VarExpr : public Expr {
-        llvm::StringRef _name;
+        std::string _name;
 
     public:
-        explicit VarExpr(llvm::StringRef name, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), Expr(NkVarExpr, startLoc, endLoc) {}
+        explicit VarExpr(std::string name, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _name(name), Expr(NkVarExpr, startLoc, endLoc) {}
         
         constexpr static bool
         classof(const Node *node) {
             return node->GetKind() == NkVarExpr;
         }
 
-        llvm::StringRef
+        std::string
         GetName() const {
             return _name;
         }
