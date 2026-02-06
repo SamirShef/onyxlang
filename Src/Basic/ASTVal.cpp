@@ -1,6 +1,6 @@
-#include <onyx/Basic/ASTVal.h>
+#include <marble/Basic/ASTVal.h>
 
-namespace onyx {
+namespace marble {
     std::string
     ASTVal::ToString() const {
         switch (_type.GetTypeKind()) {

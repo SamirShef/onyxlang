@@ -1,11 +1,11 @@
-#include <onyx/Parser/Parser.h>
-#include <onyx/Parser/Precedence.h>
+#include <marble/Parser/Parser.h>
+#include <marble/Parser/Precedence.h>
 
-static onyx::AccessModifier access;
+static marble::AccessModifier access;
 
-static std::unordered_map<std::string, onyx::ASTType> types;
+static std::unordered_map<std::string, marble::ASTType> types;
 
-namespace onyx {
+namespace marble {
     Stmt *
     Parser::ParseStmt(bool consumeSemi) {
         if (_curTok.Is(TkEof)) {

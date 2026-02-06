@@ -1,9 +1,9 @@
-#include <onyx/Basic/DiagKind.h>
-#include <onyx/Lexer/Token.h>
-#include <onyx/Lexer/Keywords.h>
-#include <onyx/Lexer/Lexer.h>
+#include <marble/Basic/DiagKind.h>
+#include <marble/Lexer/Token.h>
+#include <marble/Lexer/Keywords.h>
+#include <marble/Lexer/Lexer.h>
 
-namespace onyx {
+namespace marble {
     Token
     Lexer::NextToken() {
         while (*_curPtr == ' ' || *_curPtr == '\n' || *_curPtr == '\t' || *_curPtr == '\r') {

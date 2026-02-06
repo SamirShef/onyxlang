@@ -1,6 +1,6 @@
-#include <onyx/Compilation/Optimizer.h>
+#include <marble/Compilation/Optimizer.h>
 
-namespace onyx {
+namespace marble {
     void
     Optimizer::Optimize(llvm::Module &mod, Level level) {
         if (level == Level::O0) {

@@ -1,7 +1,7 @@
-#include <onyx/AST/Printer.h>
+#include <marble/AST/Printer.h>
 #include <llvm/Support/raw_ostream.h>
 
-namespace onyx {
+namespace marble {
     void
     ASTPrinter::VisitVarDeclStmt(VarDeclStmt *vds) {
         llvm::outs() << std::string(_spaces, ' ');

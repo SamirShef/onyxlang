@@ -1,7 +1,7 @@
-#include <onyx/Basic/DiagKind.h>
-#include <onyx/Basic/DiagInfo.h>
+#include <marble/Basic/DiagKind.h>
+#include <marble/Basic/DiagInfo.h>
 
-namespace onyx {
+namespace marble {
     DiagInfo
     GetDiagInfo(DiagKind kind) {
         #define ERR(msg) DiagInfo(llvm::SourceMgr::DiagKind::DK_Error, msg)

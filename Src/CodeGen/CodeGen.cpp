@@ -1,8 +1,8 @@
-#include <onyx/CodeGen/CodeGen.h>
+#include <marble/CodeGen/CodeGen.h>
 
 static bool createLoad = true;
 
-namespace onyx {
+namespace marble {
     void
     CodeGen::DeclareFunctionsAndStructures(std::vector<Stmt *> &ast) {
         llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(_context), { llvm::PointerType::getInt8Ty(_context) }, true);

@@ -1,6 +1,6 @@
-#include <onyx/Basic/DiagnosticBuilder.h>
+#include <marble/Basic/DiagnosticBuilder.h>
 
-namespace onyx {
+namespace marble {
     DiagnosticBuilder::~DiagnosticBuilder() {
         if (!_isActive) {
             return;

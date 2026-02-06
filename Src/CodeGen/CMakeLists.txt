@@ -1,8 +1,8 @@
 file(GLOB_RECURSE SOURCES "*.cpp")
 
-add_library(OnyxCodeGen STATIC ${SOURCES})
+add_library(MarbleCodeGen STATIC ${SOURCES})
 
-target_include_directories(OnyxCodeGen 
+target_include_directories(MarbleCodeGen 
     PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/Include>
         $<INSTALL_INTERFACE:Include>

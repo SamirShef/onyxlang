@@ -1,0 +1,43 @@
+#pragma once
+#include <marble/AST/Stmt.h>
+#include <marble/AST/Expr.h>
+#include <marble/Basic/ASTType.h>
+#include <llvm/ADT/StringRef.h>
+
+namespace marble {
+    class VarDeclStmt : public Stmt {
+        llvm::StringRef _name;
+        bool _isConst;
+        ASTType _type;
+        Expr *_expr;
+
+    public:
+        explicit VarDeclStmt(llvm::StringRef name, bool isConst, ASTType type, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                           : _name(name), _type(type), _isConst(isConst), _expr(expr), Stmt(NkVarDeclStmt, access, startLoc, endLoc) {}
+
+        constexpr static bool
+        classof(const marble::Node *node) {
+            return node->GetKind() == NkVarDeclStmt;
+        }
+
+        llvm::StringRef
+        GetName() const {
+            return _name;
+        }
+
+        bool
+        IsConst() const {
+            return _isConst;
+        }
+
+        ASTType
+        GetType() const {
+            return _type;
+        }
+        
+        Expr *
+        GetExpr() const {
+            return _expr;
+        }
+    };
+}
