@@ -14,7 +14,6 @@ namespace onyx {
         std::stack<std::unordered_map<std::string, std::pair<llvm::Value *, llvm::Type *>>> _vars;
 
         std::unordered_map<std::string, llvm::Function *> _functions;
-        std::unordered_map<std::string, std::vector<ASTType>> _funArgsTypes;
         std::stack<llvm::Type *> _funRetsTypes;
 
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
@@ -27,24 +26,11 @@ namespace onyx {
             bool ManualInitialized;
             long Index;
         };
-        
-        struct Method {
-            llvm::StringRef Name;
-            llvm::Type *RetType;
-            std::vector<llvm::Type *> Args;
-        };
-
-        struct Trait {
-            const llvm::StringRef Name;
-            std::vector<std::pair<std::string, Method>> Methods; 
-        };
-        std::unordered_map<std::string, Trait> _traits;
 
         struct Struct {
             const llvm::StringRef Name;
             llvm::StructType *Type;
             std::unordered_map<std::string, Field> Fields;
-            std::unordered_map<std::string, Trait> TraitsImplements;
         };
         std::unordered_map<std::string, Struct> _structs;
 
@@ -150,7 +136,7 @@ namespace onyx {
         std::string
         resolveStructName(Expr *expr);
 
-        llvm::Value *
-        getOrCreateVTable(const std::string &structName, const std::string &traitName);
+        //std::string
+        //getMangledName(std::string base) const;
     };
 }
