@@ -15,7 +15,7 @@ namespace marble {
                            : _indexator(indexator), _cond(cond), _iteration(iteration), _block(block), Stmt(NkForLoopStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
-        classof(const marble::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkForLoopStmt;
         }
         

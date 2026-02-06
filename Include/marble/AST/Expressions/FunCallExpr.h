@@ -14,7 +14,7 @@ namespace marble {
                            : _name(name), _args(args), Expr(NkFunCallExpr, startLoc, endLoc) {}
 
         constexpr static bool
-        classof(const marble::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkFunCallExpr;
         }
 

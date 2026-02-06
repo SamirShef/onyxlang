@@ -14,7 +14,7 @@ namespace marble {
                           : _cond(cond), _thenBranch(thenBranch), _elseBranch(elseBranch), Stmt(NkIfElseStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
-        classof(const marble::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkIfElseStmt;
         }
         

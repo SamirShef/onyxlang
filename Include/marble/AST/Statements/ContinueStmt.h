@@ -7,7 +7,7 @@ namespace marble {
         explicit ContinueStmt(AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : Stmt(NkContinueStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
-        classof(const marble::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkContinueStmt;
         }
     };

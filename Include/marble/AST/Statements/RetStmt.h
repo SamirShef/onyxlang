@@ -10,7 +10,7 @@ namespace marble {
         explicit RetStmt(Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _expr(expr), Stmt(NkRetStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
-        classof(const marble::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkRetStmt;
         }
         

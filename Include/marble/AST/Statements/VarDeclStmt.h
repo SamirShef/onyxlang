@@ -16,7 +16,7 @@ namespace marble {
                            : _name(name), _type(type), _isConst(isConst), _expr(expr), Stmt(NkVarDeclStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
-        classof(const marble::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkVarDeclStmt;
         }
 

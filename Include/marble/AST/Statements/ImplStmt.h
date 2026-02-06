@@ -14,7 +14,7 @@ namespace marble {
                         : _traitName(traitName), _structName(name), _body(body), Stmt(NkImplStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
-        classof(const marble::Node *node) {
+        classof(const Node *node) {
             return node->GetKind() == NkImplStmt;
         }
         
