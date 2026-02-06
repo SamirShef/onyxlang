@@ -1,0 +1,27 @@
+#pragma once
+#include <marble/AST/Argument.h>
+
+#include <marble/AST/Statements/VarDeclStmt.h>
+#include <marble/AST/Statements/VarAsgnStmt.h>
+#include <marble/AST/Statements/FieldAsgnStmt.h>
+#include <marble/AST/Statements/FunDeclStmt.h>
+#include <marble/AST/Statements/FunCallStmt.h>
+#include <marble/AST/Statements/RetStmt.h>
+#include <marble/AST/Statements/IfElseStmt.h>
+#include <marble/AST/Statements/ForLoopStmt.h>
+#include <marble/AST/Statements/BreakStmt.h>
+#include <marble/AST/Statements/ContinueStmt.h>
+#include <marble/AST/Statements/StructStmt.h>
+#include <marble/AST/Statements/ImplStmt.h>
+#include <marble/AST/Statements/MethodCallStmt.h>
+#include <marble/AST/Statements/TraitDeclStmt.h>
+#include <marble/AST/Statements/EchoStmt.h>
+
+#include <marble/AST/Expressions/BinaryExpr.h>
+#include <marble/AST/Expressions/LiteralExpr.h>
+#include <marble/AST/Expressions/UnaryExpr.h>
+#include <marble/AST/Expressions/VarExpr.h>
+#include <marble/AST/Expressions/FunCallExpr.h>
+#include <marble/AST/Expressions/StructExpr.h>
+#include <marble/AST/Expressions/FieldAccessExpr.h>
+#include <marble/AST/Expressions/MethodCallExpr.h>

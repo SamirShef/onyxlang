@@ -1,4 +1,4 @@
-#include <onyx/Compilation/Compilation.h>
+#include <marble/Compilation/Compilation.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Support/Path.h>
@@ -9,7 +9,7 @@
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
 
-namespace onyx {
+namespace marble {
     void
     InitializeLLVMTargets() {
         llvm::InitializeAllTargetInfos();

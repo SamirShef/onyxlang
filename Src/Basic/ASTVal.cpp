@@ -1,6 +1,6 @@
-#include <onyx/Basic/ASTVal.h>
+#include <marble/Basic/ASTVal.h>
 
-namespace onyx {
+namespace marble {
     std::string
     ASTVal::ToString() const {
         switch (_type.GetTypeKind()) {
@@ -23,7 +23,7 @@ namespace onyx {
                 return "noth";
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
-                return _type.GetVal().str();
+                return _type.GetVal();
         }
     }
 

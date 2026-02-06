@@ -1,11 +1,11 @@
-#include <onyx/AST/Printer.h>
+#include <marble/AST/Printer.h>
 #include <llvm/Support/raw_ostream.h>
 
-namespace onyx {
+namespace marble {
     void
     ASTPrinter::VisitVarDeclStmt(VarDeclStmt *vds) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(VarDeclStmt: " << vds->GetType().ToString() << ' ' << vds->GetName().str() << ' ';
+        llvm::outs() << "(VarDeclStmt: " << vds->GetType().ToString() << ' ' << vds->GetName() << ' ';
         if (vds->GetExpr()) {
             int spaces = _spaces;
             _spaces = 0;
@@ -18,7 +18,7 @@ namespace onyx {
     void
     ASTPrinter::VisitVarAsgnStmt(VarAsgnStmt *vas) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(VarAsgnStmt: " << vas->GetName().str() << " = ";
+        llvm::outs() << "(VarAsgnStmt: " << vas->GetName() << " = ";
         int spaces = _spaces;
         _spaces = 0;
         Visit(vas->GetExpr());
@@ -29,9 +29,9 @@ namespace onyx {
     void
     ASTPrinter::VisitFunDeclStmt(FunDeclStmt *fds) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(FunDeclStmt: " << fds->GetRetType().ToString() << ' ' << fds->GetName().str() << " (";
+        llvm::outs() << "(FunDeclStmt: " << fds->GetRetType().ToString() << ' ' << fds->GetName() << " (";
         for (int i = 0; i < fds->GetArgs().size(); ++i) {
-            llvm::outs() << fds->GetArgs()[i].GetType().ToString() << ' ' << fds->GetArgs()[i].GetName().str();
+            llvm::outs() << fds->GetArgs()[i].GetType().ToString() << ' ' << fds->GetArgs()[i].GetName();
             if (i < fds->GetArgs().size() - 1) {
                 llvm::outs() << ", ";
             }
@@ -59,7 +59,7 @@ namespace onyx {
     void
     ASTPrinter::VisitFunCallStmt(FunCallStmt *fcs) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(FunCallStmt: " << fcs->GetName().str() << " (";
+        llvm::outs() << "(FunCallStmt: " << fcs->GetName() << " (";
         for (int i = 0; i < fcs->GetArgs().size(); ++i) {
             Visit(fcs->GetArgs()[i]);
             if (i < fcs->GetArgs().size() - 1) {
@@ -171,7 +171,7 @@ namespace onyx {
     void
     ASTPrinter::VisitStructStmt(StructStmt *ss) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(StructStmt: " << ss->GetName().str() << " (";
+        llvm::outs() << "(StructStmt: " << ss->GetName() << " (";
         llvm::outs() << " {";
         if (ss->GetBody().size() != 0) {
             llvm::outs() << '\n';
@@ -191,7 +191,7 @@ namespace onyx {
     void
     ASTPrinter::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(FieldAsgnStmt: " << fas->GetName().str() << " from ";
+        llvm::outs() << "(FieldAsgnStmt: " << fas->GetName() << " from ";
         int spaces = _spaces;
         _spaces = 0;
         Visit(fas->GetObject());
@@ -230,7 +230,7 @@ namespace onyx {
     void
     ASTPrinter::VisitMethodCallStmt(MethodCallStmt *mcs) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(MethodCallStmt: " << mcs->GetName().str() << " (";
+        llvm::outs() << "(MethodCallStmt: " << mcs->GetName() << " (";
         for (int i = 0; i < mcs->GetArgs().size(); ++i) {
             Visit(mcs->GetArgs()[i]);
             if (i < mcs->GetArgs().size() - 1) {
@@ -247,7 +247,7 @@ namespace onyx {
     void
     ASTPrinter::VisitTraitDeclStmt(TraitDeclStmt *tds) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(TraitDeclStmt: " << tds->GetName().str() << " {";
+        llvm::outs() << "(TraitDeclStmt: " << tds->GetName() << " {";
         if (tds->GetBody().size() != 0) {
             llvm::outs() << '\n';
         }
@@ -281,8 +281,8 @@ namespace onyx {
         int spaces = _spaces;
         _spaces = 0;
         Visit(be->GetLHS());
-        llvm::outs() << ' ' << be->GetOp().GetText().str() << ' ';
-        Visit(be->GetLHS());
+        llvm::outs() << ' ' << be->GetOp().GetText() << ' ';
+        Visit(be->GetRHS());
         _spaces = spaces;
         llvm::outs() << ')';
     }
@@ -290,7 +290,7 @@ namespace onyx {
     void
     ASTPrinter::VisitUnaryExpr(UnaryExpr *ue) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(UnaryExpr: " << ue->GetOp().GetText().str() << ' ';
+        llvm::outs() << "(UnaryExpr: " << ue->GetOp().GetText() << ' ';
         int spaces = _spaces;
         _spaces = 0;
         Visit(ue->GetRHS());
@@ -301,7 +301,7 @@ namespace onyx {
     void
     ASTPrinter::VisitVarExpr(VarExpr *ve) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(VarExpr: " << ve->GetName().str() << ')';
+        llvm::outs() << "(VarExpr: " << ve->GetName() << ')';
     }
 
     void
@@ -313,7 +313,7 @@ namespace onyx {
     void
     ASTPrinter::VisitFunCallExpr(FunCallExpr *fce) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(FunCallExpr: " << fce->GetName().str() << " (";
+        llvm::outs() << "(FunCallExpr: " << fce->GetName() << " (";
         for (int i = 0; i < fce->GetArgs().size(); ++i) {
             Visit(fce->GetArgs()[i]);
             if (i < fce->GetArgs().size() - 1) {
@@ -326,7 +326,7 @@ namespace onyx {
     void
     ASTPrinter::VisitStructExpr(StructExpr *se) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(StructExpr: " << se->GetName().str() << " { ";
+        llvm::outs() << "(StructExpr: " << se->GetName() << " { ";
         for (int i = 0; i < se->GetInitializer().size(); ++i) {
             llvm::outs() << se->GetInitializer()[i].first << ": ";
             Visit(se->GetInitializer()[i].second);
@@ -337,11 +337,10 @@ namespace onyx {
         llvm::outs() << " })";
     }
 
-
     void
     ASTPrinter::VisitFieldAccessExpr(FieldAccessExpr *fae) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(FieldAccessExpr: " << fae->GetName().str() << " from ";
+        llvm::outs() << "(FieldAccessExpr: " << fae->GetName() << " from ";
         int spaces = _spaces;
         _spaces = 0;
         Visit(fae->GetObject());
@@ -352,7 +351,7 @@ namespace onyx {
     void
     ASTPrinter::VisitMethodCallExpr(MethodCallExpr *mce) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(MethodCallExpr: " << mce->GetName().str() << " (";
+        llvm::outs() << "(MethodCallExpr: " << mce->GetName() << " (";
         for (int i = 0; i < mce->GetArgs().size(); ++i) {
             Visit(mce->GetArgs()[i]);
             if (i < mce->GetArgs().size() - 1) {

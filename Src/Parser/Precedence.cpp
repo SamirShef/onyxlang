@@ -1,6 +1,6 @@
-#include <onyx/Parser/Precedence.h>
+#include <marble/Parser/Precedence.h>
 
-namespace onyx {
+namespace marble {
     int
     GetTokPrecedence(TokenKind kind) {
         switch (kind) {
