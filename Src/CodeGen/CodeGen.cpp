@@ -599,6 +599,21 @@ namespace marble {
         llvm::Function *method = _functions.at(s.Name + "." + mce->GetName());
         return _builder.CreateCall(method, args, method->getName() + ".call");
     }
+
+    llvm::Value *
+    CodeGen::VisitNilExpr(NilExpr *ne) {
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitDerefExpr(DerefExpr *de) {
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitRefExpr(RefExpr *re) {
+        return nullptr;
+    }
     
     llvm::Type *
     CodeGen::getCommonType(llvm::Type *left, llvm::Type *right) {

@@ -27,6 +27,7 @@ namespace marble {
         { "pub", TkPub },
         { "impl", TkImpl },
         { "trait", TkTrait },
-        { "echo", TkEcho }
+        { "echo", TkEcho },
+        { "nil", TkNil }
     };
 }

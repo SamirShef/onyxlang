@@ -56,6 +56,12 @@ namespace marble {
                     return NODE(VisitFieldAccessExpr, FieldAccessExpr);
                 case NkMethodCallExpr:
                     return NODE(VisitMethodCallExpr, MethodCallExpr);
+                case NkNilExpr:
+                    return NODE(VisitNilExpr, NilExpr);
+                case NkDerefExpr:
+                    return NODE(VisitDerefExpr, DerefExpr);
+                case NkRefExpr:
+                    return NODE(VisitRefExpr, RefExpr);
                 default: {}
             }
             #undef NODE

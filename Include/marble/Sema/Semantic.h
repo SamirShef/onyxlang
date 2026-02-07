@@ -134,6 +134,15 @@ namespace marble {
         std::optional<ASTVal>
         VisitMethodCallExpr(MethodCallExpr *mce);
 
+        std::optional<ASTVal>
+        VisitNilExpr(NilExpr *ne);
+
+        std::optional<ASTVal>
+        VisitDerefExpr(DerefExpr *de);
+
+        std::optional<ASTVal>
+        VisitRefExpr(RefExpr *re);
+
     private:
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;

@@ -1,5 +1,5 @@
 #pragma once
-#include <llvm/ADT/StringRef.h>
+#include <string>
 
 namespace marble {
     enum class ASTTypeKind {
@@ -19,13 +19,15 @@ namespace marble {
         ASTTypeKind _kind;
         std::string _val;
         bool _isConst;
+        unsigned char _pointerDepth;
 
     public:
-        explicit ASTType(ASTTypeKind kind, std::string val, bool isConst) : _kind(kind), _val(val), _isConst(isConst) {}
+        explicit ASTType(ASTTypeKind kind, std::string val, bool isConst, unsigned char pointerDepth)
+                       : _kind(kind), _val(val), _isConst(isConst), _pointerDepth(pointerDepth) {}
 
         bool
         operator==(ASTType &other) {
-            return _kind == other._kind && _val == other._val;
+            return _kind == other._kind && _val == other._val && _pointerDepth == other._pointerDepth;
         }
 
         bool
@@ -35,7 +37,7 @@ namespace marble {
         
         bool
         operator==(const ASTType &other) {
-            return _kind == other._kind && _val == other._val;
+            return _kind == other._kind && _val == other._val && _pointerDepth == other._pointerDepth;
         }
 
         bool
@@ -58,19 +60,30 @@ namespace marble {
             return _isConst;
         }
 
+        bool
+        IsPointer() const {
+            return _pointerDepth;
+        }
+
+        unsigned char
+        GetPointerDepth() const {
+            return _pointerDepth;
+        }
+
         std::string
         ToString() const {
             std::string val;
             if (_isConst) {
                 val += "const ";
             }
+            for (int pd = _pointerDepth; pd > 0; --pd, val += "*");
             val += _val;
             return val;
         }
 
         static ASTType
         GetNothType() {
-            return ASTType(ASTTypeKind::Noth, "noth", false);
+            return ASTType(ASTTypeKind::Noth, "noth", false, 0);
         }
         
         static ASTType

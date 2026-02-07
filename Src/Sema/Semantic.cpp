@@ -47,7 +47,7 @@ namespace marble {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
                 Struct s = _structs.at(vds->GetType().GetVal());
-                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .i32Val = 0 });
+                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false);
             }
             Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
             if (vds->GetExpr()) {
@@ -168,7 +168,7 @@ namespace marble {
                 << llvm::SMRange(ies->GetStartLoc(), ies->GetEndLoc());
         }
         std::optional<ASTVal> cond = Visit(ies->GetCondition());
-        implicitlyCast(cond.value(), ASTType(ASTTypeKind::Bool, "bool", false), ies->GetCondition()->GetStartLoc(), ies->GetCondition()->GetEndLoc());
+        implicitlyCast(cond.value(), ASTType(ASTTypeKind::Bool, "bool", false, 0), ies->GetCondition()->GetStartLoc(), ies->GetCondition()->GetEndLoc());
         _vars.push({});
         for (auto &stmt : ies->GetThenBody()) {
             Visit(stmt);
@@ -205,7 +205,7 @@ namespace marble {
             Visit(fls->GetIteration());
         }
         std::optional<ASTVal> cond = Visit(fls->GetCondition());
-        implicitlyCast(cond.value(), ASTType(ASTTypeKind::Bool, "bool", false), fls->GetCondition()->GetStartLoc(), fls->GetCondition()->GetEndLoc());
+        implicitlyCast(cond.value(), ASTType(ASTTypeKind::Bool, "bool", false, 0), fls->GetCondition()->GetStartLoc(), fls->GetCondition()->GetEndLoc());
         for (auto &stmt : fls->GetBody()) {
             Visit(stmt);
         }
@@ -434,7 +434,7 @@ namespace marble {
 
         for (auto &method : methods) {
             _vars.push({});
-            ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name, false);
+            ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name, false, 0);
             _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
             for (auto arg : method->GetArgs()) {
                 if (_vars.top().find(arg.GetName()) != _vars.top().end()) {
@@ -600,7 +600,7 @@ namespace marble {
             #undef EVAL
         }
         if (returnBool) {
-            return ASTVal::GetVal(res, ASTType(ASTTypeKind::Bool, "bool", false));
+            return ASTVal::GetVal(res, ASTType(ASTTypeKind::Bool, "bool", false, 0));
         }
         return ASTVal::GetVal(res, ASTType::GetCommon(lhs->GetType(), rhs->GetType()));
     }
@@ -642,7 +642,7 @@ namespace marble {
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName()); var != varsCopy.top().end()) {
                 if (var->second.Type.GetTypeKind() == ASTTypeKind::Trait) {
-                    return ASTVal(var->second.Type, ASTValData { .i32Val = 0 });
+                    return ASTVal(var->second.Type, ASTValData { .i32Val = 0 }, false);
                 }
                 return var->second.Val;
             }
@@ -651,7 +651,7 @@ namespace marble {
         _diag.Report(ve->GetStartLoc(), ErrUndeclaredVariable)
             << getRange(ve->GetStartLoc(), ve->GetName().size())
             << ve->GetName();
-        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
     }
     
     std::optional<ASTVal>
@@ -669,7 +669,7 @@ namespace marble {
                     << fce->GetName()
                     << fun.Args.size()
                     << fce->GetArgs().size();
-                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
             }
             for (int i = 0; i < fun.Args.size(); ++i) {
                 implicitlyCast(Visit(fce->GetArgs()[i]).value(), fun.Args[i].GetType(), fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
@@ -682,7 +682,7 @@ namespace marble {
         _diag.Report(fce->GetStartLoc(), ErrUndeclaredFuntion)
             << getRange(fce->GetStartLoc(), fce->GetName().size())
             << fce->GetName();
-        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
     }
 
     std::optional<ASTVal>
@@ -691,7 +691,7 @@ namespace marble {
             _diag.Report(se->GetStartLoc(), ErrUndeclaredStructure)
                 << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
                 << se->GetName();
-            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
         }
         Struct s = _structs.at(se->GetName());
         for (int i = 0; i < se->GetInitializer().size(); ++i) {
@@ -714,7 +714,7 @@ namespace marble {
                     << s.Name;
             }
         }
-        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false), ASTValData { .i32Val = 0 });
+        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false);
     }
 
 
@@ -750,7 +750,7 @@ namespace marble {
                 return s.Fields.at(fae->GetName()).Val;
             }
         }
-        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
     }
 
     std::optional<ASTVal>
@@ -801,7 +801,7 @@ namespace marble {
                         << mce->GetName()
                         << method->second.Fun.Args.size()
                         << mce->GetArgs().size();
-                    return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+                    return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
                 }
                 for (int i = 0; i < method->second.Fun.Args.size(); ++i) {
                     implicitlyCast(Visit(mce->GetArgs()[i]).value(), method->second.Fun.Args[i].GetType(), mce->GetArgs()[i]->GetStartLoc(), mce->GetArgs()[i]->GetEndLoc());
@@ -812,7 +812,22 @@ namespace marble {
                 return ASTVal::GetDefaultByType(ASTType::GetNothType());
             }
         }
-        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitNilExpr(NilExpr *ne) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitDerefExpr(DerefExpr *de) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitRefExpr(RefExpr *re) {
+        return std::nullopt;
     }
 
     llvm::SMRange
@@ -928,6 +943,6 @@ namespace marble {
             << llvm::SMRange(startLoc, endLoc)
             << src.GetType().ToString()
             << expectType.ToString();
-        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false), ASTValData { .i32Val = 0 });
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
     }
 }

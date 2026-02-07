@@ -117,6 +117,15 @@ namespace marble {
         llvm::Value *
         VisitMethodCallExpr(MethodCallExpr *mce);
 
+        llvm::Value *
+        VisitNilExpr(NilExpr *ne);
+
+        llvm::Value *
+        VisitDerefExpr(DerefExpr *de);
+
+        llvm::Value *
+        VisitRefExpr(RefExpr *re);
+
     private:
         llvm::Type *
         getCommonType(llvm::Type *left, llvm::Type *right);
@@ -135,8 +144,5 @@ namespace marble {
 
         std::string
         resolveStructName(Expr *expr);
-
-        //std::string
-        //getMangledName(std::string base) const;
     };
 }

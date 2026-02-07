@@ -49,6 +49,18 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
+    if (marble::EmitAction == marble::EmitAST) {
+        marble::ASTPrinter printer;
+        for (auto stmt : ast) {
+            printer.Visit(stmt);
+            llvm::outs() << '\n';
+        }
+        return 0; 
+    }
+
+    // TODO: remove this
+    return 0;
+
     marble::SemanticAnalyzer sema(diag);
     sema.DeclareFunctions(ast);
     for (auto &stmt : ast) {
@@ -95,15 +107,6 @@ main(int argc, char **argv) {
                 }
                 break;
         }
-    }
-
-    if (marble::EmitAction == marble::EmitAST) {
-        marble::ASTPrinter printer;
-        for (auto stmt : ast) {
-            printer.Visit(stmt);
-            llvm::outs() << '\n';
-        }
-        return 0; 
     }
 
     marble::Optimizer::Level optLvl;

@@ -50,6 +50,20 @@ namespace marble {
                 }
                 return stmt;
             }
+            case TkStar: {
+                unsigned char derefDepth = 0;
+                for (; expect(TkStar); ++derefDepth);
+                consume();
+                VarAsgnStmt *vas = llvm::cast<VarAsgnStmt>(parseVarAsgn());
+                vas->SetDerefDepth(derefDepth);
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return vas;
+            }
             case TkIf:
                 return parseIfElseStmt();
             case TkFor:
@@ -219,7 +233,7 @@ namespace marble {
             }
         }
 
-        ASTType retType = ASTType(ASTTypeKind::Noth, "noth", false);
+        ASTType retType = ASTType(ASTTypeKind::Noth, "noth", false, 0);
         if (expect(TkColon)) {
             retType = consumeType();
         }
@@ -342,7 +356,7 @@ namespace marble {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        types.emplace(name, ASTType(ASTTypeKind::Struct, name, false));
+        types.emplace(name, ASTType(ASTTypeKind::Struct, name, false, 0));
         return createNode<StructStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -402,7 +416,7 @@ namespace marble {
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        types.emplace(name, ASTType(ASTTypeKind::Trait, name, false));
+        types.emplace(name, ASTType(ASTTypeKind::Trait, name, false, 0));
         return createNode<TraitDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -489,12 +503,12 @@ namespace marble {
                 }
             }
             #define LIT(kind, type_val, field, val) \
-                createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, true), \
-                                               ASTValData { .field = (val) }), consume().GetLoc(), _curTok.GetLoc())
+                createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, true, 0), \
+                                               ASTValData { .field = (val) }, false), consume().GetLoc(), _curTok.GetLoc())
             case TkBoolLit:
-                return LIT(Bool, "bool", boolVal, _curTok.GetText() == "true");
+                return LIT(Bool, "bool", boolVal, text == "true");
             case TkCharLit:
-                return LIT(Char, "char", charVal, _curTok.GetText()[0]);
+                return LIT(Char, "char", charVal, text[0]);
             case TkI16Lit:
                 return LIT(I16, "i16", i16Val, static_cast<short>(std::stoi(text)));
             case TkI32Lit:
@@ -523,6 +537,19 @@ namespace marble {
                 expr->SetStartLoc(lparen.GetLoc());
                 expr->SetEndLoc(_curTok.GetLoc());
                 return expr;
+            }
+            case TkNil: {
+                return createNode<NilExpr>(consume().GetLoc(), _curTok.GetLoc());
+            }
+            case TkStar: {
+                Token star = consume();
+                Expr *expr = parseExpr(PrecLowest);
+                return createNode<DerefExpr>(expr, star.GetLoc(), _curTok.GetLoc());
+            }
+            case TkAnd: {
+                Token amp = consume();
+                Expr *expr = parseExpr(PrecLowest);
+                return createNode<RefExpr>(expr, amp.GetLoc(), _curTok.GetLoc());
             }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedExpr)
@@ -595,9 +622,11 @@ namespace marble {
     ASTType
     Parser::consumeType() {
         bool isConst = expect(TkConst);
+        unsigned char pointerDepth = 0;
+        for (; expect(TkStar); ++pointerDepth);
         Token type = consume();
         switch (type.GetKind()) {
-            #define TYPE(kind, type_val) ASTType(ASTTypeKind::kind, type_val, isConst)
+            #define TYPE(kind, type_val) ASTType(ASTTypeKind::kind, type_val, isConst, pointerDepth)
             case TkBool:
                 return TYPE(Bool, "bool");
             case TkChar:

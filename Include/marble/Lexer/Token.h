@@ -27,6 +27,7 @@ namespace marble {
         TkImpl,             // keyword `impl`
         TkTrait,            // keyword `trait`
         TkEcho,             // keyword `echo`
+        TkNil,              // keyword `nil`
         
         TkBoolLit,          // bool literal
         TkCharLit,          // character literal
