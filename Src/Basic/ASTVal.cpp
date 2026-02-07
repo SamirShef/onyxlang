@@ -24,6 +24,8 @@ namespace marble {
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
                 return _type.GetVal();
+            case ASTTypeKind::Nil:
+                return "nil";
         }
     }
 
@@ -47,6 +49,7 @@ namespace marble {
             case ASTTypeKind::Noth:
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
+            case ASTTypeKind::Nil:
                 return 0;
         }
     }
@@ -102,12 +105,17 @@ namespace marble {
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
                 return VAL(i32Val, int);
+            case ASTTypeKind::Nil:
+                return ASTVal(type, ASTValData { .i32Val = static_cast<int>(val) }, false);
             #undef VAL
         }
     }
 
     ASTVal
     ASTVal::GetDefaultByType(ASTType type) {
+        if (type.IsPointer()) {
+            return ASTVal(type, ASTValData { .i32Val = 0 }, true);
+        }
         switch (type.GetTypeKind()) {
             #define VAL(field) ASTVal(type, ASTValData { .field = 0 }, false)
             case ASTTypeKind::Bool:
@@ -128,6 +136,8 @@ namespace marble {
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
                 return VAL(i32Val);
+            case ASTTypeKind::Nil:
+                return ASTVal(type, ASTValData { .i32Val = 0 }, true);
             #undef VAL
         }
     }

@@ -77,7 +77,18 @@ namespace marble {
                     return std::nullopt;
                 }
                 ASTVal val = Visit(vas->GetExpr()).value_or(ASTVal::GetDefaultByType(ASTType::GetNothType()));
-                val = implicitlyCast(val, var->second.Type, vas->GetExpr()->GetStartLoc(), vas->GetExpr()->GetEndLoc());
+                ASTType type = var->second.Type;
+                if (var->second.Type.IsPointer()) {
+                    for (unsigned char dd = vas->GetDerefDepth(); dd > 0; type.Deref(), --dd) {
+                        if (!type.IsPointer()) {
+                            _diag.Report(vas->GetStartLoc(), ErrDerefFromNonPtr)
+                                << llvm::SMRange(vas->GetStartLoc(),
+                                                 llvm::SMLoc::getFromPointer(vas->GetStartLoc().getPointer() + vas->GetDerefDepth() + vas->GetName().length()));
+                            break;
+                        }
+                    }
+                }
+                val = implicitlyCast(val, type, vas->GetExpr()->GetStartLoc(), vas->GetExpr()->GetEndLoc());
                 var->second.Val = val;
                 return std::nullopt;
             }
@@ -106,7 +117,9 @@ namespace marble {
                     << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc())
                     << arg.GetName();
             }
-            _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
+            _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(),
+                                                          .Val = arg.GetType().IsPointer() ? ASTVal(arg.GetType(), ASTValData { .i32Val = 0 }, false)
+                                                                                           : ASTVal::GetDefaultByType(arg.GetType()),
                                                           .IsConst = arg.GetType().IsConst() });
         }
         _funRetsTypes.push(fds->GetRetType());
@@ -442,7 +455,9 @@ namespace marble {
                         << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
                         << arg.GetName();
                 }
-                _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(), .Val = ASTVal::GetDefaultByType(arg.GetType()),
+                _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(),
+                                                              .Val = arg.GetType().IsPointer() ? ASTVal(arg.GetType(), ASTValData { .i32Val = 0 }, false)
+                                                                                               : ASTVal::GetDefaultByType(arg.GetType()),
                                                               .IsConst = arg.GetType().IsConst() });
             }
             _funRetsTypes.push(method->GetRetType());
@@ -536,6 +551,9 @@ namespace marble {
         std::optional<ASTVal> rhs = Visit(be->GetRHS());
         if (rhs == std::nullopt) {
             return rhs;
+        }
+        if (lhs->GetType().IsPointer()) {
+            return lhs;
         }
         double lhsVal = lhs->AsDouble();
         double rhsVal = rhs->AsDouble();
@@ -644,7 +662,7 @@ namespace marble {
                 if (var->second.Type.GetTypeKind() == ASTTypeKind::Trait) {
                     return ASTVal(var->second.Type, ASTValData { .i32Val = 0 }, false);
                 }
-                return var->second.Val;
+                return ASTVal(var->second.Type, var->second.Val->GetData(), var->second.Val->IsNil());
             }
             varsCopy.pop();
         }
@@ -817,17 +835,39 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitNilExpr(NilExpr *ne) {
-        return std::nullopt;
+        return ASTVal(ASTType(ASTTypeKind::Nil, "nil", false, 0), ASTValData { .i32Val = 0 }, true);
     }
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitDerefExpr(DerefExpr *de) {
-        return std::nullopt;
+        std::optional<ASTVal> val = Visit(de->GetExpr());
+        if (!val->GetType().IsPointer()) {
+            _diag.Report(de->GetExpr()->GetStartLoc(), ErrDerefFromNonPtr)
+                << llvm::SMRange(de->GetStartLoc(), de->GetEndLoc());
+            return val;
+        }
+        if (val->IsNil()) {
+            _diag.Report(de->GetExpr()->GetStartLoc(), ErrDerefFromNil)
+                << llvm::SMRange(de->GetStartLoc(), de->GetEndLoc());
+            return val;
+        }
+        return ASTVal(val->GetType().Deref(), val->GetData(), false);
     }
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitRefExpr(RefExpr *re) {
-        return std::nullopt;
+        std::optional<ASTVal> val = Visit(re->GetExpr());
+        if (re->GetExpr()->GetKind() == NkVarExpr) {
+            return ASTVal(val->GetType().Ref(), val->GetData(), false);
+        }
+        if (FieldAccessExpr *fae = llvm::dyn_cast<FieldAccessExpr>(re->GetExpr())) {
+            if (fae->GetObject()->GetKind() == NkVarExpr) {
+                return ASTVal(val->GetType().Ref(), val->GetData(), false);
+            }
+        }
+        _diag.Report(re->GetExpr()->GetStartLoc(), ErrRefFromRVal)
+            << llvm::SMRange(re->GetStartLoc(), re->GetEndLoc());
+        return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
     }
 
     llvm::SMRange
@@ -845,8 +885,24 @@ namespace marble {
             case TkStar:
             case TkSlash:
             case TkPercent:
-                if (!(lhs.GetType().GetTypeKind() >= ASTTypeKind::Char && lhs.GetType().GetTypeKind() <= ASTTypeKind::F64 &&
-                    rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::F64)) {
+                if (lhs.GetType().IsPointer() && rhs.GetType().IsPointer() && be->GetOp().GetKind() == TkPlus) {
+                    _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
+                        << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())
+                        << be->GetOp().GetText()
+                        << lhs.GetType().ToString()
+                        << rhs.GetType().ToString();
+                }
+                if (lhs.GetType().IsPointer() &&
+                    !((be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus) && 
+                       rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::I64)) {
+                    _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
+                        << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())
+                        << be->GetOp().GetText()
+                        << lhs.GetType().ToString()
+                        << rhs.GetType().ToString();
+                }
+                else if (!(lhs.GetType().GetTypeKind() >= ASTTypeKind::Char && lhs.GetType().GetTypeKind() <= ASTTypeKind::F64 &&
+                           rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::F64)) {
                     _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
                         << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())
                         << be->GetOp().GetText()
@@ -856,7 +912,8 @@ namespace marble {
                 break;
             case TkLogAnd:
             case TkLogOr:
-                if (lhs.GetType().GetTypeKind() != ASTTypeKind::Bool ||
+                if (lhs.GetType().IsPointer() || rhs.GetType().IsPointer() ||
+                    lhs.GetType().GetTypeKind() != ASTTypeKind::Bool ||
                     rhs.GetType().GetTypeKind() != ASTTypeKind::Bool) {
                     _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
                         << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())
@@ -867,8 +924,9 @@ namespace marble {
                 break;
             case TkAnd:
             case TkOr:
-                if (!(lhs.GetType().GetTypeKind() >= ASTTypeKind::Char && lhs.GetType().GetTypeKind() <= ASTTypeKind::I64 &&
-                    rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::I64)) {
+                if (!(!lhs.GetType().IsPointer() && !rhs.GetType().IsPointer() &&
+                      lhs.GetType().GetTypeKind() >= ASTTypeKind::Char && lhs.GetType().GetTypeKind() <= ASTTypeKind::I64 &&
+                      rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::I64)) {
                     _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
                         << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())
                         << be->GetOp().GetText()
@@ -911,13 +969,16 @@ namespace marble {
         if (src.GetType() == expectType) {
             return true;
         }
-        if (expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
+        if (src.IsNil() && expectType.IsPointer()) {
+            return true;
+        }
+        if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
             Struct s = _structs.at(src.GetType().GetVal());
             if (s.TraitsImplements.find(expectType.GetVal()) != s.TraitsImplements.end()) {
                 return true;
             }
         }
-        if (auto it = implicitlyCastAllowed.find(src.GetType().GetTypeKind()); it != implicitlyCastAllowed.end()) {
+        if (auto it = implicitlyCastAllowed.find(src.GetType().GetTypeKind()); !src.GetType().IsPointer() && !expectType.IsPointer() && it != implicitlyCastAllowed.end()) {
             return std::find(it->second.begin(), it->second.end(), expectType.GetTypeKind()) != it->second.end();
         }
         return false;
@@ -928,13 +989,16 @@ namespace marble {
         if (src.GetType() == expectType) {
             return src;
         }
-        if (expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
+        if (src.IsNil() && src.GetType().GetTypeKind() == ASTTypeKind::Nil && expectType.IsPointer()) {
+            return src;
+        }
+        if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
             Struct s = _structs.at(src.GetType().GetVal());
             if (s.TraitsImplements.find(expectType.GetVal()) != s.TraitsImplements.end()) {
                 return ASTVal::GetVal(0, expectType);
             }
         }
-        if (auto it = implicitlyCastAllowed.find(src.GetType().GetTypeKind()); it != implicitlyCastAllowed.end()) {
+        if (auto it = implicitlyCastAllowed.find(src.GetType().GetTypeKind()); !src.GetType().IsPointer() && !expectType.IsPointer() && it != implicitlyCastAllowed.end()) {
             if (std::find(it->second.begin(), it->second.end(), expectType.GetTypeKind()) != it->second.end()) {
                 return src.Cast(expectType);
             }

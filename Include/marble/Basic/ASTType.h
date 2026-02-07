@@ -12,7 +12,8 @@ namespace marble {
         F64,
         Struct,
         Trait,
-        Noth
+        Noth,
+        Nil
     };
     
     class ASTType {
@@ -68,6 +69,18 @@ namespace marble {
         unsigned char
         GetPointerDepth() const {
             return _pointerDepth;
+        }
+
+        ASTType
+        Deref() {
+            --_pointerDepth;
+            return *this;
+        }
+
+        ASTType
+        Ref() {
+            ++_pointerDepth;
+            return *this;
         }
 
         std::string

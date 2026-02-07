@@ -52,10 +52,12 @@ namespace marble {
             }
             case TkStar: {
                 unsigned char derefDepth = 0;
+                Token star = _curTok;
                 for (; expect(TkStar); ++derefDepth);
                 consume();
-                VarAsgnStmt *vas = llvm::cast<VarAsgnStmt>(parseVarAsgn());
+                VarAsgnStmt *vas = llvm::cast<VarAsgnStmt>(parseVarAsgn(derefDepth));
                 vas->SetDerefDepth(derefDepth);
+                vas->SetStartLoc(star.GetLoc());
                 if (consumeSemi && !expect(TkSemi)) {
                     _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                         << getRangeFromTok(_curTok)
@@ -172,7 +174,7 @@ namespace marble {
     }
 
     Stmt *
-    Parser::parseVarAsgn() {
+    Parser::parseVarAsgn(unsigned char derefDepth) {
         Token nameToken = _lastTok;
         if (!isAssignmentOp(_curTok.GetKind())) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
@@ -182,8 +184,10 @@ namespace marble {
         }
         Token op = consume();
         Expr *expr = parseExpr(PrecLowest);
+        Expr *base = createNode<VarExpr>(nameToken.GetText(), llvm::SMLoc::getFromPointer(nameToken.GetLoc().getPointer() - derefDepth), op.GetLoc());
+        for (; derefDepth > 0; base = createNode<DerefExpr>(base, llvm::SMLoc::getFromPointer(base->GetStartLoc().getPointer() - derefDepth), base->GetEndLoc()), --derefDepth);
         if (op.GetKind() != TkEq && isAssignmentOp(op.GetKind())) {
-            expr = createCompoundAssignmentOp(op, createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), op.GetLoc()), expr);
+            expr = createCompoundAssignmentOp(op, base, expr);
         }
         return createNode<VarAsgnStmt>(nameToken.GetText(), expr, access, nameToken.GetLoc(), _curTok.GetLoc());
     }

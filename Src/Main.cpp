@@ -58,9 +58,6 @@ main(int argc, char **argv) {
         return 0; 
     }
 
-    // TODO: remove this
-    return 0;
-
     marble::SemanticAnalyzer sema(diag);
     sema.DeclareFunctions(ast);
     for (auto &stmt : ast) {
@@ -70,6 +67,9 @@ main(int argc, char **argv) {
         return 1;
     }
     diag.ResetErrors();
+
+    // TODO: remove this
+    return 0;
 
     marble::CodeGen codegen(fileName);
     codegen.DeclareFunctionsAndStructures(ast);

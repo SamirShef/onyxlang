@@ -71,7 +71,7 @@ namespace marble {
             case ErrFieldInitialized:
                 return ERR("field `%0` has already been initialized");
             case ErrAccessFromNonStruct:
-                return ERR("accessing a member from non-struct");
+                return ERR("accessing a member from non-struct value");
             case ErrFieldIsPrivate:
                 return ERR("field `%0` is private");
             case ErrMethodIsPrivate:
@@ -92,6 +92,12 @@ namespace marble {
                 return ERR("method `%0` from trait `%1` does not implemented");
             case ErrExpectedDeclarationInTrait:
                 return ERR("method `%0` from trait `%1` must be a declaration");
+            case ErrDerefFromNonPtr:
+                return ERR("dereferencing from non-ptr value");
+            case ErrDerefFromNil:
+                return ERR("dereferencing from nil value");
+            case ErrRefFromRVal:
+                return ERR("getting reference from R-value");
         }
     }
 }
