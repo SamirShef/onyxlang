@@ -73,5 +73,14 @@ namespace marble {
 
         void
         VisitMethodCallExpr(MethodCallExpr *mce);
+
+        void
+        VisitNilExpr(NilExpr *ne);
+
+        void
+        VisitDerefExpr(DerefExpr *de);
+
+        void
+        VisitRefExpr(RefExpr *re);
     };
 }

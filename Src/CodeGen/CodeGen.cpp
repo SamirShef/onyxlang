@@ -5,8 +5,11 @@ static bool createLoad = true;
 namespace marble {
     void
     CodeGen::DeclareFunctionsAndStructures(std::vector<Stmt *> &ast) {
-        llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(_context), { llvm::PointerType::getInt8Ty(_context) }, true);
+        llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(_context), { llvm::PointerType::get(_context, 0) }, true);
         llvm::Function *printfFun = llvm::Function::Create(printfType, llvm::GlobalValue::ExternalLinkage, "printf", *_module);
+
+        llvm::FunctionType *abortTy = llvm::FunctionType::get(_builder.getVoidTy(), false);
+        llvm::Function *abortFun = llvm::Function::Create(abortTy, llvm::GlobalValue::ExternalLinkage, "abort", *_module);
 
         for (auto &stmt : ast) {
             if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt)) {
@@ -104,7 +107,7 @@ namespace marble {
                 llvm::cast<llvm::AllocaInst>(var)->setMetadata("struct_name", metadata);
             }
         }
-        _vars.top().emplace(vds->GetName(), std::pair<llvm::Value *, llvm::Type *> { var, type });
+        _vars.top().emplace(vds->GetName(), std::make_tuple(var, type, vds->GetType()));
         return nullptr;
     }
 
@@ -114,20 +117,27 @@ namespace marble {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(vas->GetName()); var != varsCopy.top().end()) {
-                if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second.first)) {
-                    val = implicitlyCast(val, var->second.second);
-                    _builder.CreateStore(val, glob);
-                }
-                if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second.first)) {
-                    val = implicitlyCast(val, var->second.second);
-                    _builder.CreateStore(val, local);
-                }
-                else {
-                    if (var->second.second->isPointerTy()) {
-                        _builder.CreateStore(val, var->second.first);
-                        return nullptr;
+                auto &[varVal, llvmType, type] = var->second;
+                llvm::Value *targetAddr = varVal;
+                ASTType currentASTType = type;
+                if (vas->GetDerefDepth() > 0) {
+                    if (llvm::isa<llvm::AllocaInst>(targetAddr) || llvm::isa<llvm::GlobalVariable>(targetAddr)) {
+                        targetAddr = _builder.CreateLoad(llvmType, targetAddr, vas->GetName() + ".addr");
                     }
                 }
+                for (unsigned char dd = vas->GetDerefDepth(); dd > 1; --dd) {
+                    createCheckForNil(targetAddr, vas->GetStartLoc());
+                    targetAddr = _builder.CreateLoad(_builder.getPtrTy(), targetAddr, "deref");
+                    currentASTType = currentASTType.Deref();
+                }
+                if (vas->GetDerefDepth() > 0) {
+                    createCheckForNil(targetAddr, vas->GetStartLoc());
+                }
+                for (unsigned char dd = vas->GetDerefDepth(); dd > 0; --dd, type.Deref());
+                ASTType finalType = type;
+                val = implicitlyCast(val, typeToLLVM(finalType));
+                _builder.CreateStore(val, targetAddr);
+                return nullptr;
             }
             varsCopy.pop();
         }
@@ -144,7 +154,7 @@ namespace marble {
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
-            _vars.top().emplace(arg.getName(), std::pair<llvm::Value *, llvm::Type *> { &arg, arg.getType()});
+            _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), fds->GetArgs()[index].GetType()));
             ++index;
         }
         for (auto &stmt : fds->GetBody()) {
@@ -267,9 +277,10 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
+        bool oldLoad = createLoad;
         createLoad = false;
         llvm::Value *obj = Visit(fas->GetObject());
-        createLoad = true;
+        createLoad = oldLoad;
         Struct s = _structs.at(resolveStructName(fas->GetObject()));
         Field field = s.Fields.at(fas->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
@@ -292,7 +303,7 @@ namespace marble {
             int index = 0;
             for (auto &arg : fun->args()) {
                 arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
-                _vars.top().emplace(arg.getName(), std::pair<llvm::Value *, llvm::Type *> { &arg, arg.getType() });
+                _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), method->GetArgs()[index - 1].GetType()));
                 ++index;
             }
             for (auto &stmt : method->GetBody()) {
@@ -326,7 +337,29 @@ namespace marble {
         llvm::Value *val = Visit(es->GetRHS());
         llvm::Type *type = val->getType();
         if (type->isIntegerTy()) {
-            format = "%ld";
+            unsigned bitWidth = type->getIntegerBitWidth();
+
+            if (bitWidth == 1) {
+                llvm::Constant *trueStr = _builder.CreateGlobalStringPtr("true\n", "str.true");
+                llvm::Constant *falseStr = _builder.CreateGlobalStringPtr("false\n", "str.false");
+
+                llvm::Value *selectedStr = _builder.CreateSelect(val, trueStr, falseStr, "bool.str");
+
+                llvm::Constant *fmtStr = _builder.CreateGlobalStringPtr("%s", "printf.format");
+
+                _builder.CreateCall(_module->getFunction("printf"), { fmtStr, selectedStr });
+                return nullptr;
+            }
+            else if (bitWidth <= 32) {
+                format = "%d";
+            }
+            else if (bitWidth == 64) {
+                format = "%lld";
+            }
+            else {
+                val = implicitlyCast(val, _builder.getInt64Ty());
+                format = "%lld";
+            }
         }
         else if (type->isFloatingPointTy()) {
             format = "%g";
@@ -348,6 +381,39 @@ namespace marble {
         llvm::Value *rhs = Visit(be->GetRHS());
         llvm::Type *lhsType = lhs->getType();
         llvm::Type *rhsType = rhs->getType();
+
+        bool leftIsPtr = lhsType->isPointerTy();
+        bool rightIsPtr = rhsType->isPointerTy();
+        int numPointers = leftIsPtr + rightIsPtr;
+        if (numPointers == 1 && (be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus)) {
+            llvm::Value *ptrVal = leftIsPtr ? lhs : rhs;
+            llvm::Value *intVal = leftIsPtr ? rhs : lhs;
+            intVal = implicitlyCast(intVal, _builder.getInt64Ty());
+            bool subtract = be->GetOp().GetKind() == TkMinus;
+            if (subtract) {
+                intVal = _builder.CreateNeg(intVal, "neg_offset");
+            }
+            ASTType resultASTType = ASTType::GetCommon(be->GetLHSType(), be->GetRHSType()).Deref();
+            llvm::Type *pointeeLLVMTy = typeToLLVM(resultASTType);
+            llvm::Value *gep = _builder.CreateInBoundsGEP(pointeeLLVMTy, ptrVal, {intVal}, "ptr_arith");
+            return gep;
+        }
+        else if (numPointers == 2 && (be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus)) {
+            ASTType leftASTType = be->GetLHSType();
+            llvm::Type *pointeeLLVMTy = typeToLLVM(leftASTType.Deref());
+            llvm::Value *leftInt = _builder.CreatePtrToInt(lhs, _builder.getInt64Ty());
+            llvm::Value *rightInt = _builder.CreatePtrToInt(rhs, _builder.getInt64Ty());
+            llvm::Value *diff = _builder.CreateSub(leftInt, rightInt, "ptr_diff_bytes");
+            const llvm::DataLayout &dl = _module->getDataLayout();
+            uint64_t elemSize = dl.getTypeAllocSize(pointeeLLVMTy);
+            if (elemSize > 1) {
+                llvm::Value *sizeVal = _builder.getInt64(elemSize);
+                diff = _builder.CreateExactSDiv(diff, sizeVal, "ptr_diff_elements");
+            }
+            ASTType resultASTType = ASTType::GetCommon(be->GetLHSType(), be->GetRHSType());
+            return implicitlyCast(diff, typeToLLVM(resultASTType));
+        }
+
         llvm::Type *commonType = getCommonType(lhsType, rhsType);
         if (lhsType != commonType) {
             lhs = implicitlyCast(lhs, commonType);
@@ -447,18 +513,19 @@ namespace marble {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName()); var != varsCopy.top().end()) {
+                auto &[varVal, llvmType, type] = var->second;
                 if (createLoad) {
-                    if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(var->second.first)) {
+                    if (auto glob = llvm::dyn_cast<llvm::GlobalVariable>(varVal)) {
                         if (_vars.size() == 1) {
                             return glob->getInitializer();
                         }
                         return _builder.CreateLoad(glob->getValueType(), glob, var->first + ".load");
                     }
-                    if (auto local = llvm::dyn_cast<llvm::AllocaInst>(var->second.first)) {
+                    if (auto local = llvm::dyn_cast<llvm::AllocaInst>(varVal)) {
                         return _builder.CreateLoad(local->getAllocatedType(), local, var->first + ".load");
                     }
                 }
-                return var->second.first;
+                return varVal;
             }
             varsCopy.pop();
         }
@@ -552,9 +619,10 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFieldAccessExpr(FieldAccessExpr *fae) {
+        bool oldLoad = createLoad;
         createLoad = false;
         llvm::Value *obj = Visit(fae->GetObject());
-        createLoad = true;
+        createLoad = oldLoad;
         if (!obj->getType()->isPointerTy()) {
             llvm::AllocaInst *tempAlloca = _builder.CreateAlloca(obj->getType(), nullptr, "rvalue.tmp");
             _builder.CreateStore(obj, tempAlloca);
@@ -582,9 +650,10 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitMethodCallExpr(MethodCallExpr *mce) {
+        bool oldLoad = createLoad;
         createLoad = false;
         llvm::Value *obj = Visit(mce->GetObject());
-        createLoad = true;
+        createLoad = oldLoad;
         if (!obj->getType()->isPointerTy()) {
             llvm::AllocaInst *tempAlloca = _builder.CreateAlloca(obj->getType(), nullptr, "rvalue.tmp");
             _builder.CreateStore(obj, tempAlloca);
@@ -598,6 +667,38 @@ namespace marble {
         }
         llvm::Function *method = _functions.at(s.Name + "." + mce->GetName());
         return _builder.CreateCall(method, args, method->getName() + ".call");
+    }
+
+    llvm::Value *
+    CodeGen::VisitNilExpr(NilExpr *ne) {
+        return llvm::ConstantPointerNull::get(llvm::PointerType::get(_context, 0));
+    }
+
+    llvm::Value *
+    CodeGen::VisitDerefExpr(DerefExpr *de) {
+        bool oldLoad = createLoad;
+        createLoad = true;
+        llvm::Value *ptrVal = Visit(de->GetExpr());
+        createLoad = oldLoad;
+        if (!ptrVal->getType()->isPointerTy()) {
+            return ptrVal;
+        }
+        if (_vars.size() != 1) {
+            createCheckForNil(ptrVal, de->GetStartLoc());
+        }
+        if (createLoad) {
+            ptrVal = _builder.CreateLoad(typeToLLVM(de->GetExprType().Deref()), ptrVal, "deref.load");
+        }
+        return ptrVal;
+    }
+
+    llvm::Value *
+    CodeGen::VisitRefExpr(RefExpr *re) {
+        bool oldLoad = createLoad;
+        createLoad = false;
+        llvm::Value *ptr = Visit(re->GetExpr());
+        createLoad = oldLoad;
+        return ptr;
     }
     
     llvm::Type *
@@ -663,28 +764,40 @@ namespace marble {
 
     llvm::Type *
     CodeGen::typeToLLVM(ASTType type) {
+        llvm::Type *base;
         switch (type.GetTypeKind()) {
             #define TYPE(func) llvm::Type::func(_context);
             case ASTTypeKind::Bool:
-                return TYPE(getInt1Ty);
+                base = TYPE(getInt1Ty);
+                break;
             case ASTTypeKind::Char:
-                return TYPE(getInt8Ty);
+                base = TYPE(getInt8Ty);
+                break;
             case ASTTypeKind::I16:
-                return TYPE(getInt16Ty);
+                base = TYPE(getInt16Ty);
+                break;
             case ASTTypeKind::I32:
-                return TYPE(getInt32Ty);
+                base = TYPE(getInt32Ty);
+                break;
             case ASTTypeKind::I64:
-                return TYPE(getInt64Ty);
+                base = TYPE(getInt64Ty);
+                break;
             case ASTTypeKind::F32:
-                return TYPE(getFloatTy);
+                base = TYPE(getFloatTy);
+                break;
             case ASTTypeKind::F64:
-                return TYPE(getDoubleTy);
+                base = TYPE(getDoubleTy);
+                break;
             case ASTTypeKind::Struct:
-                return _structs.at(type.GetVal()).Type;
+                base = _structs.at(type.GetVal()).Type;
+                break;
             case ASTTypeKind::Noth:
-                return TYPE(getVoidTy);
+                base = TYPE(getVoidTy);
+                break;
             #undef TYPE
         }
+        for (unsigned char pd = type.GetPointerDepth(); pd > 0; --pd, base = llvm::PointerType::get(base, 0));
+        return base;
     }
 
     llvm::Value *
@@ -718,21 +831,22 @@ namespace marble {
                 while (!varsCopy.empty()) {
                     for (auto var : varsCopy.top()) {
                         if (var.first == name) {
-                            if (auto *glob = llvm::dyn_cast<llvm::GlobalVariable>(var.second.first)) {
+                            auto &[varVal, llvmType, type] = var.second;
+                            if (auto *glob = llvm::dyn_cast<llvm::GlobalVariable>(varVal)) {
                                 if (auto *metadata = glob->getMetadata("struct_name")) {
                                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
                                         return mdStr->getString().str();
                                     }
                                 }
                             } 
-                            else if (auto *local = llvm::dyn_cast<llvm::AllocaInst>(var.second.first)) {
+                            else if (auto *local = llvm::dyn_cast<llvm::AllocaInst>(varVal)) {
                                 if (auto *metadata = local->getMetadata("struct_name")) {
                                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
                                         return mdStr->getString().str();
                                     }
                                 }
                             }
-                            else if (auto *arg = llvm::dyn_cast<llvm::Argument>(var.second.first)) {
+                            else if (auto *arg = llvm::dyn_cast<llvm::Argument>(varVal)) {
                                 llvm::Function *parent = arg->getParent();
                                 if (auto *metadata = parent->getMetadata("this_struct_name")) {
                                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
@@ -795,5 +909,38 @@ namespace marble {
                 return "";
             }
         }
+    }
+
+    void
+    CodeGen::createCheckForNil(llvm::Value *ptr, llvm::SMLoc loc) {
+        auto [line, col] = _srcMgr.getLineAndColumn(loc);
+
+        std::string msgStr = "Error: Null pointer dereference at " + _module->getSourceFileName() + ":" +
+                             std::to_string(line) + ":" + std::to_string(col) + "!\n";
+
+        llvm::BasicBlock *currentBB = _builder.GetInsertBlock();
+        llvm::Function *parentFun = currentBB->getParent();
+
+        llvm::BasicBlock *notNullBB = llvm::BasicBlock::Create(_context, "not_null", parentFun);
+        llvm::BasicBlock *nullBB = llvm::BasicBlock::Create(_context, "null_error", parentFun);
+
+        llvm::Value *isNull = _builder.CreateIsNull(ptr, "is_null_check");
+
+        _builder.CreateCondBr(isNull, nullBB, notNullBB);
+        _builder.SetInsertPoint(nullBB);
+
+        llvm::Constant *errMsg = llvm::ConstantDataArray::getString(_context, msgStr, true);
+        llvm::GlobalVariable *errMsgGlobal = new llvm::GlobalVariable(*_module, errMsg->getType(), true, llvm::GlobalValue::PrivateLinkage, errMsg, "null_err_msg");
+        errMsgGlobal->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+        errMsgGlobal->setAlignment(llvm::MaybeAlign(1));
+
+        llvm::Value *errMsgPtr = _builder.CreateGEP(errMsgGlobal->getValueType(), errMsgGlobal, { _builder.getInt64(0), _builder.getInt32(0) }, "err_msg_ptr");
+
+        _builder.CreateCall(_module->getFunction("printf"), { errMsgPtr }, "printf_call");
+
+        _builder.CreateCall(_module->getFunction("abort"));
+        _builder.CreateUnreachable();
+
+        _builder.SetInsertPoint(notNullBB);
     }
 }

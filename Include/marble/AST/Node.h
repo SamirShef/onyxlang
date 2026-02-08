@@ -30,6 +30,9 @@ namespace marble {
         NkStructExpr,
         NkFieldAccessExpr,
         NkMethodCallExpr,
+        NkNilExpr,
+        NkDerefExpr,
+        NkRefExpr,
         NkEndExprs,
     };
 

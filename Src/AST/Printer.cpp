@@ -5,8 +5,9 @@ namespace marble {
     void
     ASTPrinter::VisitVarDeclStmt(VarDeclStmt *vds) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(VarDeclStmt: " << vds->GetType().ToString() << ' ' << vds->GetName() << ' ';
+        llvm::outs() << "(VarDeclStmt: " << vds->GetType().ToString() << ' ' << vds->GetName();
         if (vds->GetExpr()) {
+            llvm::outs() << " = ";
             int spaces = _spaces;
             _spaces = 0;
             Visit(vds->GetExpr());
@@ -18,7 +19,9 @@ namespace marble {
     void
     ASTPrinter::VisitVarAsgnStmt(VarAsgnStmt *vas) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(VarAsgnStmt: " << vas->GetName() << " = ";
+        llvm::outs() << "(VarAsgnStmt: ";
+        for (unsigned char dd = vas->GetDerefDepth(); dd > 0; --dd, llvm::outs() << '*');
+        llvm::outs() << vas->GetName() << " = ";
         int spaces = _spaces;
         _spaces = 0;
         Visit(vas->GetExpr());
@@ -362,6 +365,34 @@ namespace marble {
         int spaces = _spaces;
         _spaces = 0;
         Visit(mce->GetObject());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
+
+    void
+    ASTPrinter::VisitNilExpr(NilExpr *ne) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(NilExpr)";
+    }
+
+    void
+    ASTPrinter::VisitDerefExpr(DerefExpr *de) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(DerefExpr: ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(de->GetExpr());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
+
+    void
+    ASTPrinter::VisitRefExpr(RefExpr *re) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(RefExpr: ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(re->GetExpr());
         _spaces = spaces;
         llvm::outs() << ')';
     }

@@ -8,6 +8,7 @@ namespace marble {
     class VarAsgnStmt : public Stmt {
         std::string _name;
         Expr *_expr;
+        unsigned char _derefDepth;
 
     public:
         explicit VarAsgnStmt(std::string name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -26,6 +27,16 @@ namespace marble {
         Expr *
         GetExpr() const {
             return _expr;
+        }
+
+        unsigned char
+        GetDerefDepth() const {
+            return _derefDepth;
+        }
+
+        void
+        SetDerefDepth(unsigned char dd) {
+            _derefDepth = dd;
         }
     };
 }

@@ -46,5 +46,8 @@ namespace marble {
         ErrCannotImplTraitMethod_ArgTypeMismatch,
         ErrNotImplTraitMethod,
         ErrExpectedDeclarationInTrait,
+        ErrDerefFromNonPtr,
+        ErrDerefFromNil,
+        ErrRefFromRVal,
     };
 }

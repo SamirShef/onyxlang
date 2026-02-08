@@ -25,3 +25,6 @@
 #include <marble/AST/Expressions/StructExpr.h>
 #include <marble/AST/Expressions/FieldAccessExpr.h>
 #include <marble/AST/Expressions/MethodCallExpr.h>
+#include <marble/AST/Expressions/NilExpr.h>
+#include <marble/AST/Expressions/DerefExpr.h>
+#include <marble/AST/Expressions/RefExpr.h>

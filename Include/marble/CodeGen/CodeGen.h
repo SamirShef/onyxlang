@@ -7,11 +7,12 @@
 
 namespace marble {
     class CodeGen : public ASTVisitor<CodeGen, llvm::Value *> {
+        llvm::SourceMgr &_srcMgr;
         llvm::LLVMContext _context;
         std::unique_ptr<llvm::Module> _module;
         llvm::IRBuilder<> _builder;
 
-        std::stack<std::unordered_map<std::string, std::pair<llvm::Value *, llvm::Type *>>> _vars;
+        std::stack<std::unordered_map<std::string, std::tuple<llvm::Value *, llvm::Type *, ASTType>>> _vars;
 
         std::unordered_map<std::string, llvm::Function *> _functions;
         std::stack<llvm::Type *> _funRetsTypes;
@@ -35,8 +36,8 @@ namespace marble {
         std::unordered_map<std::string, Struct> _structs;
 
     public:
-        explicit CodeGen(std::string fileName) : _context(), _builder(_context),
-                                                 _module(std::make_unique<llvm::Module>(fileName, _context)) {
+        explicit CodeGen(std::string fileName, llvm::SourceMgr &srcMgr) : _srcMgr(srcMgr), _context(), _builder(_context),
+                                                                          _module(std::make_unique<llvm::Module>(fileName, _context)) {
             _vars.push({});
         }
 
@@ -117,6 +118,15 @@ namespace marble {
         llvm::Value *
         VisitMethodCallExpr(MethodCallExpr *mce);
 
+        llvm::Value *
+        VisitNilExpr(NilExpr *ne);
+
+        llvm::Value *
+        VisitDerefExpr(DerefExpr *de);
+
+        llvm::Value *
+        VisitRefExpr(RefExpr *re);
+
     private:
         llvm::Type *
         getCommonType(llvm::Type *left, llvm::Type *right);
@@ -136,7 +146,7 @@ namespace marble {
         std::string
         resolveStructName(Expr *expr);
 
-        //std::string
-        //getMangledName(std::string base) const;
+        void
+        createCheckForNil(llvm::Value *ptr, llvm::SMLoc loc);
     };
 }

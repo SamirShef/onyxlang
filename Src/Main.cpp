@@ -49,6 +49,15 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
+    if (marble::EmitAction == marble::EmitAST) {
+        marble::ASTPrinter printer;
+        for (auto stmt : ast) {
+            printer.Visit(stmt);
+            llvm::outs() << '\n';
+        }
+        return 0; 
+    }
+
     marble::SemanticAnalyzer sema(diag);
     sema.DeclareFunctions(ast);
     for (auto &stmt : ast) {
@@ -59,7 +68,7 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    marble::CodeGen codegen(fileName);
+    marble::CodeGen codegen(fileName, srcMgr);
     codegen.DeclareFunctionsAndStructures(ast);
     for (auto &stmt : ast) {
         codegen.Visit(stmt);
@@ -95,15 +104,6 @@ main(int argc, char **argv) {
                 }
                 break;
         }
-    }
-
-    if (marble::EmitAction == marble::EmitAST) {
-        marble::ASTPrinter printer;
-        for (auto stmt : ast) {
-            printer.Visit(stmt);
-            llvm::outs() << '\n';
-        }
-        return 0; 
     }
 
     marble::Optimizer::Level optLvl;

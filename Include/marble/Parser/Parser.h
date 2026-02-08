@@ -35,7 +35,7 @@ namespace marble {
         parseVarDeclStmt();
 
         Stmt *
-        parseVarAsgn();
+        parseVarAsgn(unsigned char derefDepth = 0);
 
         Stmt *
         parseFieldAsgnStmt(Expr *base);

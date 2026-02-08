@@ -15,9 +15,10 @@ namespace marble {
     class ASTVal {
         ASTType _type;
         ASTValData _data;
+        bool _isNil;
 
     public:
-        explicit ASTVal(ASTType type, ASTValData data) : _type(type), _data(data) {}
+        explicit ASTVal(ASTType type, ASTValData data, bool isNil) : _type(type), _data(data), _isNil(isNil) {}
         
         ASTType
         GetType() const {
@@ -27,6 +28,11 @@ namespace marble {
         ASTValData
         GetData() const {
             return _data;
+        }
+
+        bool
+        IsNil() const {
+            return _isNil;
         }
 
         std::string

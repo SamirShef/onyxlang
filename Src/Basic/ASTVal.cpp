@@ -8,7 +8,7 @@ namespace marble {
             case ASTTypeKind::Bool:
                 return TO_STR(boolVal);
             case ASTTypeKind::Char:
-                return TO_STR(charVal);
+                return std::string { _data.charVal };
             case ASTTypeKind::I16:
                 return TO_STR(i16Val);
             case ASTTypeKind::I32:
@@ -24,6 +24,8 @@ namespace marble {
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
                 return _type.GetVal();
+            case ASTTypeKind::Nil:
+                return "nil";
         }
     }
 
@@ -47,6 +49,7 @@ namespace marble {
             case ASTTypeKind::Noth:
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
+            case ASTTypeKind::Nil:
                 return 0;
         }
     }
@@ -59,7 +62,7 @@ namespace marble {
         if (_type.GetTypeKind() >= ASTTypeKind::Char && _type.GetTypeKind() <= ASTTypeKind::F64 &&
             type.GetTypeKind() >= ASTTypeKind::Char && type.GetTypeKind() <= ASTTypeKind::F64) {
             switch (type.GetTypeKind()) {
-                #define VAL(field, cast_type) ASTVal(type, ASTValData { .field = static_cast<cast_type>(AsDouble()) })
+                #define VAL(field, cast_type) ASTVal(type, ASTValData { .field = static_cast<cast_type>(AsDouble()) }, false)
                 case ASTTypeKind::Char:
                     return VAL(charVal, char);
                 case ASTTypeKind::I16:
@@ -82,7 +85,7 @@ namespace marble {
     ASTVal
     ASTVal::GetVal(double val, ASTType type) {
         switch (type.GetTypeKind()) {
-            #define VAL(field, cast_type) ASTVal(type, ASTValData { .field = static_cast<cast_type>(val) })
+            #define VAL(field, cast_type) ASTVal(type, ASTValData { .field = static_cast<cast_type>(val) }, false)
             case ASTTypeKind::Bool:
                 return VAL(boolVal, bool);
             case ASTTypeKind::Char:
@@ -98,18 +101,23 @@ namespace marble {
             case ASTTypeKind::F64:
                 return VAL(f64Val, double);
             case ASTTypeKind::Noth:
-                return ASTVal(type, ASTValData { .i32Val = 0 });
+                return ASTVal(type, ASTValData { .i32Val = 0 }, false);
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
                 return VAL(i32Val, int);
+            case ASTTypeKind::Nil:
+                return ASTVal(type, ASTValData { .i32Val = static_cast<int>(val) }, false);
             #undef VAL
         }
     }
 
     ASTVal
     ASTVal::GetDefaultByType(ASTType type) {
+        if (type.IsPointer()) {
+            return ASTVal(type, ASTValData { .i32Val = 0 }, true);
+        }
         switch (type.GetTypeKind()) {
-            #define VAL(field) ASTVal(type, ASTValData { .field = 0 })
+            #define VAL(field) ASTVal(type, ASTValData { .field = 0 }, false)
             case ASTTypeKind::Bool:
                 return VAL(boolVal);
             case ASTTypeKind::Char:
@@ -128,6 +136,8 @@ namespace marble {
             case ASTTypeKind::Struct:
             case ASTTypeKind::Trait:
                 return VAL(i32Val);
+            case ASTTypeKind::Nil:
+                return ASTVal(type, ASTValData { .i32Val = 0 }, true);
             #undef VAL
         }
     }
