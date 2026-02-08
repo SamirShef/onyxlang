@@ -86,6 +86,11 @@ namespace marble {
                                                  llvm::SMLoc::getFromPointer(vas->GetStartLoc().getPointer() + vas->GetDerefDepth() + vas->GetName().length()));
                             break;
                         }
+                        if (val.IsNil()) {
+                            _diag.Report(vas->GetExpr()->GetStartLoc(), ErrDerefFromNil)
+                                << llvm::SMRange(vas->GetStartLoc(), vas->GetEndLoc());
+                            break;
+                        }
                     }
                 }
                 val = implicitlyCast(val, type, vas->GetExpr()->GetStartLoc(), vas->GetExpr()->GetEndLoc());
@@ -552,7 +557,12 @@ namespace marble {
         if (rhs == std::nullopt) {
             return rhs;
         }
+        be->SetLHSType(lhs->GetType());
+        be->SetRHSType(rhs->GetType());
         if (lhs->GetType().IsPointer()) {
+            if (llvm::dyn_cast<NilExpr>(be->GetRHS())) {
+                return ASTVal::GetVal(lhs->IsNil(), ASTType(ASTTypeKind::Bool, "bool", false, 0));
+            }
             return lhs;
         }
         double lhsVal = lhs->AsDouble();
@@ -851,6 +861,7 @@ namespace marble {
                 << llvm::SMRange(de->GetStartLoc(), de->GetEndLoc());
             return val;
         }
+        de->SetExprType(val->GetType());
         return ASTVal(val->GetType().Deref(), val->GetData(), false);
     }
 
@@ -940,7 +951,11 @@ namespace marble {
             case TkLtEq:
             case TkEqEq:
             case TkNotEq:
-                if (!ASTType::HasCommon(lhs.GetType(), rhs.GetType())) {
+                if (lhs.GetType().IsPointer() && llvm::dyn_cast<NilExpr>(be->GetRHS()) &&
+                    (be->GetOp().GetKind() == TkEqEq || be->GetOp().GetKind() == TkNotEq)) {
+                    break;
+                }
+                else if (!ASTType::HasCommon(lhs.GetType(), rhs.GetType())) {
                     _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
                         << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())
                         << be->GetOp().GetText()
@@ -989,7 +1004,7 @@ namespace marble {
         if (src.GetType() == expectType) {
             return src;
         }
-        if (src.IsNil() && src.GetType().GetTypeKind() == ASTTypeKind::Nil && expectType.IsPointer()) {
+        if (src.IsNil() && expectType.IsPointer()) {
             return src;
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {

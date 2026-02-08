@@ -68,10 +68,7 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    // TODO: remove this
-    return 0;
-
-    marble::CodeGen codegen(fileName);
+    marble::CodeGen codegen(fileName, srcMgr);
     codegen.DeclareFunctionsAndStructures(ast);
     for (auto &stmt : ast) {
         codegen.Visit(stmt);

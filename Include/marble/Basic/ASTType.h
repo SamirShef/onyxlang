@@ -104,6 +104,12 @@ namespace marble {
             if (lhs == rhs) {
                 return lhs;
             }
+            if (lhs.IsPointer() && rhs.GetTypeKind() >= ASTTypeKind::Char && rhs.GetTypeKind() <= ASTTypeKind::I64) {
+                return lhs;
+            }
+            if (rhs.IsPointer() && lhs.GetTypeKind() >= ASTTypeKind::Char && lhs.GetTypeKind() <= ASTTypeKind::I64) {
+                return rhs;
+            }
             if (lhs.GetTypeKind() >= ASTTypeKind::Char && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
                 rhs.GetTypeKind() >= ASTTypeKind::Char && rhs.GetTypeKind() <= ASTTypeKind::F64) {
                 return lhs.GetTypeKind() > rhs.GetTypeKind() ? lhs : rhs;
@@ -114,6 +120,12 @@ namespace marble {
         static bool
         HasCommon(ASTType lhs, ASTType rhs) {
             if (lhs == rhs) {
+                return true;
+            }
+            if (lhs.IsPointer() && rhs.GetTypeKind() >= ASTTypeKind::Char && rhs.GetTypeKind() <= ASTTypeKind::I64) {
+                return true;
+            }
+            if (rhs.IsPointer() && lhs.GetTypeKind() >= ASTTypeKind::Char && lhs.GetTypeKind() <= ASTTypeKind::I64) {
                 return true;
             }
             if (lhs.GetTypeKind() >= ASTTypeKind::Char && lhs.GetTypeKind() <= ASTTypeKind::F64 &&
