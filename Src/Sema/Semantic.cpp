@@ -563,6 +563,9 @@ namespace marble {
             if (llvm::dyn_cast<NilExpr>(be->GetRHS())) {
                 return ASTVal::GetVal(lhs->IsNil(), ASTType(ASTTypeKind::Bool, "bool", false, 0));
             }
+            if (rhs->GetType().IsPointer()) {
+                return ASTVal::GetDefaultByType(ASTType(ASTTypeKind::I64, "i64", false, 0));
+            }
             return lhs;
         }
         double lhsVal = lhs->AsDouble();

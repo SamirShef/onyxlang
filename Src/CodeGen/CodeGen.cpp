@@ -395,7 +395,7 @@ namespace marble {
             }
             ASTType resultASTType = ASTType::GetCommon(be->GetLHSType(), be->GetRHSType()).Deref();
             llvm::Type *pointeeLLVMTy = typeToLLVM(resultASTType);
-            llvm::Value *gep = _builder.CreateInBoundsGEP(pointeeLLVMTy, ptrVal, {intVal}, "ptr_arith");
+            llvm::Value *gep = _builder.CreateInBoundsGEP(pointeeLLVMTy, ptrVal, {intVal}, "ptr.arith");
             return gep;
         }
         else if (numPointers == 2 && (be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus)) {
@@ -403,14 +403,14 @@ namespace marble {
             llvm::Type *pointeeLLVMTy = typeToLLVM(leftASTType.Deref());
             llvm::Value *leftInt = _builder.CreatePtrToInt(lhs, _builder.getInt64Ty());
             llvm::Value *rightInt = _builder.CreatePtrToInt(rhs, _builder.getInt64Ty());
-            llvm::Value *diff = _builder.CreateSub(leftInt, rightInt, "ptr_diff_bytes");
+            llvm::Value *diff = _builder.CreateSub(leftInt, rightInt, "ptr.diff.bytes");
             const llvm::DataLayout &dl = _module->getDataLayout();
             uint64_t elemSize = dl.getTypeAllocSize(pointeeLLVMTy);
             if (elemSize > 1) {
                 llvm::Value *sizeVal = _builder.getInt64(elemSize);
-                diff = _builder.CreateExactSDiv(diff, sizeVal, "ptr_diff_elements");
+                diff = _builder.CreateExactSDiv(diff, sizeVal, "ptr.diff.elements");
             }
-            ASTType resultASTType = ASTType::GetCommon(be->GetLHSType(), be->GetRHSType());
+            ASTType resultASTType = ASTType::GetCommon(be->GetLHSType(), be->GetRHSType()).Deref();
             return implicitlyCast(diff, typeToLLVM(resultASTType));
         }
 
