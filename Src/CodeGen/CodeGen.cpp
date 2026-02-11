@@ -300,10 +300,11 @@ namespace marble {
             _builder.SetInsertPoint(entry);
             _vars.push({});
             _funRetsTypes.push(fun->getReturnType());
+            ASTType thisType = ASTType(ASTTypeKind::Struct, is->GetStructName(), false, 0);
             int index = 0;
             for (auto &arg : fun->args()) {
                 arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
-                _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), method->GetArgs()[index - 1].GetType()));
+                _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
                 ++index;
             }
             for (auto &stmt : method->GetBody()) {
