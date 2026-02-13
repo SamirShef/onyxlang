@@ -3,8 +3,8 @@
 
 namespace marble {
     class Argument {
-        const std::string _name;
-        const ASTType _type;
+        std::string _name;
+        ASTType _type;
 
     public:
         explicit Argument(std::string name, ASTType type) : _name(name), _type(type) {}

@@ -3,7 +3,8 @@ fun main(argc: i32, argv: **char): i32 { // default cli arguments
     var a: *i32 = &i;
     var b: **i32 = &a;
     i = add(a, i);
-    return **b;
+    echo **b;
+    return 0;
 }
 
 fun add(a: *i32, b: i32): i32 {

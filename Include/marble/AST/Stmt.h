@@ -3,7 +3,7 @@
 
 namespace marble {
     class Stmt : public Node {
-        const AccessModifier _access;
+        AccessModifier _access;
     public:
         explicit Stmt(NodeKind kind, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc) : _access(access), Node(kind, startLoc, endLoc) {}
 

@@ -23,6 +23,8 @@ namespace marble {
         unsigned char _pointerDepth;
 
     public:
+        ASTType() = default;
+
         explicit ASTType(ASTTypeKind kind, std::string val, bool isConst, unsigned char pointerDepth)
                        : _kind(kind), _val(val), _isConst(isConst), _pointerDepth(pointerDepth) {}
 
