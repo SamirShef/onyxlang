@@ -1,3 +1,4 @@
+#include <iostream>
 #include <marble/CodeGen/CodeGen.h>
 
 static bool createLoad = true;
@@ -152,8 +153,10 @@ namespace marble {
         _vars.push({});
         _funRetsTypes.push(fun->getReturnType());
         int index = 0;
+        std::cout << fds->GetName() << ' ' << fun->getFunctionType()->getNumParams() << ' ' << fun << '\n';
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
+            std::cout << arg.getName().str() << '\n';
             _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), fds->GetArgs()[index].GetType()));
             ++index;
         }
