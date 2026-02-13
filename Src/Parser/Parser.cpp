@@ -547,12 +547,12 @@ namespace marble {
             }
             case TkStar: {
                 Token star = consume();
-                Expr *expr = parseExpr(PrecLowest);
+                Expr *expr = parsePrefixExpr();
                 return createNode<DerefExpr>(expr, star.GetLoc(), _curTok.GetLoc());
             }
             case TkAnd: {
                 Token amp = consume();
-                Expr *expr = parseExpr(PrecLowest);
+                Expr *expr = parsePrefixExpr();
                 return createNode<RefExpr>(expr, amp.GetLoc(), _curTok.GetLoc());
             }
             default:
