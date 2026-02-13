@@ -88,15 +88,18 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitVarDeclStmt(VarDeclStmt *vds) {
-        llvm::Type *type = nullptr;
+        llvm::Type *type = typeToLLVM(vds->GetType());
         llvm::Value *initializer = nullptr;
         std::string structName;
         bool isTraitType = vds->GetType().GetTypeKind() == ASTTypeKind::Trait;
         if (vds->GetExpr()) {
             initializer = Visit(vds->GetExpr());
             if (isTraitType) {
-                type = initializer->getType();
-                structName = resolveStructName(vds->GetExpr());
+                /*type = initializer->getType();
+                structName = resolveStructName(vds->GetExpr());*/
+
+                std::string concreteStruct = resolveStructName(vds->GetExpr());
+                initializer = castToTrait(initializer, type, concreteStruct);
             }
             else {
                 type = typeToLLVM(vds->GetType());
@@ -104,8 +107,10 @@ namespace marble {
             }
         }
         else { 
-            type = typeToLLVM(vds->GetType());
-            if (vds->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+            if (isTraitType) {
+                initializer = llvm::ConstantAggregateZero::get(llvm::cast<llvm::StructType>(type));
+            }
+            else if (vds->GetType().GetTypeKind() != ASTTypeKind::Struct) {
                 initializer = llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
             }
             else {
@@ -123,7 +128,7 @@ namespace marble {
         }
         if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct ||
             vds->GetType().GetTypeKind() == ASTTypeKind::Trait) {
-            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, isTraitType ? structName : vds->GetType().GetVal()));
+            llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, vds->GetType().GetVal()));
             if (_vars.size() == 1) {
                 llvm::cast<llvm::GlobalVariable>(var)->setMetadata("struct_name", metadata);
             }
@@ -168,6 +173,17 @@ namespace marble {
                     createCheckForNil(targetAddr, vas->GetStartLoc());
                 }
                 for (unsigned char dd = vas->GetDerefDepth(); dd > 0; --dd, type.Deref());
+
+
+                // NEW
+                if (type.GetTypeKind() == ASTTypeKind::Trait) {
+                    std::string concreteStructName = resolveStructName(vas->GetExpr());
+                    llvm::Type *traitLLVMTy = llvmType;
+                    val = castToTrait(val, traitLLVMTy, concreteStructName);
+                }
+                // NEW
+                
+                
                 ASTType finalType = type;
                 val = implicitlyCast(val, typeToLLVM(finalType));
                 _builder.CreateStore(val, targetAddr);
@@ -188,7 +204,9 @@ namespace marble {
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
-            _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), fds->GetArgs()[index].GetType()));
+            llvm::AllocaInst *alloca = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName() + ".addr");
+            _builder.CreateStore(&arg, alloca);
+            _vars.top().emplace(arg.getName(), std::make_tuple(alloca, arg.getType(), fds->GetArgs()[index].GetType()));
             ++index;
         }
         for (auto &stmt : fds->GetBody()) {
@@ -356,6 +374,7 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitMethodCallStmt(MethodCallStmt *mcs) {
         MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
+        expr->SetObjType(mcs->GetObjType());
         VisitMethodCallExpr(expr);
         delete expr;
         return nullptr;
@@ -717,6 +736,40 @@ namespace marble {
         llvm::Value *obj = Visit(mce->GetObject());
         createLoad = oldLoad;
 
+        ASTType objType = mce->GetObjType();
+        std::string typeName = objType.GetVal();
+        if (objType.GetTypeKind() == ASTTypeKind::Trait) {
+            llvm::Value *fatPtr = obj;
+            if (obj->getType()->isPointerTy() && !llvm::isa<llvm::Argument>(obj)) {
+                fatPtr = _builder.CreateLoad(typeToLLVM(objType), obj, "trait.ptr");
+            }
+
+            llvm::Value *thisPtr = _builder.CreateExtractValue(fatPtr, 0, "trait.this");
+            llvm::Value *vtablePtr = _builder.CreateExtractValue(fatPtr, 1, "trait.vtable");
+
+            Trait &t = _traits.at(typeName);
+            int methodIdx = -1;
+            for (int i = 0; i < t.Methods.size(); ++i) {
+                if (t.Methods[i].first == mce->GetName()) {
+                    methodIdx = i;
+                    break;
+                }
+            }
+
+            llvm::Type *ptrTy = _builder.getPtrTy();
+            llvm::Value *gep = _builder.CreateConstGEP1_32(ptrTy, vtablePtr, methodIdx);
+            llvm::Value *funcPtr = _builder.CreateLoad(ptrTy, gep, "vfunc.addr");
+
+            std::vector<llvm::Value *> args = { thisPtr };
+            for (auto *arg : mce->GetArgs()) {
+                args.push_back(Visit(arg));
+            }
+
+            auto &m = t.Methods[methodIdx].second;
+            llvm::FunctionType *FTy = llvm::FunctionType::get(m.RetType, m.Args, false);
+            return _builder.CreateCall(FTy, funcPtr, args);
+        }
+        
         std::string structName = resolveStructName(mce->GetObject());
         if (structName.empty() && obj->getType()->isStructTy()) {
             structName = obj->getType()->getStructName().str();
@@ -1152,5 +1205,27 @@ namespace marble {
         llvm::GlobalVariable *vtable = new llvm::GlobalVariable(*_module, vtableArrTy, true, llvm::GlobalValue::InternalLinkage,
                                                                 llvm::ConstantArray::get(vtableArrTy, functions), vtableName);
         return vtable;
+    }
+
+    llvm::Value *
+    CodeGen::castToTrait(llvm::Value *src, llvm::Type *traitType, const std::string &structName) {
+        llvm::Value *fatPtr = llvm::UndefValue::get(traitType);
+        
+        llvm::Value *dataPtr;
+        if (src->getType()->isPointerTy()) {
+            dataPtr = _builder.CreateBitCast(src, _builder.getPtrTy());
+        }
+        else {
+            llvm::AllocaInst *tmp = _builder.CreateAlloca(src->getType());
+            _builder.CreateStore(src, tmp);
+            dataPtr = tmp;
+        }
+        fatPtr = _builder.CreateInsertValue(fatPtr, dataPtr, 0);
+
+        std::string traitName = traitType->getStructName().str();
+        llvm::Value *vtable = getOrCreateVTable(structName, traitName);
+        llvm::Value *vtablePtr = _builder.CreateBitCast(vtable, _builder.getPtrTy());
+        fatPtr = _builder.CreateInsertValue(fatPtr, vtablePtr, 1);
+        return fatPtr;
     }
 }

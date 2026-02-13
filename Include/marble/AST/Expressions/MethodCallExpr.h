@@ -1,6 +1,7 @@
 #pragma once
 #include <marble/AST/Expr.h>
-#include <llvm/ADT/StringRef.h>
+#include <marble/Basic/ASTType.h>
+#include <string>
 #include <vector>
 
 namespace marble {
@@ -8,6 +9,7 @@ namespace marble {
         Expr *_object;
         std::string _name;
         std::vector<Expr *> _args;
+        ASTType _objType;
 
     public:
         explicit MethodCallExpr(Expr *obj, std::string name, std::vector<Expr *> args, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -31,6 +33,16 @@ namespace marble {
         std::vector<Expr *>
         GetArgs() const {
             return _args;
+        }
+
+        ASTType
+        GetObjType() const {
+            return _objType;
+        }
+
+        void
+        SetObjType(ASTType t) {
+            _objType = t;
         }
     };
 }

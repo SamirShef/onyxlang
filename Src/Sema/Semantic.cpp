@@ -497,6 +497,8 @@ namespace marble {
                 << llvm::SMRange(mcs->GetStartLoc(), mcs->GetEndLoc());
         }
         MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
+        mcs->SetObjType(Visit(mcs->GetObject())->GetType());
+        expr->SetObjType(mcs->GetObjType());
         VisitMethodCallExpr(expr);
         delete expr;
         return std::nullopt;
@@ -799,6 +801,7 @@ namespace marble {
                 << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc());
         }
         else {
+            mce->SetObjType(obj->GetType());
             bool objIsThis = false;
             if (mce->GetObject()->GetKind() == NkVarExpr) {
                 VarExpr *ve = llvm::cast<VarExpr>(mce->GetObject());

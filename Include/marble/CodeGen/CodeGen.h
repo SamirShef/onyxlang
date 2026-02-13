@@ -165,5 +165,8 @@ namespace marble {
 
         llvm::Value *
         getOrCreateVTable(const std::string &structName, const std::string &traitName);
+
+        llvm::Value *
+        castToTrait(llvm::Value *src, llvm::Type *traitType, const std::string &structName);
     };
 }

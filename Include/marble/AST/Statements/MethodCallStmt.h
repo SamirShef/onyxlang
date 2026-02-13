@@ -10,6 +10,7 @@ namespace marble {
         Expr *_object;
         std::string _name;
         std::vector<Expr *> _args;
+        ASTType _objType;
 
     public:
         explicit MethodCallStmt(Expr *obj, std::string name, std::vector<Expr *> args, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -33,6 +34,16 @@ namespace marble {
         std::vector<Expr *>
         GetArgs() const {
             return _args;
+        }
+
+        ASTType
+        GetObjType() const {
+            return _objType;
+        }
+
+        void
+        SetObjType(ASTType t) {
+            _objType = t;
         }
     };
 }

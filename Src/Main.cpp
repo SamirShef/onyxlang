@@ -19,6 +19,7 @@ main(int argc, char **argv) {
     
     llvm::cl::HideUnrelatedOptions(marble::MarbleCat);
     llvm::cl::ParseCommandLineOptions(argc, argv, "Marble Compiler\n");
+    llvm::outs().SetUnbuffered();
 
     std::string fileName = marble::InputFilename;
 
