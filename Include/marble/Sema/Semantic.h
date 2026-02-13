@@ -34,6 +34,7 @@ namespace marble {
             std::string Name;
             std::optional<ASTVal> Val;
             ASTType Type;
+            bool IsConst;
             AccessModifier Access;
             bool ManualInitialized;
         };

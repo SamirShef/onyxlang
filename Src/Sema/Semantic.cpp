@@ -290,7 +290,8 @@ namespace marble {
             if (vds->GetExpr()) {
                 implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
             }
-            s.Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .Access = vds->GetAccess(), .ManualInitialized = false });
+            s.Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .IsConst = vds->IsConst(), .Access = vds->GetAccess(),
+                             .ManualInitialized = false });
         }
         _structs.emplace(s.Name, s);
 
@@ -329,6 +330,11 @@ namespace marble {
                     _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
                         << fas->GetName();
+                }
+                if (field->second.IsConst) {
+                    _diag.Report(fas->GetStartLoc(), ErrAssignmentConst)
+                        << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
+                    return std::nullopt;
                 }
                 implicitlyCast(Visit(fas->GetExpr()).value(), s.Fields.at(fas->GetName()).Type, fas->GetStartLoc(), fas->GetEndLoc());
             }
