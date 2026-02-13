@@ -15,12 +15,13 @@ namespace marble {
         std::stack<std::unordered_map<std::string, std::tuple<llvm::Value *, llvm::Type *, ASTType>>> _vars;
 
         std::unordered_map<std::string, llvm::Function *> _functions;
+        std::unordered_map<std::string, std::vector<ASTType>> _funArgsTypes;
         std::stack<llvm::Type *> _funRetsTypes;
 
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
 
         struct Field {
-            const std::string Name;
+            std::string Name;
             llvm::Type *Type;
             marble::ASTType ASTType;
             llvm::Value *Val;
@@ -28,10 +29,23 @@ namespace marble {
             long Index;
         };
 
+        struct Method {
+            std::string Name;
+            llvm::Type *RetType;
+            std::vector<llvm::Type *> Args;
+        };
+
+        struct Trait {
+            std::string Name;
+            std::vector<std::pair<std::string, Method>> Methods; 
+        };
+        std::unordered_map<std::string, Trait> _traits;
+
         struct Struct {
-            const std::string Name;
+            std::string Name;
             llvm::StructType *Type;
             std::unordered_map<std::string, Field> Fields;
+            std::unordered_map<std::string, Trait> TraitsImplements;
         };
         std::unordered_map<std::string, Struct> _structs;
 
@@ -148,5 +162,8 @@ namespace marble {
 
         void
         createCheckForNil(llvm::Value *ptr, llvm::SMLoc loc);
+
+        llvm::Value *
+        getOrCreateVTable(const std::string &structName, const std::string &traitName);
     };
 }
