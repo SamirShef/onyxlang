@@ -59,16 +59,21 @@ namespace marble {
             }
             else if (StructStmt *ss = llvm::dyn_cast<StructStmt>(stmt)) {
                 std::vector<llvm::Type *> fieldsTypes(ss->GetBody().size());
-                std::unordered_map<std::string, Field> fields(ss->GetBody().size());
+                std::unordered_map<std::string, Field> fields;
+                llvm::StructType *structType = llvm::StructType::create(_context, ss->GetName());
+                Struct s { .Name = ss->GetName(), .Type = structType, .Fields = fields, .TraitsImplements = {} };
+                _structs.emplace(ss->GetName(), s);
                 for (int i = 0; i < fieldsTypes.size(); ++i) {
                     VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
                     fieldsTypes[i] = typeToLLVM(vds->GetType());
-                    fields.emplace(vds->GetName(), Field { vds->GetName(), typeToLLVM(vds->GetType()), vds->GetType(), vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr,
-                                   false, i });
+                    fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
+                                                           .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false, .Index = i });
+
+                    _structs.at(ss->GetName()).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
+                                                                                      .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
+                                                                                      .Index = i });
                 }
-                llvm::StructType *structType = llvm::StructType::create(_context, fieldsTypes, ss->GetName());
-                Struct s { .Name = ss->GetName(), .Type = structType, .Fields = fields, .TraitsImplements = {} };
-                _structs.emplace(ss->GetName(), s);
+                structType->setBody(fieldsTypes);
             }
             else if (TraitDeclStmt *tds = llvm::dyn_cast<TraitDeclStmt>(stmt)) {
                 Trait t { .Name = tds->GetName(), .Methods = {} };
@@ -710,11 +715,24 @@ namespace marble {
         createLoad = false;
         llvm::Value *obj = Visit(fae->GetObject());
         createLoad = oldLoad;
-        if (!obj->getType()->isPointerTy()) {
-            llvm::AllocaInst *tempAlloca = _builder.CreateAlloca(obj->getType(), nullptr, "rvalue.tmp");
-            _builder.CreateStore(obj, tempAlloca);
-            obj = tempAlloca;
+        
+        ASTType objASTType = fae->GetObjType();
+        if (objASTType.IsPointer()) {
+            obj = _builder.CreateLoad(_builder.getPtrTy(), obj, "ptr.deref");
+            for (int i = 0; i < objASTType.GetPointerDepth() - 1; ++i) {
+                createCheckForNil(obj, fae->GetStartLoc());
+                obj = _builder.CreateLoad(_builder.getPtrTy(), obj, "ptr.deref");
+            }
+            createCheckForNil(obj, fae->GetStartLoc());
         }
+        else if (objASTType.GetTypeKind() == ASTTypeKind::Struct) {
+            if (!obj->getType()->isPointerTy()) {
+                llvm::AllocaInst *tempAlloca = _builder.CreateAlloca(obj->getType(), nullptr, "struct.tmp");
+                _builder.CreateStore(obj, tempAlloca);
+                obj = tempAlloca;
+            }
+        }
+
         Struct s = _structs.at(resolveStructName(fae->GetObject()));
         Field field = s.Fields.at(fae->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
@@ -732,7 +750,10 @@ namespace marble {
             }
             return nullptr;
         }
-        return _builder.CreateLoad(s.Type->getTypeAtIndex(field.Index), gep, fae->GetName() + ".load");
+        if (createLoad) {
+            return _builder.CreateLoad(s.Type->getTypeAtIndex(field.Index), gep, fae->GetName() + ".load");
+        }
+        return gep;
     }
 
     llvm::Value *

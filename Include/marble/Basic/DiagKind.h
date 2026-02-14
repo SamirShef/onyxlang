@@ -49,5 +49,6 @@ namespace marble {
         ErrDerefFromNonPtr,
         ErrDerefFromNil,
         ErrRefFromRVal,
+        ErrIncompleteType,
     };
 }

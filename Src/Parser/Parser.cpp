@@ -356,11 +356,11 @@ namespace marble {
                 << "{"                  // expected
                 << _curTok.GetText();   // got
         }
+        types.emplace(name, ASTType(ASTTypeKind::Struct, name, false, 0));
         std::vector<Stmt *> body;
         while (!expect(TkRBrace)) {
             body.push_back(ParseStmt());
         }
-        types.emplace(name, ASTType(ASTTypeKind::Struct, name, false, 0));
         return createNode<StructStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 

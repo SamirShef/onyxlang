@@ -1,3 +1,4 @@
+#include <iostream>
 #include <marble/Sema/Semantic.h>
 #include <cmath>
 
@@ -280,6 +281,11 @@ namespace marble {
             }
 
             VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
+            if (!vds->GetType().IsPointer() && vds->GetType().GetVal() == ss->GetName()) {
+                _diag.Report(vds->GetStartLoc(), ErrIncompleteType)
+                    << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
+                    << vds->GetType().GetVal();
+            }
             if (s.Fields.find(vds->GetName()) != s.Fields.end()) {
                 _diag.Report(vds->GetStartLoc(), ErrRedefinitionField)
                     << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
@@ -765,6 +771,7 @@ namespace marble {
                 << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc());
         }
         else {
+            fae->SetObjType(obj->GetType());
             bool objIsThis = false;
             if (fae->GetObject()->GetKind() == NkVarExpr) {
                 VarExpr *ve = llvm::cast<VarExpr>(fae->GetObject());

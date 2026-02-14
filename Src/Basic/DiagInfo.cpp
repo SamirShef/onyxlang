@@ -98,6 +98,8 @@ namespace marble {
                 return ERR("dereferencing from nil value");
             case ErrRefFromRVal:
                 return ERR("getting reference from R-value");
+            case ErrIncompleteType:
+                return ERR("incomplete type `%0` is used");
         }
     }
 }
