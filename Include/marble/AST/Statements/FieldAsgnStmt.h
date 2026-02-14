@@ -2,13 +2,13 @@
 #include <marble/AST/Stmt.h>
 #include <marble/AST/Expr.h>
 #include <marble/Basic/ASTType.h>
-#include <llvm/ADT/StringRef.h>
 
 namespace marble {
     class FieldAsgnStmt : public Stmt {
         Expr *_object;
         std::string _name;
         Expr *_expr;
+        ASTType _objType;
 
     public:
         explicit FieldAsgnStmt(Expr *obj, std::string name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -32,6 +32,16 @@ namespace marble {
         Expr *
         GetExpr() const {
             return _expr;
+        }
+
+        ASTType
+        GetObjType() const {
+            return _objType;
+        }
+
+        void
+        SetObjType(ASTType t) {
+            _objType = t;
         }
     };
 }

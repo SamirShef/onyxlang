@@ -100,9 +100,6 @@ namespace marble {
         if (vds->GetExpr()) {
             initializer = Visit(vds->GetExpr());
             if (isTraitType) {
-                /*type = initializer->getType();
-                structName = resolveStructName(vds->GetExpr());*/
-
                 std::string concreteStruct = resolveStructName(vds->GetExpr());
                 initializer = castToTrait(initializer, type, concreteStruct);
             }
@@ -286,6 +283,7 @@ namespace marble {
 
         _builder.CreateBr(indexatorBB);
         _builder.SetInsertPoint(indexatorBB);
+        _vars.push({});
         if (fls->GetIndexator()) {
             Visit(fls->GetIndexator());
         }
@@ -296,19 +294,18 @@ namespace marble {
 
         _builder.CreateCondBr(cond, bodyBB, exitBB);
         _builder.SetInsertPoint(bodyBB);
-        _vars.push({});
         _loopDeth.push({ exitBB, iterationBB });
         for (auto &stmt : fls->GetBody()) {
             Visit(stmt);
         }
         _loopDeth.pop();
-        _vars.pop();
 
         _builder.CreateBr(iterationBB);
         _builder.SetInsertPoint(iterationBB);
         if (fls->GetIteration()) {
             Visit(fls->GetIteration());
         }
+        _vars.pop();
 
         _builder.CreateBr(condBB);
         _builder.SetInsertPoint(exitBB);
@@ -335,9 +332,26 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
         bool oldLoad = createLoad;
-        createLoad = false;
+        createLoad = fas->GetObjType().IsPointer();
         llvm::Value *obj = Visit(fas->GetObject());
         createLoad = oldLoad;
+
+        ASTType objType = fas->GetObjType();
+        if (objType.IsPointer()) {
+            for (int i = 0; i < objType.GetPointerDepth() - 1; ++i) {
+                createCheckForNil(obj, fas->GetStartLoc());
+                obj = _builder.CreateLoad(_builder.getPtrTy(), obj, "ptr.deref");
+            }
+            createCheckForNil(obj, fas->GetStartLoc());
+        }
+        else if (objType.GetTypeKind() == ASTTypeKind::Struct) {
+            if (!obj->getType()->isPointerTy()) {
+                llvm::AllocaInst *tmp = _builder.CreateAlloca(obj->getType());
+                _builder.CreateStore(obj, tmp);
+                obj = tmp;
+            }
+        }
+
         Struct s = _structs.at(resolveStructName(fas->GetObject()));
         Field field = s.Fields.at(fas->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
@@ -716,13 +730,12 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitFieldAccessExpr(FieldAccessExpr *fae) {
         bool oldLoad = createLoad;
-        createLoad = false;
+        createLoad = fae->GetObjType().IsPointer();
         llvm::Value *obj = Visit(fae->GetObject());
         createLoad = oldLoad;
         
         ASTType objASTType = fae->GetObjType();
         if (objASTType.IsPointer()) {
-            obj = _builder.CreateLoad(_builder.getPtrTy(), obj, "ptr.deref");
             for (int i = 0; i < objASTType.GetPointerDepth() - 1; ++i) {
                 createCheckForNil(obj, fae->GetStartLoc());
                 obj = _builder.CreateLoad(_builder.getPtrTy(), obj, "ptr.deref");
@@ -763,11 +776,25 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitMethodCallExpr(MethodCallExpr *mce) {
         bool oldLoad = createLoad;
-        createLoad = false;
+        createLoad = mce->GetObjType().IsPointer();
         llvm::Value *obj = Visit(mce->GetObject());
         createLoad = oldLoad;
 
         ASTType objType = mce->GetObjType();
+        if (objType.IsPointer()) {
+            for (int i = 0; i < objType.GetPointerDepth() - 1; ++i) {
+                createCheckForNil(obj, mce->GetStartLoc());
+                obj = _builder.CreateLoad(_builder.getPtrTy(), obj, "ptr.deref");
+            }
+            createCheckForNil(obj, mce->GetStartLoc());
+        }
+        else if (objType.GetTypeKind() == ASTTypeKind::Struct) {
+            if (!obj->getType()->isPointerTy()) {
+                llvm::AllocaInst *tmp = _builder.CreateAlloca(obj->getType());
+                _builder.CreateStore(obj, tmp);
+                obj = tmp;
+            }
+        }
         std::string typeName = objType.GetVal();
         if (objType.GetTypeKind() == ASTTypeKind::Trait) {
             llvm::Value *fatPtr = obj;
@@ -859,13 +886,12 @@ namespace marble {
         }
         args[0] = obj;
 
+        const std::vector<ASTType> &paramASTTypes = _funArgsTypes.at(fullName);
         for (int i = 0; i < mce->GetArgs().size(); ++i) {
             llvm::Value *val = Visit(mce->GetArgs()[i]);
             llvm::Type *expectedType = fun->getFunctionType()->getParamType(i + 1);
 
-            if (expectedType->isStructTy() && expectedType->getStructNumElements() == 2 && 
-                !val->getType()->isPointerTy()) {
-
+            if (paramASTTypes[i + 1].GetTypeKind() == ASTTypeKind::Trait) {
                 std::string structName = resolveStructName(mce->GetArgs()[i]);
                 std::string traitName = _funArgsTypes.at(fullName)[i + 1].GetVal();
 

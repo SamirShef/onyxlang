@@ -1,4 +1,3 @@
-#include <iostream>
 #include <marble/Sema/Semantic.h>
 #include <cmath>
 
@@ -316,6 +315,7 @@ namespace marble {
                 << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
         }
         else {
+            fas->SetObjType(obj->GetType());
             bool objIsThis = false;
             if (fas->GetObject()->GetKind() == NkVarExpr) {
                 VarExpr *ve = llvm::cast<VarExpr>(fas->GetObject());
