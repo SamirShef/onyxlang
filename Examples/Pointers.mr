@@ -4,6 +4,7 @@ fun main(argc: i32, argv: **char): i32 { // default cli arguments
     var b: **i32 = &a;
     i = add(a, i);
     echo **b;
+    echo '\n';
     return 0;
 }
 

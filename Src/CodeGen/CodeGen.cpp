@@ -409,7 +409,10 @@ namespace marble {
                 _builder.CreateCall(_module->getFunction("printf"), { fmtStr, selectedStr });
                 return nullptr;
             }
-            else if (bitWidth <= 32) {
+            else if (bitWidth == 8) {
+                format = "%c";
+            }
+            else if (bitWidth == 32) {
                 format = "%d";
             }
             else if (bitWidth == 64) {
@@ -429,7 +432,6 @@ namespace marble {
         else if (type->isPointerTy()) {
             format = "%p";
         }
-        format += "\n";
         _builder.CreateCall(_module->getFunction("printf"), { _builder.CreateGlobalString(format, "printf.format"), val });
         return nullptr;
     }
