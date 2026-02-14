@@ -398,29 +398,31 @@ namespace marble {
         if (type->isIntegerTy()) {
             unsigned bitWidth = type->getIntegerBitWidth();
 
-            if (bitWidth == 1) {
-                llvm::Constant *trueStr = _builder.CreateGlobalStringPtr("true\n", "str.true");
-                llvm::Constant *falseStr = _builder.CreateGlobalStringPtr("false\n", "str.false");
+            switch (bitWidth) {
+                case 1: {
+                    llvm::Constant *trueStr = _builder.CreateGlobalStringPtr("true\n", "str.true");
+                    llvm::Constant *falseStr = _builder.CreateGlobalStringPtr("false\n", "str.false");
 
-                llvm::Value *selectedStr = _builder.CreateSelect(val, trueStr, falseStr, "bool.str");
+                    llvm::Value *selectedStr = _builder.CreateSelect(val, trueStr, falseStr, "bool.str");
 
-                llvm::Constant *fmtStr = _builder.CreateGlobalStringPtr("%s", "printf.format");
+                    llvm::Constant *fmtStr = _builder.CreateGlobalStringPtr("%s", "printf.format");
 
-                _builder.CreateCall(_module->getFunction("printf"), { fmtStr, selectedStr });
-                return nullptr;
-            }
-            else if (bitWidth == 8) {
-                format = "%c";
-            }
-            else if (bitWidth == 32) {
-                format = "%d";
-            }
-            else if (bitWidth == 64) {
-                format = "%lld";
-            }
-            else {
-                val = implicitlyCast(val, _builder.getInt64Ty());
-                format = "%lld";
+                    _builder.CreateCall(_module->getFunction("printf"), { fmtStr, selectedStr });
+                    return nullptr;
+                }
+                case 8:
+                    format = "%c";
+                    break;
+                case 32:
+                    format = "%d";
+                    break;
+                case 64:
+                    format = "%lld";
+                    break;
+                default:
+                    val = implicitlyCast(val, _builder.getInt64Ty());
+                    format = "%lld";
+                    break;
             }
         }
         else if (type->isFloatingPointTy()) {
