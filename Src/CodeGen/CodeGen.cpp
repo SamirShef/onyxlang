@@ -578,6 +578,12 @@ namespace marble {
                     if (auto local = llvm::dyn_cast<llvm::AllocaInst>(varVal)) {
                         return _builder.CreateLoad(local->getAllocatedType(), local, var->first + ".load");
                     }
+                    if (auto arg = llvm::dyn_cast<llvm::Argument>(varVal)) {
+                        if (arg->getName() == "this") {
+                            std::string structName = resolveStructName(ve);
+                            return _builder.CreateLoad(_structs.at(structName).Type, arg, var->first + ".load");
+                        }
+                    }
                 }
                 return varVal;
             }
