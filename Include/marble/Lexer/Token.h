@@ -28,6 +28,8 @@ namespace marble {
         TkTrait,            // keyword `trait`
         TkEcho,             // keyword `echo`
         TkNil,              // keyword `nil`
+        TkNew,              // keyword `new`
+        TkDel,              // keyword `del`
         
         TkBoolLit,          // bool literal
         TkCharLit,          // character literal

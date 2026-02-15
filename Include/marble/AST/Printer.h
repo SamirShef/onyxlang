@@ -48,6 +48,9 @@ namespace marble {
         VisitEchoStmt(EchoStmt *es);
 
         void
+        VisitDelStmt(DelStmt *ds);
+
+        void
         VisitFieldAsgnStmt(FieldAsgnStmt *fas);
 
         void
@@ -82,5 +85,8 @@ namespace marble {
 
         void
         VisitRefExpr(RefExpr *re);
+
+        void
+        VisitNewExpr(NewExpr *ne);
     };
 }

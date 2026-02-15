@@ -176,15 +176,11 @@ namespace marble {
                 }
                 for (unsigned char dd = vas->GetDerefDepth(); dd > 0; --dd, type.Deref());
 
-
-                // NEW
                 if (type.GetTypeKind() == ASTTypeKind::Trait) {
                     std::string concreteStructName = resolveStructName(vas->GetExpr());
                     llvm::Type *traitLLVMTy = llvmType;
                     val = castToTrait(val, traitLLVMTy, concreteStructName);
                 }
-                // NEW
-                
                 
                 ASTType finalType = type;
                 val = implicitlyCast(val, typeToLLVM(finalType));
@@ -453,6 +449,12 @@ namespace marble {
     }
 
     llvm::Value *
+    CodeGen::VisitDelStmt(DelStmt *ds) {
+        // TODO: create logic
+        return nullptr;
+    }
+
+    llvm::Value *
     CodeGen::VisitBinaryExpr(BinaryExpr *be) {
         llvm::Value *lhs = Visit(be->GetLHS());
         llvm::Value *rhs = Visit(be->GetRHS());
@@ -468,11 +470,11 @@ namespace marble {
             intVal = implicitlyCast(intVal, _builder.getInt64Ty());
             bool subtract = be->GetOp().GetKind() == TkMinus;
             if (subtract) {
-                intVal = _builder.CreateNeg(intVal, "neg_offset");
+                intVal = _builder.CreateNeg(intVal, "neg.offset");
             }
             ASTType resultASTType = ASTType::GetCommon(be->GetLHSType(), be->GetRHSType()).Deref();
             llvm::Type *pointeeLLVMTy = typeToLLVM(resultASTType);
-            llvm::Value *gep = _builder.CreateInBoundsGEP(pointeeLLVMTy, ptrVal, {intVal}, "ptr.arith");
+            llvm::Value *gep = _builder.CreateInBoundsGEP(pointeeLLVMTy, ptrVal, { intVal }, "ptr.arith");
             return gep;
         }
         else if (numPointers == 2 && (be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus)) {
@@ -948,6 +950,12 @@ namespace marble {
         llvm::Value *ptr = Visit(re->GetExpr());
         createLoad = oldLoad;
         return ptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitNewExpr(NewExpr *ne) {
+        // TODO: create logic
+        return nullptr;
     }
     
     llvm::Type *

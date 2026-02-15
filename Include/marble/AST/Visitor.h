@@ -39,6 +39,8 @@ namespace marble {
                     return NODE(VisitTraitDeclStmt, TraitDeclStmt);
                 case NkEchoStmt:
                     return NODE(VisitEchoStmt, EchoStmt);
+                case NkDelStmt:
+                    return NODE(VisitDelStmt, DelStmt);
                 
                 case NkBinaryExpr:
                     return NODE(VisitBinaryExpr, BinaryExpr);
@@ -62,6 +64,8 @@ namespace marble {
                     return NODE(VisitDerefExpr, DerefExpr);
                 case NkRefExpr:
                     return NODE(VisitRefExpr, RefExpr);
+                case NkNewExpr:
+                    return NODE(VisitNewExpr, NewExpr);
                 default: {}
             }
             #undef NODE

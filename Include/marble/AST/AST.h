@@ -16,6 +16,7 @@
 #include <marble/AST/Statements/MethodCallStmt.h>
 #include <marble/AST/Statements/TraitDeclStmt.h>
 #include <marble/AST/Statements/EchoStmt.h>
+#include <marble/AST/Statements/DelStmt.h>
 
 #include <marble/AST/Expressions/BinaryExpr.h>
 #include <marble/AST/Expressions/LiteralExpr.h>
@@ -28,3 +29,4 @@
 #include <marble/AST/Expressions/NilExpr.h>
 #include <marble/AST/Expressions/DerefExpr.h>
 #include <marble/AST/Expressions/RefExpr.h>
+#include <marble/AST/Expressions/NewExpr.h>

@@ -276,6 +276,17 @@ namespace marble {
         _spaces = spaces;
         llvm::outs() << ')';
     }
+
+    void
+    ASTPrinter::VisitDelStmt(DelStmt *ds) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(DelStmt: ";
+        int spaces = _spaces;
+        _spaces = 0;
+        Visit(ds->GetExpr());
+        _spaces = spaces;
+        llvm::outs() << ')';
+    }
     
     void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {
@@ -395,5 +406,11 @@ namespace marble {
         Visit(re->GetExpr());
         _spaces = spaces;
         llvm::outs() << ')';
+    }
+
+    void
+    ASTPrinter::VisitNewExpr(NewExpr *ne) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(NewExpr: " << ne->GetType().ToString() << ')';
     }
 }

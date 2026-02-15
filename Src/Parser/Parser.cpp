@@ -110,6 +110,16 @@ namespace marble {
             case TkTrait: {
                 return parseTraitDeclStmt();
             }
+            case TkDel: {
+                Stmt *stmt = parseDelStmt();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return stmt;
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -424,6 +434,14 @@ namespace marble {
         return createNode<TraitDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
+    Stmt *
+    Parser::parseDelStmt() {
+        AccessModifier accessCopy = access;
+        Token firstTok = consume();
+        Expr *expr = parseExpr(PrecLowest);
+        return createNode<DelStmt>(expr, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
     Argument
     Parser::parseArgument() {
         std::string name = _curTok.GetText();
@@ -554,6 +572,11 @@ namespace marble {
                 Token amp = consume();
                 Expr *expr = parsePrefixExpr();
                 return createNode<RefExpr>(expr, amp.GetLoc(), _curTok.GetLoc());
+            }
+            case TkNew: {
+                Token newTok = consume();
+                ASTType type = consumeType();
+                return createNode<NewExpr>(type, newTok.GetLoc(), _curTok.GetLoc());
             }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedExpr)

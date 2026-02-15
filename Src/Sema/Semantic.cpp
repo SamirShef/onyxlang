@@ -561,6 +561,12 @@ namespace marble {
     }
 
     std::optional<ASTVal>
+    SemanticAnalyzer::VisitDelStmt(DelStmt *ds) {
+        // TODO: create logic
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
     SemanticAnalyzer::VisitBinaryExpr(BinaryExpr *be) {
         checkBinaryExpr(be);
         std::optional<ASTVal> lhs = Visit(be->GetLHS());
@@ -898,6 +904,12 @@ namespace marble {
         _diag.Report(re->GetExpr()->GetStartLoc(), ErrRefFromRVal)
             << llvm::SMRange(re->GetStartLoc(), re->GetEndLoc());
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false);
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitNewExpr(NewExpr *ne) {
+        // TODO: create logic
+        return std::nullopt;
     }
 
     llvm::SMRange

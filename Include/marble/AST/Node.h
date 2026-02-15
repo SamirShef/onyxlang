@@ -19,6 +19,7 @@ namespace marble {
         NkMethodCallStmt,
         NkTraitDeclStmt,
         NkEchoStmt,
+        NkDelStmt,
         NkEndStmts,
 
         NkStartExprs,
@@ -31,6 +32,7 @@ namespace marble {
         NkFieldAccessExpr,
         NkMethodCallExpr,
         NkNilExpr,
+        NkNewExpr,
         NkDerefExpr,
         NkRefExpr,
         NkEndExprs,
