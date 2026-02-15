@@ -526,7 +526,7 @@ namespace marble {
             }
             #define LIT(kind, type_val, field, val) \
                 createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, true, 0), \
-                                               ASTValData { .field = (val) }, false), consume().GetLoc(), _curTok.GetLoc())
+                                               ASTValData { .field = (val) }, false, false), consume().GetLoc(), _curTok.GetLoc())
             case TkBoolLit:
                 return LIT(Bool, "bool", boolVal, text == "true");
             case TkCharLit:

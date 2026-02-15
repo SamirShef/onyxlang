@@ -16,9 +16,10 @@ namespace marble {
         ASTType _type;
         ASTValData _data;
         bool _isNil;
+        bool _createdByNew;
 
     public:
-        explicit ASTVal(ASTType type, ASTValData data, bool isNil) : _type(type), _data(data), _isNil(isNil) {}
+        explicit ASTVal(ASTType type, ASTValData data, bool isNil, bool createdByNew) : _type(type), _data(data), _isNil(isNil), _createdByNew(createdByNew) {}
         
         ASTType
         GetType() const {
@@ -33,6 +34,11 @@ namespace marble {
         bool
         IsNil() const {
             return _isNil;
+        }
+
+        bool
+        CreatedByNew() const {
+            return _createdByNew;
         }
 
         std::string

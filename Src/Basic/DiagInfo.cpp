@@ -100,6 +100,12 @@ namespace marble {
                 return ERR("getting reference from R-value");
             case ErrIncompleteType:
                 return ERR("incomplete type `%0` is used");
+            case ErrDelOfNonPtr:
+                return ERR("deleting of a non-ptr value");
+            case ErrDelOfNil:
+                return ERR("deleting of a nil value");
+            case ErrDelOfCreatedNotByNew:
+                return ERR("deleting a value that was not created with new");
         }
     }
 }
