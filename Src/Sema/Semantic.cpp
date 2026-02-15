@@ -562,6 +562,10 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitDelStmt(DelStmt *ds) {
+        if (_vars.size() == 1) {
+            _diag.Report(ds->GetStartLoc(), ErrCannotBeHere)
+                << llvm::SMRange(ds->GetStartLoc(), ds->GetEndLoc());
+        }
         std::optional<ASTVal> val = Visit(ds->GetExpr());
         if (!val->GetType().IsPointer()) {
             _diag.Report(ds->GetStartLoc(), ErrDelOfNonPtr)
