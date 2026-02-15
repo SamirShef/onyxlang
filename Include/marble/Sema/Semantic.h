@@ -112,6 +112,9 @@ namespace marble {
         VisitEchoStmt(EchoStmt *es);
 
         std::optional<ASTVal>
+        VisitDelStmt(DelStmt *ds);
+
+        std::optional<ASTVal>
         VisitBinaryExpr(BinaryExpr *be);
         
         std::optional<ASTVal>
@@ -143,6 +146,9 @@ namespace marble {
 
         std::optional<ASTVal>
         VisitRefExpr(RefExpr *re);
+
+        std::optional<ASTVal>
+        VisitNewExpr(NewExpr *ne);
 
     private:
         llvm::SMRange

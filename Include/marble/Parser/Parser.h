@@ -61,6 +61,9 @@ namespace marble {
         Stmt *
         parseTraitDeclStmt();
 
+        Stmt *
+        parseDelStmt();
+
         Argument
         parseArgument();
         

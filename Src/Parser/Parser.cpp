@@ -110,6 +110,16 @@ namespace marble {
             case TkTrait: {
                 return parseTraitDeclStmt();
             }
+            case TkDel: {
+                Stmt *stmt = parseDelStmt();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return stmt;
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -424,6 +434,14 @@ namespace marble {
         return createNode<TraitDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
+    Stmt *
+    Parser::parseDelStmt() {
+        AccessModifier accessCopy = access;
+        Token firstTok = consume();
+        Expr *expr = parseExpr(PrecLowest);
+        return createNode<DelStmt>(expr, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
     Argument
     Parser::parseArgument() {
         std::string name = _curTok.GetText();
@@ -508,7 +526,7 @@ namespace marble {
             }
             #define LIT(kind, type_val, field, val) \
                 createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, true, 0), \
-                                               ASTValData { .field = (val) }, false), consume().GetLoc(), _curTok.GetLoc())
+                                               ASTValData { .field = (val) }, false, false), consume().GetLoc(), _curTok.GetLoc())
             case TkBoolLit:
                 return LIT(Bool, "bool", boolVal, text == "true");
             case TkCharLit:
@@ -554,6 +572,19 @@ namespace marble {
                 Token amp = consume();
                 Expr *expr = parsePrefixExpr();
                 return createNode<RefExpr>(expr, amp.GetLoc(), _curTok.GetLoc());
+            }
+            case TkNew: {
+                Token newTok = consume();
+                ASTType type;
+                StructExpr *se = nullptr;
+                if (_curTok.GetKind() == TkId && _nextTok.GetKind() == TkLBrace) {
+                    se = llvm::cast<StructExpr>(parsePrefixExpr());
+                    type = ASTType(ASTTypeKind::Struct, se->GetName(), true, 0);
+                }
+                else {
+                    type = consumeType();
+                }
+                return createNode<NewExpr>(type, se, newTok.GetLoc(), _curTok.GetLoc());
             }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedExpr)

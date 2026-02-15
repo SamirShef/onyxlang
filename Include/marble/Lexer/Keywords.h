@@ -28,6 +28,8 @@ namespace marble {
         { "impl", TkImpl },
         { "trait", TkTrait },
         { "echo", TkEcho },
-        { "nil", TkNil }
+        { "nil", TkNil },
+        { "new", TkNew },
+        { "del", TkDel }
     };
 }

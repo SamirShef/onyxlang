@@ -1,0 +1,10 @@
+struct Human {
+    pub var age: i32;
+}
+
+fun main(): i32 {
+    var h: *Human = new Human { age: 16 };
+    echo h.age; echo '\n';
+    del h;
+    return 0;
+}

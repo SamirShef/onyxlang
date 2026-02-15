@@ -50,5 +50,8 @@ namespace marble {
         ErrDerefFromNil,
         ErrRefFromRVal,
         ErrIncompleteType,
+        ErrDelOfNonPtr,
+        ErrDelOfNil,
+        ErrDelOfCreatedNotByNew,
     };
 }

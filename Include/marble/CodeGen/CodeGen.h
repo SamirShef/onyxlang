@@ -109,6 +109,9 @@ namespace marble {
         VisitEchoStmt(EchoStmt *es);
 
         llvm::Value *
+        VisitDelStmt(DelStmt *ds);
+
+        llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);
         
         llvm::Value *
@@ -140,6 +143,9 @@ namespace marble {
 
         llvm::Value *
         VisitRefExpr(RefExpr *re);
+
+        llvm::Value *
+        VisitNewExpr(NewExpr *ne);
 
     private:
         llvm::Type *
