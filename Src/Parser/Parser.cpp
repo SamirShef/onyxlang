@@ -575,8 +575,16 @@ namespace marble {
             }
             case TkNew: {
                 Token newTok = consume();
-                ASTType type = consumeType();
-                return createNode<NewExpr>(type, newTok.GetLoc(), _curTok.GetLoc());
+                ASTType type;
+                StructExpr *se = nullptr;
+                if (_curTok.GetKind() == TkId && _nextTok.GetKind() == TkLBrace) {
+                    se = llvm::cast<StructExpr>(parsePrefixExpr());
+                    type = ASTType(ASTTypeKind::Struct, se->GetName(), true, 0);
+                }
+                else {
+                    type = consumeType();
+                }
+                return createNode<NewExpr>(type, se, newTok.GetLoc(), _curTok.GetLoc());
             }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedExpr)

@@ -113,11 +113,11 @@ namespace marble {
 
     ASTVal
     ASTVal::GetDefaultByType(ASTType type) {
+        #define VAL(field) ASTVal(type, ASTValData { .field = 0 }, false, true)
         if (type.IsPointer()) {
-            return ASTVal(type, ASTValData { .i32Val = 0 }, true, false);
+            return VAL(i32Val);
         }
         switch (type.GetTypeKind()) {
-            #define VAL(field) ASTVal(type, ASTValData { .field = 0 }, false, false)
             case ASTTypeKind::Bool:
                 return VAL(boolVal);
             case ASTTypeKind::Char:
@@ -138,7 +138,7 @@ namespace marble {
                 return VAL(i32Val);
             case ASTTypeKind::Nil:
                 return ASTVal(type, ASTValData { .i32Val = 0 }, true, false);
-            #undef VAL
         }
+        #undef VAL
     }
 }

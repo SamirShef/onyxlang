@@ -573,11 +573,6 @@ namespace marble {
                 << llvm::SMRange(ds->GetStartLoc(), ds->GetEndLoc());
             return std::nullopt;
         }
-        if (!val->CreatedByNew()) {
-            _diag.Report(ds->GetStartLoc(), ErrDelOfCreatedNotByNew)
-                << llvm::SMRange(ds->GetStartLoc(), ds->GetEndLoc());
-            return std::nullopt;
-        }
         return std::nullopt;
     }
 
@@ -923,6 +918,9 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitNewExpr(NewExpr *ne) {
+        if (ne->GetStructExpr()) {
+            VisitStructExpr(ne->GetStructExpr());
+        }
         return ASTVal(ne->GetType().Ref(), ASTValData { .i32Val = 0 }, false, true);
     }
 

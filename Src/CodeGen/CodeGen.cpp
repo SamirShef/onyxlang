@@ -8,8 +8,14 @@ namespace marble {
         llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(_context), { llvm::PointerType::get(_context, 0) }, true);
         llvm::Function *printfFun = llvm::Function::Create(printfType, llvm::GlobalValue::ExternalLinkage, "printf", *_module);
 
-        llvm::FunctionType *abortTy = llvm::FunctionType::get(_builder.getVoidTy(), false);
-        llvm::Function *abortFun = llvm::Function::Create(abortTy, llvm::GlobalValue::ExternalLinkage, "abort", *_module);
+        llvm::FunctionType *abortType = llvm::FunctionType::get(_builder.getVoidTy(), false);
+        llvm::Function *abortFun = llvm::Function::Create(abortType, llvm::GlobalValue::ExternalLinkage, "abort", *_module);
+
+        llvm::FunctionType *mallocType = llvm::FunctionType::get(_builder.getPtrTy(), { _builder.getInt64Ty() }, false);
+        llvm::Function *mallocFun = llvm::Function::Create(mallocType, llvm::GlobalValue::ExternalLinkage, "malloc", *_module);
+
+        llvm::FunctionType *freeType = llvm::FunctionType::get(_builder.getVoidTy(), { _builder.getPtrTy() }, false);
+        llvm::Function *freeFun = llvm::Function::Create(freeType, llvm::GlobalValue::ExternalLinkage, "free", *_module);
 
         for (auto &stmt : ast) {
             if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt)) {
@@ -116,7 +122,12 @@ namespace marble {
                 initializer = llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
             }
             else {
-                initializer = defaultStructConst(vds->GetType());
+                if (vds->GetType().IsPointer()) {
+                    initializer = llvm::ConstantPointerNull::get(_builder.getPtrTy());
+                }
+                else {
+                    initializer = defaultStructConst(vds->GetType());
+                }
             }
         }
         llvm::Value *var;
@@ -450,7 +461,12 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitDelStmt(DelStmt *ds) {
-        // TODO: create logic
+        bool oldLoad = createLoad;
+        createLoad = false;
+        llvm::Value *ptr = Visit(ds->GetExpr());
+        createLoad = oldLoad;
+        _builder.CreateCall(_module->getFunction("free"), { _builder.CreateLoad(_builder.getPtrTy(), ptr) });
+        _builder.CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::get(_context, 0)), ptr);
         return nullptr;
     }
 
@@ -648,7 +664,10 @@ namespace marble {
         llvm::Function *fun = _functions.at(fce->GetName());
         std::vector<llvm::Value *> args(fce->GetArgs().size());
         for (int i = 0; i < fce->GetArgs().size(); ++i) {
+            bool oldLoad = createLoad;
+            createLoad = true;
             llvm::Value *val = Visit(fce->GetArgs()[i]);
+            createLoad = oldLoad;
             llvm::Type *expectedType = fun->getFunctionType()->getParamType(i);
 
             if (expectedType->isStructTy() && expectedType->getStructNumElements() == 2 && 
@@ -698,7 +717,12 @@ namespace marble {
                     llvm::Value *fieldPtr = _builder.CreateStructGEP(s.Type, alloca, field.second.Index, field.second.Name + ".gep");
                     llvm::Value *val;
                     if (field.second.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
-                        val = defaultStructConst(field.second.ASTType);
+                        if (field.second.ASTType.IsPointer()) {
+                            val = llvm::ConstantPointerNull::get(_builder.getPtrTy());
+                        }
+                        else {
+                            val = defaultStructConst(field.second.ASTType);
+                        }
                     }
                     else {
                         val = llvm::Constant::getNullValue(field.second.Type);
@@ -718,7 +742,8 @@ namespace marble {
             for (auto &field : s.Fields) {
                 if (!field.second.ManualInitialized) {
                     if (field.second.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
-                        fields.push_back(llvm::dyn_cast<llvm::Constant>(defaultStructConst(field.second.ASTType)));
+                        fields.push_back(llvm::dyn_cast<llvm::Constant>(field.second.ASTType.IsPointer() ? llvm::ConstantPointerNull::get(_builder.getPtrTy())
+                                                                      : defaultStructConst(field.second.ASTType)));
                     }
                     else {
                         fields.push_back(llvm::Constant::getNullValue(field.second.Type));
@@ -865,9 +890,12 @@ namespace marble {
 
             std::vector<llvm::Value *> args(mce->GetArgs().size() + 1);
             args[0] = thisPtr;
+            oldLoad = createLoad;
+            createLoad = true;
             for (int i = 0; i < mce->GetArgs().size(); ++i) {
                 args[i + 1] = implicitlyCast(Visit(mce->GetArgs()[i]), t.Methods[methodIndex].second.Args[i]);
             }
+            createLoad = oldLoad;
             llvm::FunctionType *method = llvm::FunctionType::get(retType, t.Methods[methodIndex].second.Args, false);
 
             return _builder.CreateCall(method, funRaw, args);
@@ -890,7 +918,10 @@ namespace marble {
 
         const std::vector<ASTType> &paramASTTypes = _funArgsTypes.at(fullName);
         for (int i = 0; i < mce->GetArgs().size(); ++i) {
+            oldLoad = createLoad;
+            createLoad = true;
             llvm::Value *val = Visit(mce->GetArgs()[i]);
+            createLoad = oldLoad;
             llvm::Type *expectedType = fun->getFunctionType()->getParamType(i + 1);
 
             if (paramASTTypes[i + 1].GetTypeKind() == ASTTypeKind::Trait) {
@@ -954,8 +985,13 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitNewExpr(NewExpr *ne) {
-        // TODO: create logic
-        return nullptr;
+        llvm::Value *size = _builder.getInt64(_module->getDataLayout().getTypeAllocSize(typeToLLVM(ne->GetType())));
+        llvm::Value *ptr = _builder.CreateCall(_module->getFunction("malloc"), { size });
+        if (ne->GetStructExpr()) {
+            llvm::Value *se = VisitStructExpr(ne->GetStructExpr());
+            _builder.CreateStore(se, ptr);
+        }
+        return ptr;
     }
     
     llvm::Type *
@@ -1107,7 +1143,8 @@ namespace marble {
             }
             else {
                 if (field.second.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
-                    fields[i] = llvm::dyn_cast<llvm::Constant>(defaultStructConst(field.second.ASTType));
+                    fields[i] = llvm::dyn_cast<llvm::Constant>(field.second.ASTType.IsPointer() ? llvm::ConstantPointerNull::get(_builder.getPtrTy())
+                                                             : defaultStructConst(field.second.ASTType));
                 }
                 else {
                     fields[i] = llvm::Constant::getNullValue(field.second.Type);
