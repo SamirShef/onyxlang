@@ -59,6 +59,9 @@ main(int argc, char **argv) {
         return 0; 
     }
 
+    // TODO: remove next line
+    return 0;
+
     marble::SemanticAnalyzer sema(diag);
     sema.DeclareFunctions(ast);
     for (auto &stmt : ast) {

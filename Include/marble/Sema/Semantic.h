@@ -115,6 +115,12 @@ namespace marble {
         VisitDelStmt(DelStmt *ds);
 
         std::optional<ASTVal>
+        VisitImportStmt(ImportStmt *is);
+
+        std::optional<ASTVal>
+        VisitModuleDeclStmt(ModuleDeclStmt *mds);
+
+        std::optional<ASTVal>
         VisitBinaryExpr(BinaryExpr *be);
         
         std::optional<ASTVal>

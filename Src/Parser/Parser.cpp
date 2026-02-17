@@ -120,6 +120,19 @@ namespace marble {
                 }
                 return stmt;
             }
+            case TkImport: {
+                Stmt *stmt = parseImportStmt();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return stmt;
+            }
+            case TkMod: {
+                return parseModuleDeclStmt();
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -440,6 +453,48 @@ namespace marble {
         Token firstTok = consume();
         Expr *expr = parseExpr(PrecLowest);
         return createNode<DelStmt>(expr, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseImportStmt() {
+        AccessModifier accessCopy = access;
+        Token firstTok = consume();
+        std::string path;
+        bool isLocalImport = false;
+        if (_curTok.GetKind() == TkStrLit) {
+            path = consume().GetText();
+            isLocalImport = true;
+        }
+        else {
+            while (_curTok.GetKind() != TkSemi) {
+                path += _curTok.GetText() == "." ? "/" : _curTok.GetText();
+                consume();
+            }
+        }
+        return createNode<ImportStmt>(path, isLocalImport, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseModuleDeclStmt() {
+        AccessModifier accessCopy = access;
+        Token firstTok = consume();
+        std::string name = _curTok.GetText();
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        if (!expect(TkLBrace)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "{"                  // expected
+                << _curTok.GetText();   // got
+        }
+        std::vector<Stmt *> body;
+        while (!expect(TkRBrace)) {
+            body.push_back(ParseStmt());
+        }
+        return createNode<ModuleDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument

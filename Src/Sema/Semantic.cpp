@@ -581,6 +581,16 @@ namespace marble {
     }
 
     std::optional<ASTVal>
+    SemanticAnalyzer::VisitImportStmt(ImportStmt *is) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitModuleDeclStmt(ModuleDeclStmt *mds) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
     SemanticAnalyzer::VisitBinaryExpr(BinaryExpr *be) {
         checkBinaryExpr(be);
         std::optional<ASTVal> lhs = Visit(be->GetLHS());
