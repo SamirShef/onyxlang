@@ -11,6 +11,27 @@ namespace marble {
     };
 
     void
+    SemanticAnalyzer::Analyze(Module *mod) {
+        if (!mod) {
+            return;
+        }
+
+        _currentMod = mod;
+        discover(mod);
+        for (auto *stmt : mod->AST) {
+            if (stmt->GetKind() == NkImportStmt) {
+                Visit(stmt);
+            }
+        }
+        for (auto *stmt : mod->AST) {
+            if (stmt->GetKind() != NkImportStmt) {
+                Visit(stmt);
+            }
+        }
+    }
+
+    /*
+    void
     SemanticAnalyzer::DeclareFunctions(std::vector<Stmt *> &ast) {
         for (auto &stmt : ast) {
             if (stmt->GetKind() == NkFunDeclStmt) {
@@ -30,7 +51,7 @@ namespace marble {
                 _functions.emplace(fds->GetName(), fun);
             }
         }
-    }
+    }*/
     
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
@@ -46,8 +67,7 @@ namespace marble {
         else {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
-                Struct s = _structs.at(vds->GetType().GetVal());
-                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false, false);
+                val = ASTVal(ASTType(ASTTypeKind::Struct, vds->GetType().GetVal(), false, 0), ASTValData { .i32Val = 0 }, false, false);
             }
             Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
             if (vds->GetExpr()) {
@@ -264,14 +284,14 @@ namespace marble {
             _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
         }
-        if (_structs.find(ss->GetName()) != _structs.end()) {
+        Struct *s = findStruct(ss->GetName());
+        if (s) {
             _diag.Report(ss->GetStartLoc(), ErrRedefinitionStruct)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc())
                 << ss->GetName();
             return std::nullopt;
         }
 
-        Struct s { .Name = ss->GetName(), .Fields = {}, .Methods = {}, .TraitsImplements = {} };
         for (int i = 0; i < ss->GetBody().size(); ++i) {
             if (ss->GetBody()[i]->GetKind() != NkVarDeclStmt) {
                 _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
@@ -285,7 +305,7 @@ namespace marble {
                     << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
                     << vds->GetType().GetVal();
             }
-            if (s.Fields.find(vds->GetName()) != s.Fields.end()) {
+            if (s->Fields.find(vds->GetName()) != s->Fields.end()) {
                 _diag.Report(vds->GetStartLoc(), ErrRedefinitionField)
                     << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
                     << vds->GetName();
@@ -295,10 +315,9 @@ namespace marble {
             if (vds->GetExpr()) {
                 implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
             }
-            s.Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .IsConst = vds->IsConst(), .Access = vds->GetAccess(),
+            s->Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .IsConst = vds->IsConst(), .Access = vds->GetAccess(),
                              .ManualInitialized = false });
         }
-        _structs.emplace(s.Name, s);
 
         return std::nullopt;
     }
@@ -323,13 +342,13 @@ namespace marble {
                     objIsThis = true;
                 }
             }
-            Struct s = _structs.at(obj->GetType().GetVal());
-            auto field = s.Fields.find(fas->GetName());
-            if (field == s.Fields.end()) {
+            Struct *s = findStruct(obj->GetType().GetVal());
+            auto field = s->Fields.find(fas->GetName());
+            if (field == s->Fields.end()) {
                 _diag.Report(fas->GetStartLoc(), ErrUndeclaredField)
                     << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
                     << fas->GetName()
-                    << s.Name;
+                    << s->Name;
             }
             else {
                 if (field->second.Access == AccessPriv && !objIsThis) {
@@ -342,7 +361,7 @@ namespace marble {
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
                     return std::nullopt;
                 }
-                implicitlyCast(Visit(fas->GetExpr()).value(), s.Fields.at(fas->GetName()).Type, fas->GetStartLoc(), fas->GetEndLoc());
+                implicitlyCast(Visit(fas->GetExpr()).value(), s->Fields.at(fas->GetName()).Type, fas->GetStartLoc(), fas->GetEndLoc());
             }
         }
         return std::nullopt;
@@ -354,26 +373,25 @@ namespace marble {
             _diag.Report(is->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc());
         }
-        if (_structs.find(is->GetStructName()) == _structs.end()) {
+        Struct *s = findStruct(is->GetStructName());
+        if (!s) {
             _diag.Report(is->GetStartLoc(), ErrUndeclaredStructure)
                  << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
                  << is->GetStructName();
             return std::nullopt;
         }
-        Struct s = _structs.at(is->GetStructName());
         bool isTraitImpl = !is->GetTraitName().empty();
         const Trait *traitDef = nullptr;
         std::unordered_map<std::string, bool> implementedTraitMethods;
         
         if (isTraitImpl) {
-            auto tIt = _traits.find(is->GetTraitName());
-            if (tIt == _traits.end()) {
+            traitDef = findTrait(is->GetTraitName());
+            if (!traitDef) {
                 _diag.Report(is->GetStartLoc(), ErrUndeclaredTrait)
                     << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
                     << is->GetTraitName();
                 return std::nullopt;
             }
-            traitDef = &tIt->second;
             
             for (auto &method : traitDef->Methods) {
                 implementedTraitMethods[method.first] = !method.second.Fun.IsDeclaration;
@@ -393,7 +411,7 @@ namespace marble {
                     << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc());
                 continue;
             }
-            if (s.Methods.find(method->GetName()) != s.Methods.end()) {
+            if (s->Methods.find(method->GetName()) != s->Methods.end()) {
                 _diag.Report(stmt->GetStartLoc(), ErrRedefinitionMethod)
                     << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc())
                     << method->GetName();
@@ -445,7 +463,7 @@ namespace marble {
             methods.push_back(method);
             Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
                            .IsDeclaration = method->IsDeclaration() };
-            s.Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
+            s->Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
         }
 
         if (isTraitImpl) {
@@ -457,14 +475,12 @@ namespace marble {
                         << traitDef->Name;
                 }
             }
-            s.TraitsImplements.emplace(traitDef->Name, *traitDef);
+            s->TraitsImplements.emplace(traitDef->Name, *traitDef);
         }
-        _structs.at(is->GetStructName()).Methods = s.Methods;
-        _structs.at(is->GetStructName()).TraitsImplements = s.TraitsImplements;
 
         for (auto &method : methods) {
             _vars.push({});
-            ASTType thisType = ASTType(ASTTypeKind::Struct, s.Name, false, 0);
+            ASTType thisType = ASTType(ASTTypeKind::Struct, s->Name, false, 0);
             _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
             for (auto arg : method->GetArgs()) {
                 if (_vars.top().find(arg.GetName()) != _vars.top().end()) {
@@ -520,12 +536,12 @@ namespace marble {
             _diag.Report(tds->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc());
         }
-        if (_traits.find(tds->GetName()) != _traits.end()) {
+        Trait *t = findTrait(tds->GetName());
+        if (t) {
             _diag.Report(tds->GetStartLoc(), ErrRedefinitionTrait)
                 << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc())
                 << tds->GetName();
         }
-        Trait t { .Name = tds->GetName(), .Methods = {} };
         for (auto stmt : tds->GetBody()) {
             if (FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt)) {
                 if (!method->IsDeclaration()) {
@@ -536,14 +552,14 @@ namespace marble {
                 }
                 Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
                                .IsDeclaration = method->IsDeclaration() };
-                t.Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
+                t->Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
             }
             else {
                 _diag.Report(stmt->GetStartLoc(), ErrCannotBeHere)
                     << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc());
             }
         }
-        _traits.emplace(tds->GetName(), t);
+
         return std::nullopt;
     }
 
@@ -736,21 +752,21 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFunCallExpr(FunCallExpr *fce) {
-        if (_functions.find(fce->GetName()) != _functions.end()) {
-            Function fun = _functions.at(fce->GetName());
-            if (fun.Args.size() != fce->GetArgs().size()) {
+        Function *fun = findFunction(fce->GetName());
+        if (!fun) {
+            if (fun->Args.size() != fce->GetArgs().size()) {
                 _diag.Report(fce->GetStartLoc(), ErrFewArgs)
                     << llvm::SMRange(fce->GetStartLoc(), fce->GetEndLoc())
                     << fce->GetName()
-                    << fun.Args.size()
+                    << fun->Args.size()
                     << fce->GetArgs().size();
                 return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
             }
-            for (int i = 0; i < fun.Args.size(); ++i) {
-                implicitlyCast(Visit(fce->GetArgs()[i]).value(), fun.Args[i].GetType(), fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
+            for (int i = 0; i < fun->Args.size(); ++i) {
+                implicitlyCast(Visit(fce->GetArgs()[i]).value(), fun->Args[i].GetType(), fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
             }
-            if (fun.RetType.GetTypeKind() != ASTTypeKind::Noth) {
-                return ASTVal::GetDefaultByType(fun.RetType);
+            if (fun->RetType.GetTypeKind() != ASTTypeKind::Noth) {
+                return ASTVal::GetDefaultByType(fun->RetType);
             }
             return ASTVal::GetDefaultByType(ASTType::GetNothType());
         }
@@ -762,13 +778,14 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitStructExpr(StructExpr *se) {
-        if (_structs.find(se->GetName()) == _structs.end()) {
+        Struct *sDecl = findStruct(se->GetName());
+        if (!sDecl) {
             _diag.Report(se->GetStartLoc(), ErrUndeclaredStructure)
                 << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
                 << se->GetName();
             return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
         }
-        Struct s = _structs.at(se->GetName());
+        Struct s = *sDecl;
         for (int i = 0; i < se->GetInitializer().size(); ++i) {
             std::string name = se->GetInitializer()[i].first;
             if (s.Fields.find(name) != s.Fields.end()) {
@@ -809,13 +826,13 @@ namespace marble {
                     objIsThis = true;
                 }
             }
-            Struct s = _structs.at(obj->GetType().GetVal());
-            auto field = s.Fields.find(fae->GetName());
-            if (field == s.Fields.end()) {
+            Struct *s = findStruct(obj->GetType().GetVal());
+            auto field = s->Fields.find(fae->GetName());
+            if (field == s->Fields.end()) {
                 _diag.Report(fae->GetStartLoc(), ErrUndeclaredField)
                     << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
                     << fae->GetName()
-                    << s.Name;
+                    << s->Name;
             }
             else {
                 if (field->second.Access == AccessPriv && !objIsThis) {
@@ -823,7 +840,7 @@ namespace marble {
                         << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
                         << fae->GetName();
                 }
-                return s.Fields.at(fae->GetName()).Val;
+                return s->Fields.at(fae->GetName()).Val;
             }
         }
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
@@ -849,14 +866,14 @@ namespace marble {
             std::unordered_map<std::string, Method> *methods = nullptr;
             std::string contextName;
             if (obj->GetType().GetTypeKind() == ASTTypeKind::Struct) {
-                Struct &s = _structs.at(obj->GetType().GetVal());
-                methods = &s.Methods;
-                contextName = s.Name;
+                Struct *s = findStruct(obj->GetType().GetVal());
+                methods = &s->Methods;
+                contextName = s->Name;
             }
             else {
-                Trait &t = _traits.at(obj->GetType().GetVal());
-                methods = &t.Methods;
-                contextName = t.Name;
+                Trait *t = findTrait(obj->GetType().GetVal());
+                methods = &t->Methods;
+                contextName = t->Name;
             }
             auto method = methods->find(mce->GetName());
             if (method == methods->end()) {
@@ -936,6 +953,99 @@ namespace marble {
             VisitStructExpr(ne->GetStructExpr());
         }
         return ASTVal(ne->GetType().Ref(), ASTValData { .i32Val = 0 }, false, true);
+    }
+
+    void
+    SemanticAnalyzer::discover(Module *mod) {
+        for (auto &stmt : mod->AST) {
+            switch (stmt->GetKind()) {
+                case NkFunDeclStmt: {
+                    auto *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
+                    mod->Functions[fds->GetName()] = Function { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(),
+                                                                .IsDeclaration = fds->IsDeclaration(), .Access = fds->GetAccess() };
+                    break;
+                }
+                case NkStructStmt: {
+                    auto *ss = llvm::dyn_cast<StructStmt>(stmt);
+                    mod->Structs[ss->GetName()] = Struct { .Name = ss->GetName(), .Fields = {}/* TODO: create logic */, .Methods = {}/* TODO: create logic */,
+                                                           .TraitsImplements = {}, .Access = ss->GetAccess() };
+                    break;
+                }
+                case NkTraitDeclStmt: {
+                    auto *tds = llvm::dyn_cast<TraitDeclStmt>(stmt);
+                    mod->Traits[tds->GetName()] = Trait { .Name = tds->GetName(), .Methods = {}/* TODO: create logic */, .Access = tds->GetAccess() };
+                    break;
+                }
+                case NkImplStmt: {
+                    auto *is = llvm::dyn_cast<ImplStmt>(stmt);
+                    mod->Implementations[is->GetStructName()].push_back(is);
+                    break;
+                }
+            }
+        }
+    }
+
+    Function *
+    SemanticAnalyzer::findFunction(const std::string &name) {
+        if (_currentMod->Functions.count(name)) {
+            return &_currentMod->Functions.at(name);
+        }
+
+        for (auto *imp : _currentMod->Imports) {
+            if (imp->Functions.count(name)) {
+                auto f = imp->Functions.at(name);
+                if (f.Access == AccessPub) {
+                    return &f;
+                }
+                else {
+                    // TODO: create error
+                    break;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    Struct *
+    SemanticAnalyzer::findStruct(const std::string &name) {
+        if (_currentMod->Structs.count(name)) {
+            return &_currentMod->Structs.at(name);
+        }
+
+        for (auto *imp : _currentMod->Imports) {
+            if (imp->Structs.count(name)) {
+                auto s = imp->Structs.at(name);
+                if (s.Access == AccessPub) {
+                    return &s;
+                }
+                else {
+                    // TODO: create error
+                    break;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    Trait *
+    SemanticAnalyzer::findTrait(const std::string &name) {
+        if (_currentMod->Traits.count(name)) {
+            return &_currentMod->Traits.at(name);
+        }
+
+        for (auto *imp : _currentMod->Imports) {
+            if (imp->Traits.count(name)) {
+                auto t = imp->Traits.at(name);
+                if (t.Access == AccessPub) {
+                    return &t;
+                }
+                else {
+                    // TODO: create error
+                    break;
+                }
+            }
+        }
+        return nullptr;
     }
 
     llvm::SMRange
@@ -1037,7 +1147,7 @@ namespace marble {
     }
 
     bool
-    SemanticAnalyzer::canImplicitlyCast(ASTVal src, ASTType expectType) const {
+    SemanticAnalyzer::canImplicitlyCast(ASTVal src, ASTType expectType) {
         if (src.GetType() == expectType) {
             return true;
         }
@@ -1045,8 +1155,8 @@ namespace marble {
             return true;
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
-            Struct s = _structs.at(src.GetType().GetVal());
-            if (s.TraitsImplements.find(expectType.GetVal()) != s.TraitsImplements.end()) {
+            Struct *s = findStruct(src.GetType().GetVal());
+            if (s->TraitsImplements.find(expectType.GetVal()) != s->TraitsImplements.end()) {
                 return true;
             }
         }
@@ -1057,7 +1167,7 @@ namespace marble {
     }
     
     ASTVal
-    SemanticAnalyzer::implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc) const {
+    SemanticAnalyzer::implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc) {
         if (src.GetType() == expectType) {
             return src;
         }
@@ -1065,8 +1175,8 @@ namespace marble {
             return src;
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
-            Struct s = _structs.at(src.GetType().GetVal());
-            if (s.TraitsImplements.find(expectType.GetVal()) != s.TraitsImplements.end()) {
+            Struct *s = findStruct(src.GetType().GetVal());
+            if (s->TraitsImplements.find(expectType.GetVal()) != s->TraitsImplements.end()) {
                 return ASTVal::GetVal(0, expectType);
             }
         }

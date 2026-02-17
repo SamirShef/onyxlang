@@ -20,10 +20,13 @@ namespace marble {
             consume();
         }
 
+        std::vector<Stmt *>
+        ParseAll();
+
+    private:
         Stmt *
         ParseStmt(bool consumeSemi = true);
 
-    private:
         template<typename T, typename ...Args>
         T *
         createNode(Args &&... args);

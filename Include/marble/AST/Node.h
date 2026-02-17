@@ -37,6 +37,7 @@ namespace marble {
         NkNewExpr,
         NkDerefExpr,
         NkRefExpr,
+        NkModuleAccessExpr,
         NkEndExprs,
     };
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/AST.h>
 #include <marble/AST/Visitor.h>
 #include <marble/Basic/DiagnosticEngine.h>
@@ -9,6 +10,8 @@
 namespace marble {
     class SemanticAnalyzer : public ASTVisitor<SemanticAnalyzer, std::optional<ASTVal>> {
         DiagnosticEngine &_diag;
+        ModuleManager &_modManager;
+        Module *_currentMod = nullptr;
         
         struct Variable {
             std::string Name;
@@ -18,6 +21,9 @@ namespace marble {
         };
         std::stack<std::unordered_map<std::string, Variable>> _vars;
 
+        std::stack<ASTType> _funRetsTypes;
+        int _loopDeth = 0;
+        /*
         struct Function {
             std::string Name;
             ASTType RetType;
@@ -26,9 +32,6 @@ namespace marble {
             bool IsDeclaration;
         };
         std::unordered_map<std::string, Function> _functions;
-        std::stack<ASTType> _funRetsTypes;
-
-        int _loopDeth = 0;
 
         struct Field {
             std::string Name;
@@ -57,14 +60,20 @@ namespace marble {
             std::unordered_map<std::string, Trait> TraitsImplements;
         };
         std::unordered_map<std::string, Struct> _structs;
+        */
         
     public:
-        explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {
+        explicit SemanticAnalyzer(DiagnosticEngine &diag, ModuleManager &mm) : _diag(diag), _modManager(mm) {
             _vars.push({});
         }
         
         void
+        Analyze(Module *mod);
+
+        /*
+        void
         DeclareFunctions(std::vector<Stmt *> &ast);
+        */
 
         std::optional<ASTVal>
         VisitVarDeclStmt(VarDeclStmt *vds);
@@ -157,6 +166,18 @@ namespace marble {
         VisitNewExpr(NewExpr *ne);
 
     private:
+        void
+        discover(Module *mod);
+
+        Function *
+        findFunction(const std::string &name);
+        
+        Struct *
+        findStruct(const std::string &name);
+
+        Trait *
+        findTrait(const std::string &name);
+
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;
 
@@ -167,9 +188,9 @@ namespace marble {
         variableExists(std::string name) const;
 
         bool
-        canImplicitlyCast(ASTVal src, ASTType expectType) const;
+        canImplicitlyCast(ASTVal src, ASTType expectType);
         
         ASTVal
-        implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc) const;
+        implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc);
     };
 }

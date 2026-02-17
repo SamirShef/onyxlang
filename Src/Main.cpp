@@ -1,3 +1,4 @@
+#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/Printer.h>
 #include <marble/CodeGen/CodeGen.h>
 #include <marble/Compilation/Compilation.h>
@@ -27,51 +28,33 @@ main(int argc, char **argv) {
     auto bufferOrErr = llvm::MemoryBuffer::getFile(fileName);
     
     if (std::error_code ec = bufferOrErr.getError()) {
-        llvm::errs() << llvm::errs().RED << "Could not open file: " << llvm::errs().RESET << ec.message() << '\n';
+        llvm::errs() << llvm::errs().RED << "Could not open file " << llvm::errs().RESET << '`' << fileName << "`: " << ec.message() << '\n';
         return 1;
     }
     srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
 
     marble::DiagnosticEngine diag(srcMgr);
-    
-    marble::Lexer lex(srcMgr, diag);
-    marble::Parser parser(lex, diag);
-
-    std::vector<marble::Stmt *> ast;
-    while (1) {
-        marble::Stmt *stmt = parser.ParseStmt();
-        if (!stmt) {
-            break;
-        }
-        ast.push_back(stmt);
-    }
-    if (diag.HasErrors()) {
-        return 1;
-    }
-    diag.ResetErrors();
+    marble::ModuleManager modManager(diag);
+    marble::Module *mainMod = modManager.LoadModule(fileName, marble::AccessPriv);
 
     if (marble::EmitAction == marble::EmitAST) {
         marble::ASTPrinter printer;
-        for (auto stmt : ast) {
+        for (auto stmt : mainMod->AST) {
             printer.Visit(stmt);
             llvm::outs() << '\n';
         }
         return 0; 
     }
 
-    // TODO: remove next line
-    return 0;
-
-    marble::SemanticAnalyzer sema(diag);
-    sema.DeclareFunctions(ast);
-    for (auto &stmt : ast) {
-        sema.Visit(stmt);
-    }
+    marble::SemanticAnalyzer sema(diag, modManager);
+    sema.Analyze(mainMod);
     if (diag.HasErrors()) {
         return 1;
     }
     diag.ResetErrors();
 
+    // TODO: uncomment next block
+    /*
     marble::CodeGen codegen(fileName, srcMgr);
     codegen.DeclareFunctionsAndStructures(ast);
     for (auto &stmt : ast) {
@@ -150,5 +133,6 @@ main(int argc, char **argv) {
         llvm::sys::fs::remove(objFile);
     }
     llvm::outs().flush();   // explicitly flushing the buffer
+    */
     return 0;
 }

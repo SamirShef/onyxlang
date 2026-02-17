@@ -6,6 +6,17 @@ static marble::AccessModifier access;
 static std::unordered_map<std::string, marble::ASTType> types;
 
 namespace marble {
+    std::vector<Stmt *>
+    Parser::ParseAll() {
+        std::vector<Stmt *> ast;
+        while (!_curTok.Is(TkEof)) {
+            if (Stmt *s = ParseStmt()) {
+                ast.push_back(s);
+            }
+        }
+        return ast;
+    }
+
     Stmt *
     Parser::ParseStmt(bool consumeSemi) {
         if (_curTok.Is(TkEof)) {
@@ -145,8 +156,7 @@ namespace marble {
     template <typename T, typename ...Args>
     T *
     Parser::createNode(Args &&... args) {
-        void *mem = _allocator.Allocate<T>();
-        return new (mem) T(std::forward<Args>(args)...);
+        return new T(std::forward<Args>(args)...);
     }
 
     Stmt *
