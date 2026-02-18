@@ -11,6 +11,9 @@
 #include <llvm/Support/Path.h>
 #include <llvm/TargetParser/Host.h>
 
+std::unordered_map<std::string, marble::ASTType> types;
+std::string libsPath = "libs/";
+
 int
 main(int argc, char **argv) {
     if (argc < 2) {
@@ -35,7 +38,7 @@ main(int argc, char **argv) {
 
     marble::DiagnosticEngine diag(srcMgr);
     marble::ModuleManager modManager(diag);
-    marble::Module *mainMod = modManager.LoadModule(fileName, marble::AccessPriv);
+    marble::Module *mainMod = modManager.LoadModule(fileName, marble::AccessPriv, srcMgr);
 
     if (marble::EmitAction == marble::EmitAST) {
         marble::ASTPrinter printer;
@@ -46,18 +49,16 @@ main(int argc, char **argv) {
         return 0; 
     }
 
-    marble::SemanticAnalyzer sema(diag, modManager);
+    marble::SemanticAnalyzer sema(diag, srcMgr, libsPath, modManager);
     sema.Analyze(mainMod);
     if (diag.HasErrors()) {
         return 1;
     }
     diag.ResetErrors();
 
-    // TODO: uncomment next block
-    /*
     marble::CodeGen codegen(fileName, srcMgr);
-    codegen.DeclareFunctionsAndStructures(ast);
-    for (auto &stmt : ast) {
+    codegen.DeclareFunctionsAndStructures(mainMod->AST);
+    for (auto &stmt : mainMod->AST) {
         codegen.Visit(stmt);
     }
     if (diag.HasErrors()) {
@@ -133,6 +134,6 @@ main(int argc, char **argv) {
         llvm::sys::fs::remove(objFile);
     }
     llvm::outs().flush();   // explicitly flushing the buffer
-    */
+    
     return 0;
 }

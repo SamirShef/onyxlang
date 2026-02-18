@@ -10,8 +10,10 @@
 namespace marble {
     class SemanticAnalyzer : public ASTVisitor<SemanticAnalyzer, std::optional<ASTVal>> {
         DiagnosticEngine &_diag;
+        llvm::SourceMgr &_srcMgr;
         ModuleManager &_modManager;
         Module *_currentMod = nullptr;
+        const std::string &_libsPath;
         
         struct Variable {
             std::string Name;
@@ -23,57 +25,15 @@ namespace marble {
 
         std::stack<ASTType> _funRetsTypes;
         int _loopDeth = 0;
-        /*
-        struct Function {
-            std::string Name;
-            ASTType RetType;
-            std::vector<Argument> Args;
-            std::vector<Stmt *> Body;
-            bool IsDeclaration;
-        };
-        std::unordered_map<std::string, Function> _functions;
-
-        struct Field {
-            std::string Name;
-            std::optional<ASTVal> Val;
-            ASTType Type;
-            bool IsConst;
-            AccessModifier Access;
-            bool ManualInitialized;
-        };
-        
-        struct Method {
-            Function Fun;
-            AccessModifier Access;
-        };
-
-        struct Trait {
-            std::string Name;
-            std::unordered_map<std::string, Method> Methods;
-        };
-        std::unordered_map<std::string, Trait> _traits;
-
-        struct Struct {
-            std::string Name;
-            std::unordered_map<std::string, Field> Fields;
-            std::unordered_map<std::string, Method> Methods;
-            std::unordered_map<std::string, Trait> TraitsImplements;
-        };
-        std::unordered_map<std::string, Struct> _structs;
-        */
         
     public:
-        explicit SemanticAnalyzer(DiagnosticEngine &diag, ModuleManager &mm) : _diag(diag), _modManager(mm) {
+        explicit SemanticAnalyzer(DiagnosticEngine &diag, llvm::SourceMgr &srcMgr, const std::string &libsPath, ModuleManager &mm)
+                                : _diag(diag), _srcMgr(srcMgr), _libsPath(libsPath), _modManager(mm) {
             _vars.push({});
         }
         
         void
         Analyze(Module *mod);
-
-        /*
-        void
-        DeclareFunctions(std::vector<Stmt *> &ast);
-        */
 
         std::optional<ASTVal>
         VisitVarDeclStmt(VarDeclStmt *vds);

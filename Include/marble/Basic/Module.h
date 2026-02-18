@@ -59,7 +59,7 @@ namespace marble {
             std::unordered_map<std::string, std::vector<ImplStmt *>> Implementations;
             std::unordered_map<std::string, Trait> Traits;
             std::unordered_map<std::string, Module *> SubModules;
-            std::vector<Module *> Imports;
+            std::unordered_map<std::string, Module *> Imports;
             llvm::Module *Mod = nullptr;
 
             Module(std::string name, std::string fullPath, AccessModifier access) : _name(name), _fullPath(fullPath), _access(access) {}

@@ -1,4 +1,5 @@
 #pragma once
+#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/AST.h>
 #include <marble/Basic/DiagnosticEngine.h>
 #include <marble/Lexer/Lexer.h>
@@ -8,14 +9,17 @@ namespace marble {
     class Parser {
         Lexer &_lex;
         DiagnosticEngine &_diag;
+        llvm::SourceMgr &_srcMgr;
+        ModuleManager &_modManager;
         Token _lastTok;
         Token _curTok;
         Token _nextTok;
         llvm::BumpPtrAllocator _allocator;
 
     public:
-        explicit Parser(Lexer &lex, DiagnosticEngine &diag) : _lex(lex), _diag(diag), _lastTok(Token(TkUnknown, "", llvm::SMLoc())),
-                                                              _curTok(Token(TkUnknown, "", llvm::SMLoc())), _nextTok(Token(TkUnknown, "", llvm::SMLoc())) {
+        explicit Parser(Lexer &lex, DiagnosticEngine &diag, llvm::SourceMgr &srcMgr, ModuleManager &mm)
+                      : _lex(lex), _diag(diag), _srcMgr(srcMgr), _modManager(mm), _lastTok(Token(TkUnknown, "", llvm::SMLoc())),
+                        _curTok(Token(TkUnknown, "", llvm::SMLoc())), _nextTok(Token(TkUnknown, "", llvm::SMLoc())) {
             consume();
             consume();
         }

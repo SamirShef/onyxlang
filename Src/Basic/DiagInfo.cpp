@@ -46,6 +46,8 @@ namespace marble {
                 return ERR("redefinition the method `%0`");
             case ErrRedefinitionTrait:
                 return ERR("redefinition the trait `%0`");
+            case ErrRedefinitionModule:
+                return ERR("redefinition the module `%0`");
             case ErrTypeMismatchNotNum:
                 return ERR("expected number, but got `%0`");
             case ErrTypeMismatchNotBool:
@@ -106,6 +108,10 @@ namespace marble {
                 return ERR("deleting of a nil value");
             case ErrDelOfCreatedNotByNew:
                 return ERR("deleting a value that was not created with new");
+            case ErrCannotFindModule:
+                return ERR("cannot be found module `%0`");
+            case ErrMultipleImport:
+                return ERR("multiple import of `%0`");
         }
     }
 }

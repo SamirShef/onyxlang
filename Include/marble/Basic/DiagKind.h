@@ -23,6 +23,7 @@ namespace marble {
         ErrRedefinitionField,
         ErrRedefinitionMethod,
         ErrRedefinitionTrait,
+        ErrRedefinitionModule,
         ErrTypeMismatchNotNum,
         ErrTypeMismatchNotBool,
         ErrCannotCast,
@@ -53,5 +54,7 @@ namespace marble {
         ErrDelOfNonPtr,
         ErrDelOfNil,
         ErrDelOfCreatedNotByNew,
+        ErrCannotFindModule,
+        ErrMultipleImport,
     };
 }

@@ -1,9 +1,12 @@
+#include <iostream>
+#include <llvm/Support/Path.h>
 #include <marble/Parser/Parser.h>
 #include <marble/Parser/Precedence.h>
 
 static marble::AccessModifier access;
 
-static std::unordered_map<std::string, marble::ASTType> types;
+extern std::unordered_map<std::string, marble::ASTType> types;
+extern std::string libsPath;
 
 namespace marble {
     std::vector<Stmt *>
@@ -481,6 +484,31 @@ namespace marble {
                 consume();
             }
         }
+        if (isLocalImport) {
+            unsigned bufferID = _srcMgr.FindBufferContainingLoc(firstTok.GetLoc());
+            if (bufferID == 0) {
+                _diag.Report(firstTok.GetLoc(), ErrCannotFindModule)
+                    << llvm::SMRange(firstTok.GetLoc(), firstTok.GetLoc())
+                    << path;
+                return nullptr;
+            }
+            const llvm::MemoryBuffer *buffer = _srcMgr.getMemoryBuffer(bufferID);
+            if (!buffer) {
+                _diag.Report(firstTok.GetLoc(), ErrCannotFindModule)
+                    << llvm::SMRange(firstTok.GetLoc(), firstTok.GetLoc())
+                    << path;
+                return nullptr;
+            }
+            path = llvm::sys::path::parent_path(buffer->getBufferIdentifier()).str() + path;
+        }
+        else {
+            path = libsPath + path;
+        }
+        auto bufferOrErr = llvm::MemoryBuffer::getFile(path + ".mr");
+        if (std::error_code ec = bufferOrErr.getError()) {
+            path += "/mod";
+        }
+        _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
         return createNode<ImportStmt>(path, isLocalImport, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -744,6 +772,7 @@ namespace marble {
             case TkNoth:
                 return TYPE(Noth, "noth");
             case TkId: {
+                           std::cout << types.size() << '\n';
                 if (types.find(type.GetText()) == types.end()) {
                     _diag.Report(_lastTok.GetLoc(), ErrUndeclaredType)
                         << llvm::SMRange(_lastTok.GetLoc(), _curTok.GetLoc())

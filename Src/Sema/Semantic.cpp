@@ -1,3 +1,4 @@
+#include <llvm/Support/Path.h>
 #include <marble/Sema/Semantic.h>
 #include <cmath>
 
@@ -29,29 +30,6 @@ namespace marble {
             }
         }
     }
-
-    /*
-    void
-    SemanticAnalyzer::DeclareFunctions(std::vector<Stmt *> &ast) {
-        for (auto &stmt : ast) {
-            if (stmt->GetKind() == NkFunDeclStmt) {
-                FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
-                if (fds->IsDeclaration()) {
-                    _diag.Report(fds->GetStartLoc(), ErrCannotDeclareHere)
-                        << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
-                    continue;
-                }
-                if (_functions.find(fds->GetName()) != _functions.end()) {
-                    _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
-                        << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
-                        << fds->GetName();
-                    continue;
-                }
-                Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(), .IsDeclaration = fds->IsDeclaration() };
-                _functions.emplace(fds->GetName(), fun);
-            }
-        }
-    }*/
     
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
@@ -285,7 +263,7 @@ namespace marble {
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
         }
         Struct *s = findStruct(ss->GetName());
-        if (s) {
+        if (!s) {
             _diag.Report(ss->GetStartLoc(), ErrRedefinitionStruct)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc())
                 << ss->GetName();
@@ -537,7 +515,7 @@ namespace marble {
                 << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc());
         }
         Trait *t = findTrait(tds->GetName());
-        if (t) {
+        if (!t) {
             _diag.Report(tds->GetStartLoc(), ErrRedefinitionTrait)
                 << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc())
                 << tds->GetName();
@@ -598,11 +576,75 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitImportStmt(ImportStmt *is) {
+        std::string path = is->GetPath();
+        if (is->IsLocalImport()) {
+            unsigned bufferID = _srcMgr.FindBufferContainingLoc(is->GetStartLoc());
+            if (bufferID == 0) {
+                _diag.Report(is->GetStartLoc(), ErrCannotFindModule)
+                    << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                    << is->GetPath();
+                return std::nullopt;
+            }
+            const llvm::MemoryBuffer *buffer = _srcMgr.getMemoryBuffer(bufferID);
+            if (!buffer) {
+                _diag.Report(is->GetStartLoc(), ErrCannotFindModule)
+                    << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                    << is->GetPath();
+                return std::nullopt;
+            }
+            path = llvm::sys::path::parent_path(buffer->getBufferIdentifier()).str() + path;
+        }
+        else {
+            path = _libsPath + path;
+        }
+        auto bufferOrErr = llvm::MemoryBuffer::getFile(path + ".mr");
+        if (std::error_code ec = bufferOrErr.getError()) {
+            path += "/mod";
+        }
+        Module *mod = _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
+        if (!mod) {
+            _diag.Report(is->GetStartLoc(), ErrCannotFindModule)
+                << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                << is->GetPath();
+            return std::nullopt;
+        }
+        if (_currentMod->Imports.find(is->GetPath()) != _currentMod->Imports.end()) {
+            _diag.Report(is->GetStartLoc(), ErrMultipleImport)
+                << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                << is->GetPath();
+            return std::nullopt;
+        }
+        _currentMod->Imports[is->GetPath()] = mod;
         return std::nullopt;
     }
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitModuleDeclStmt(ModuleDeclStmt *mds) {
+        if (_currentMod->SubModules.find(mds->GetName()) != _currentMod->SubModules.end()) {
+            _diag.Report(mds->GetStartLoc(), ErrRedefinitionModule)
+                << llvm::SMRange(mds->GetStartLoc(), mds->GetEndLoc())
+                << mds->GetName();
+            return std::nullopt;
+        }
+        unsigned bufferID = _srcMgr.FindBufferContainingLoc(mds->GetStartLoc());
+        if (bufferID == 0) {
+            _diag.Report(mds->GetStartLoc(), ErrCannotFindModule)
+                << llvm::SMRange(mds->GetStartLoc(), mds->GetEndLoc())
+                << mds->GetName();
+            return std::nullopt;
+        }
+        const llvm::MemoryBuffer *buffer = _srcMgr.getMemoryBuffer(bufferID);
+        if (!buffer) {
+            _diag.Report(mds->GetStartLoc(), ErrCannotFindModule)
+                << llvm::SMRange(mds->GetStartLoc(), mds->GetEndLoc())
+                << mds->GetName();
+            return std::nullopt;
+        }
+        Module *mod = new Module(mds->GetName(), buffer->getBufferIdentifier().str(), mds->GetAccess());
+        _currentMod->SubModules[mds->GetName()] = mod;
+        for (auto stmt : mod->AST) {
+            Visit(stmt);
+        }
         return std::nullopt;
     }
 
@@ -753,7 +795,7 @@ namespace marble {
     std::optional<ASTVal>
     SemanticAnalyzer::VisitFunCallExpr(FunCallExpr *fce) {
         Function *fun = findFunction(fce->GetName());
-        if (!fun) {
+        if (fun) {
             if (fun->Args.size() != fce->GetArgs().size()) {
                 _diag.Report(fce->GetStartLoc(), ErrFewArgs)
                     << llvm::SMRange(fce->GetStartLoc(), fce->GetEndLoc())
@@ -961,6 +1003,17 @@ namespace marble {
             switch (stmt->GetKind()) {
                 case NkFunDeclStmt: {
                     auto *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
+                    if (fds->IsDeclaration()) {
+                        _diag.Report(fds->GetStartLoc(), ErrCannotDeclareHere)
+                            << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                        continue;
+                    }
+                    if (findFunction(fds->GetName())) {
+                        _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
+                            << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
+                            << fds->GetName();
+                        continue;
+                    }
                     mod->Functions[fds->GetName()] = Function { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(),
                                                                 .IsDeclaration = fds->IsDeclaration(), .Access = fds->GetAccess() };
                     break;
@@ -991,7 +1044,7 @@ namespace marble {
             return &_currentMod->Functions.at(name);
         }
 
-        for (auto *imp : _currentMod->Imports) {
+        for (auto &[_, imp] : _currentMod->Imports) {
             if (imp->Functions.count(name)) {
                 auto f = imp->Functions.at(name);
                 if (f.Access == AccessPub) {
@@ -1012,7 +1065,7 @@ namespace marble {
             return &_currentMod->Structs.at(name);
         }
 
-        for (auto *imp : _currentMod->Imports) {
+        for (auto &[_, imp] : _currentMod->Imports) {
             if (imp->Structs.count(name)) {
                 auto s = imp->Structs.at(name);
                 if (s.Access == AccessPub) {
@@ -1033,7 +1086,7 @@ namespace marble {
             return &_currentMod->Traits.at(name);
         }
 
-        for (auto *imp : _currentMod->Imports) {
+        for (auto &[_, imp] : _currentMod->Imports) {
             if (imp->Traits.count(name)) {
                 auto t = imp->Traits.at(name);
                 if (t.Access == AccessPub) {
