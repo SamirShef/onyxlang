@@ -1,11 +1,13 @@
 #pragma once
-#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/AST.h>
 #include <marble/Basic/DiagnosticEngine.h>
 #include <marble/Lexer/Lexer.h>
 #include <llvm/Support/Allocator.h>
 
 namespace marble {
+    class Module;
+    class ModuleManager;
+
     class Parser {
         Lexer &_lex;
         DiagnosticEngine &_diag;
@@ -97,6 +99,12 @@ namespace marble {
 
         Expr *
         createCompoundAssignmentOp(Token op, Expr *base, Expr *expr);
+
+        void
+        importModuleHandler(std::string path, bool isLocalImport, llvm::SMLoc startLoc);
+
+        void
+        registerTypes(Module *mod);
 
         bool
         expect(TokenKind kind);

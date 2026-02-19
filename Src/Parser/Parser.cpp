@@ -1,11 +1,10 @@
-#include <iostream>
+#include <marble/Basic/ModuleManager.h>
 #include <llvm/Support/Path.h>
 #include <marble/Parser/Parser.h>
 #include <marble/Parser/Precedence.h>
 
 static marble::AccessModifier access;
-
-extern std::unordered_map<std::string, marble::ASTType> types;
+static std::unordered_map<std::string, marble::ASTType> types;
 extern std::string libsPath;
 
 namespace marble {
@@ -484,31 +483,7 @@ namespace marble {
                 consume();
             }
         }
-        if (isLocalImport) {
-            unsigned bufferID = _srcMgr.FindBufferContainingLoc(firstTok.GetLoc());
-            if (bufferID == 0) {
-                _diag.Report(firstTok.GetLoc(), ErrCannotFindModule)
-                    << llvm::SMRange(firstTok.GetLoc(), firstTok.GetLoc())
-                    << path;
-                return nullptr;
-            }
-            const llvm::MemoryBuffer *buffer = _srcMgr.getMemoryBuffer(bufferID);
-            if (!buffer) {
-                _diag.Report(firstTok.GetLoc(), ErrCannotFindModule)
-                    << llvm::SMRange(firstTok.GetLoc(), firstTok.GetLoc())
-                    << path;
-                return nullptr;
-            }
-            path = llvm::sys::path::parent_path(buffer->getBufferIdentifier()).str() + path;
-        }
-        else {
-            path = libsPath + path;
-        }
-        auto bufferOrErr = llvm::MemoryBuffer::getFile(path + ".mr");
-        if (std::error_code ec = bufferOrErr.getError()) {
-            path += "/mod";
-        }
-        _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
+        importModuleHandler(path, isLocalImport, firstTok.GetLoc());
         return createNode<ImportStmt>(path, isLocalImport, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -772,7 +747,6 @@ namespace marble {
             case TkNoth:
                 return TYPE(Noth, "noth");
             case TkId: {
-                           std::cout << types.size() << '\n';
                 if (types.find(type.GetText()) == types.end()) {
                     _diag.Report(_lastTok.GetLoc(), ErrUndeclaredType)
                         << llvm::SMRange(_lastTok.GetLoc(), _curTok.GetLoc())
@@ -811,6 +785,63 @@ namespace marble {
             default:
                 return nullptr;
             #undef OP
+        }
+    }
+
+    void
+    Parser::importModuleHandler(std::string path, bool isLocalImport, llvm::SMLoc startLoc) {
+        if (isLocalImport) {
+            unsigned bufferID = _srcMgr.FindBufferContainingLoc(startLoc);
+            if (bufferID == 0) {
+                _diag.Report(startLoc, ErrCannotFindModule)
+                    << llvm::SMRange(startLoc, _curTok.GetLoc())
+                    << path;
+                return;
+            }
+            const llvm::MemoryBuffer *buffer = _srcMgr.getMemoryBuffer(bufferID);
+            if (!buffer) {
+                _diag.Report(startLoc, ErrCannotFindModule)
+                    << llvm::SMRange(startLoc, _curTok.GetLoc())
+                    << path;
+                return;
+            }
+            path = llvm::sys::path::parent_path(buffer->getBufferIdentifier()).str() + path;
+        }
+        else {
+            path = libsPath + path;
+        }
+        auto bufferOrErr = llvm::MemoryBuffer::getFile(path + ".mr");
+        if (std::error_code ec = bufferOrErr.getError()) {
+            path += "/mod";
+        }
+        Module *mod = _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
+        if (mod) {
+            registerTypes(mod);
+        }
+        else {
+            _diag.Report(startLoc, ErrCannotFindModule)
+                << llvm::SMRange(startLoc, _curTok.GetLoc())
+                << path;
+            return;
+        }
+    }
+
+    void
+    Parser::registerTypes(Module *mod) {
+        if (!mod) {
+            return;
+        }
+        
+        for (auto *stmt : mod->AST) {
+            if (auto *s = llvm::dyn_cast<StructStmt>(stmt)) {
+                types.emplace(s->GetName(), ASTType(ASTTypeKind::Struct, s->GetName(), false, 0));
+            }
+            else if (auto *t = llvm::dyn_cast<TraitDeclStmt>(stmt)) {
+                types.emplace(t->GetName(), ASTType(ASTTypeKind::Trait, t->GetName(), false, 0));
+            }
+            else if (auto *m = llvm::dyn_cast<ModuleDeclStmt>(stmt)) {
+                registerTypes(new Module(m->GetName(), m->GetName(), m->GetAccess()));
+            }
         }
     }
     

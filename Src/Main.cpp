@@ -11,7 +11,6 @@
 #include <llvm/Support/Path.h>
 #include <llvm/TargetParser/Host.h>
 
-std::unordered_map<std::string, marble::ASTType> types;
 std::string libsPath = "libs/";
 
 int

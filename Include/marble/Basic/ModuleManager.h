@@ -26,10 +26,9 @@ namespace marble {
 
             Module *mod = new Module(fullPath, fullPath, access);
             _loadedModules[fullPath] = mod;
-            srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
-            Lexer lex(srcMgr, _diag);
-            ModuleManager mm = *this;
-            Parser parser(lex, _diag, srcMgr, mm);
+            unsigned bufferID = srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
+            Lexer lex(srcMgr, _diag, bufferID);
+            Parser parser(lex, _diag, srcMgr, *this);
             mod->AST = parser.ParseAll();
 
             return mod;
