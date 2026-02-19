@@ -6,6 +6,8 @@
 #include <string>
 #include <unordered_map>
 
+extern llvm::SourceMgr _srcMgr;
+
 namespace marble {
     class ModuleManager {
         std::unordered_map<std::string, Module *> _loadedModules;
@@ -15,7 +17,7 @@ namespace marble {
         ModuleManager(DiagnosticEngine &diag) : _diag(diag) {}
 
         Module *
-        LoadModule(std::string fullPath, AccessModifier access, llvm::SourceMgr &srcMgr) {
+        LoadModule(std::string fullPath, AccessModifier access) {
             if (_loadedModules.find(fullPath) != _loadedModules.end()) {
                 return _loadedModules[fullPath];
             }
@@ -26,9 +28,9 @@ namespace marble {
 
             Module *mod = new Module(fullPath, fullPath, access);
             _loadedModules[fullPath] = mod;
-            unsigned bufferID = srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
-            Lexer lex(srcMgr, _diag, bufferID);
-            Parser parser(lex, _diag, srcMgr, *this);
+            unsigned bufferID = _srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
+            Lexer lex(_diag, bufferID);
+            Parser parser(lex, _diag, *this);
             mod->AST = parser.ParseAll();
 
             return mod;

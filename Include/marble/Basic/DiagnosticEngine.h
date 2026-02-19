@@ -1,13 +1,14 @@
 #pragma once
 #include <marble/Basic/DiagnosticBuilder.h>
 
+extern llvm::SourceMgr _srcMgr;
+
 namespace marble {
     class DiagnosticEngine {
-        llvm::SourceMgr &_srcMgr;
         bool _hasErrors = false;
 
     public:
-        explicit DiagnosticEngine(llvm::SourceMgr &mgr) : _srcMgr(mgr) {}
+        explicit DiagnosticEngine() = default;
 
         DiagnosticBuilder
         Report(llvm::SMLoc loc, DiagKind kind) {

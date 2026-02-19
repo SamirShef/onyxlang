@@ -12,6 +12,7 @@
 #include <llvm/TargetParser/Host.h>
 
 std::string libsPath = "libs/";
+llvm::SourceMgr _srcMgr;
 
 int
 main(int argc, char **argv) {
@@ -26,18 +27,17 @@ main(int argc, char **argv) {
 
     std::string fileName = marble::InputFilename;
 
-    llvm::SourceMgr srcMgr;
     auto bufferOrErr = llvm::MemoryBuffer::getFile(fileName);
     
     if (std::error_code ec = bufferOrErr.getError()) {
         llvm::errs() << llvm::errs().RED << "Could not open file " << llvm::errs().RESET << '`' << fileName << "`: " << ec.message() << '\n';
         return 1;
     }
-    srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
+    _srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
 
-    marble::DiagnosticEngine diag(srcMgr);
+    marble::DiagnosticEngine diag;
     marble::ModuleManager modManager(diag);
-    marble::Module *mainMod = modManager.LoadModule(fileName, marble::AccessPriv, srcMgr);
+    marble::Module *mainMod = modManager.LoadModule(fileName, marble::AccessPriv);
 
     if (marble::EmitAction == marble::EmitAST) {
         marble::ASTPrinter printer;
@@ -48,14 +48,14 @@ main(int argc, char **argv) {
         return 0; 
     }
 
-    marble::SemanticAnalyzer sema(diag, srcMgr, libsPath, modManager);
+    marble::SemanticAnalyzer sema(diag, libsPath, modManager);
     sema.Analyze(mainMod);
     if (diag.HasErrors()) {
         return 1;
     }
     diag.ResetErrors();
 
-    marble::CodeGen codegen(fileName, srcMgr);
+    marble::CodeGen codegen(fileName);
     codegen.DeclareFunctionsAndStructures(mainMod->AST);
     for (auto &stmt : mainMod->AST) {
         codegen.Visit(stmt);

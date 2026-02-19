@@ -10,7 +10,6 @@
 namespace marble {
     class SemanticAnalyzer : public ASTVisitor<SemanticAnalyzer, std::optional<ASTVal>> {
         DiagnosticEngine &_diag;
-        llvm::SourceMgr &_srcMgr;
         ModuleManager &_modManager;
         Module *_currentMod = nullptr;
         const std::string &_libsPath;
@@ -27,8 +26,8 @@ namespace marble {
         int _loopDeth = 0;
         
     public:
-        explicit SemanticAnalyzer(DiagnosticEngine &diag, llvm::SourceMgr &srcMgr, const std::string &libsPath, ModuleManager &mm)
-                                : _diag(diag), _srcMgr(srcMgr), _libsPath(libsPath), _modManager(mm) {
+        explicit SemanticAnalyzer(DiagnosticEngine &diag, const std::string &libsPath, ModuleManager &mm)
+                                : _diag(diag), _libsPath(libsPath), _modManager(mm) {
             _vars.push({});
         }
         
@@ -130,13 +129,13 @@ namespace marble {
         discover(Module *mod);
 
         Function *
-        findFunction(const std::string &name);
+        findFunction(std::string name);
         
         Struct *
-        findStruct(const std::string &name);
+        findStruct(std::string name);
 
         Trait *
-        findTrait(const std::string &name);
+        findTrait(std::string name);
 
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;

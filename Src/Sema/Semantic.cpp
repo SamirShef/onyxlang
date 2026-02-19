@@ -1,6 +1,9 @@
-#include <llvm/Support/Path.h>
+#include <iostream>
 #include <marble/Sema/Semantic.h>
+#include <llvm/Support/Path.h>
 #include <cmath>
+
+extern llvm::SourceMgr _srcMgr;
 
 namespace marble {
     static std::unordered_map<ASTTypeKind, std::vector<ASTTypeKind>> implicitlyCastAllowed {
@@ -601,7 +604,7 @@ namespace marble {
         if (std::error_code ec = bufferOrErr.getError()) {
             path += "/mod";
         }
-        Module *mod = _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
+        Module *mod = _modManager.LoadModule(path + ".mr", AccessPub);
         if (!mod) {
             _diag.Report(is->GetStartLoc(), ErrCannotFindModule)
                 << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
@@ -614,6 +617,7 @@ namespace marble {
                 << is->GetPath();
             return std::nullopt;
         }
+        discover(mod);
         _currentMod->Imports[is->GetPath()] = mod;
         return std::nullopt;
     }
@@ -890,6 +894,8 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitMethodCallExpr(MethodCallExpr *mce) {
+        std::cout << "mce\n";
+        std::cout << mce->GetName() << '\n';
         std::optional<ASTVal> obj = Visit(mce->GetObject());
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct &&
             obj->GetType().GetTypeKind() != ASTTypeKind::Trait) {
@@ -913,6 +919,7 @@ namespace marble {
                 contextName = s->Name;
             }
             else {
+                std::cout << "AWDawd\n";
                 Trait *t = findTrait(obj->GetType().GetVal());
                 methods = &t->Methods;
                 contextName = t->Name;
@@ -1020,7 +1027,7 @@ namespace marble {
                 }
                 case NkStructStmt: {
                     auto *ss = llvm::dyn_cast<StructStmt>(stmt);
-                    mod->Structs[ss->GetName()] = Struct { .Name = ss->GetName(), .Fields = {}/* TODO: create logic */, .Methods = {}/* TODO: create logic */,
+                    mod->Structs[ss->GetName()] = Struct { .Name = ss->GetName(), .Fields = {}/* TODO: create logic */, .Methods = {},
                                                            .TraitsImplements = {}, .Access = ss->GetAccess() };
                     break;
                 }
@@ -1032,6 +1039,16 @@ namespace marble {
                 case NkImplStmt: {
                     auto *is = llvm::dyn_cast<ImplStmt>(stmt);
                     mod->Implementations[is->GetStructName()].push_back(is);
+                    // TODO: create checking of struct to undeclaring
+                    auto &s = mod->Structs.at(is->GetStructName());
+                    for (auto method : is->GetBody()) {
+                        // TODO: create checking of correct statement
+                        FunDeclStmt *fds = llvm::cast<FunDeclStmt>(method);
+                        Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(),
+                                       .IsDeclaration = fds->IsDeclaration(), .Access = fds->GetAccess() };
+                        s.Methods.emplace(fds->GetName(), Method { .Fun = fun, .Access = fds->GetAccess() });
+                        std::cout << s.Name << ' ' << s.Methods.size() << '\n';
+                    }
                     break;
                 }
             }
@@ -1039,7 +1056,7 @@ namespace marble {
     }
 
     Function *
-    SemanticAnalyzer::findFunction(const std::string &name) {
+    SemanticAnalyzer::findFunction(std::string name) {
         if (_currentMod->Functions.count(name)) {
             return &_currentMod->Functions.at(name);
         }
@@ -1048,7 +1065,7 @@ namespace marble {
             if (imp->Functions.count(name)) {
                 auto f = imp->Functions.at(name);
                 if (f.Access == AccessPub) {
-                    return &f;
+                    return &imp->Functions.at(name);
                 }
                 else {
                     // TODO: create error
@@ -1060,28 +1077,32 @@ namespace marble {
     }
 
     Struct *
-    SemanticAnalyzer::findStruct(const std::string &name) {
+    SemanticAnalyzer::findStruct(std::string name) {
+        std::cout << "find struct " << name << '\n';
         if (_currentMod->Structs.count(name)) {
             return &_currentMod->Structs.at(name);
         }
 
         for (auto &[_, imp] : _currentMod->Imports) {
+            std::cout << "import " << _ << ' ' << imp->AST.size() << '\n';
             if (imp->Structs.count(name)) {
                 auto s = imp->Structs.at(name);
                 if (s.Access == AccessPub) {
-                    return &s;
+                    return &imp->Structs.at(name);
                 }
                 else {
                     // TODO: create error
+                    std::cout << "struct " << name << " is private\n";
                     break;
                 }
             }
         }
+        std::cout << "struct " << name << " not found\n";
         return nullptr;
     }
 
     Trait *
-    SemanticAnalyzer::findTrait(const std::string &name) {
+    SemanticAnalyzer::findTrait(std::string name) {
         if (_currentMod->Traits.count(name)) {
             return &_currentMod->Traits.at(name);
         }
@@ -1090,7 +1111,7 @@ namespace marble {
             if (imp->Traits.count(name)) {
                 auto t = imp->Traits.at(name);
                 if (t.Access == AccessPub) {
-                    return &t;
+                    return &imp->Traits.at(name);
                 }
                 else {
                     // TODO: create error
