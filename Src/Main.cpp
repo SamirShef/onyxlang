@@ -55,18 +55,15 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    // TODO: uncomment next line
-    return 0;
-
-    marble::CodeGen codegen(fileName, srcMgr);
-    codegen.DeclareFunctionsAndStructures(mainMod->AST);
+    marble::CodeGen codegen(mainMod, srcMgr);
+    codegen.DeclareMod(mainMod);
     for (auto &stmt : mainMod->AST) {
         codegen.Visit(stmt);
     }
     if (diag.HasErrors()) {
         return 1;
     }
-    std::unique_ptr<llvm::Module> mod = codegen.GetModule();
+    llvm::Module *mod = codegen.GetLLVMModule();
     marble::InitializeLLVMTargets();
     
     std::string tripleStr = llvm::sys::getDefaultTargetTriple();

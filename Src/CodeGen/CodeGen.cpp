@@ -4,20 +4,20 @@ static bool createLoad = true;
 
 namespace marble {
     void
-    CodeGen::DeclareFunctionsAndStructures(std::vector<Stmt *> &ast) {
+    CodeGen::DeclareMod(Module *mod) {
         llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(_context), { llvm::PointerType::get(_context, 0) }, true);
-        llvm::Function *printfFun = llvm::Function::Create(printfType, llvm::GlobalValue::ExternalLinkage, "printf", *_module);
+        llvm::Function *printfFun = llvm::Function::Create(printfType, llvm::GlobalValue::ExternalLinkage, "printf", *GetLLVMModule());
 
         llvm::FunctionType *abortType = llvm::FunctionType::get(_builder.getVoidTy(), false);
-        llvm::Function *abortFun = llvm::Function::Create(abortType, llvm::GlobalValue::ExternalLinkage, "abort", *_module);
+        llvm::Function *abortFun = llvm::Function::Create(abortType, llvm::GlobalValue::ExternalLinkage, "abort", *GetLLVMModule());
 
         llvm::FunctionType *mallocType = llvm::FunctionType::get(_builder.getPtrTy(), { _builder.getInt64Ty() }, false);
-        llvm::Function *mallocFun = llvm::Function::Create(mallocType, llvm::GlobalValue::ExternalLinkage, "malloc", *_module);
+        llvm::Function *mallocFun = llvm::Function::Create(mallocType, llvm::GlobalValue::ExternalLinkage, "malloc", *GetLLVMModule());
 
         llvm::FunctionType *freeType = llvm::FunctionType::get(_builder.getVoidTy(), { _builder.getPtrTy() }, false);
-        llvm::Function *freeFun = llvm::Function::Create(freeType, llvm::GlobalValue::ExternalLinkage, "free", *_module);
+        llvm::Function *freeFun = llvm::Function::Create(freeType, llvm::GlobalValue::ExternalLinkage, "free", *GetLLVMModule());
 
-        for (auto &stmt : ast) {
+        for (auto &stmt : mod->AST) {
             if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt)) {
                 std::vector<llvm::Type *> args(fds->GetArgs().size());
                 std::vector<ASTType> argsAST(fds->GetArgs().size());
@@ -26,7 +26,7 @@ namespace marble {
                     argsAST[i] = fds->GetArgs()[i].GetType();
                 }
                 llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
-                llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName(), *_module);
+                llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName(), *GetLLVMModule());
                 
                 if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
@@ -51,7 +51,7 @@ namespace marble {
                         argsAST[i + 1] = fds->GetArgs()[i].GetType();
                     }
                     llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
-                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, is->GetStructName() + "." + fds->GetName(), *_module);
+                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, is->GetStructName() + "." + fds->GetName(), *GetLLVMModule());
                     
                     if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                         llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
@@ -95,6 +95,12 @@ namespace marble {
                 _traits.emplace(tds->GetName(), t);
             }
         }
+
+        for (auto &[name, submod] : mod->SubModules) {
+            _modulesPath.push_back(name);
+            DeclareMod(submod);
+            _modulesPath.pop_back();
+        }
     }
 
     llvm::Value *
@@ -132,7 +138,7 @@ namespace marble {
         }
         llvm::Value *var;
         if (_vars.size() == 1) {
-            var = new llvm::GlobalVariable(*_module, type, vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer),
+            var = new llvm::GlobalVariable(*GetLLVMModule(), type, vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer),
                                            vds->GetName());
         }
         else {
@@ -205,7 +211,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFunDeclStmt(FunDeclStmt *fds) {
-        llvm::Function *fun = _functions.at(fds->GetName());
+        llvm::Function *fun = getFunction(fds->GetName());
         llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
         _builder.SetInsertPoint(entry);
         _vars.push({});
@@ -373,7 +379,7 @@ namespace marble {
         Struct s = _structs.at(is->GetStructName());
         for (auto &stmt : is->GetBody()) {
             FunDeclStmt *method = llvm::cast<FunDeclStmt>(stmt);
-            llvm::Function *fun = _functions.at((s.Name + "." + method->GetName()));
+            llvm::Function *fun = getFunction((s.Name + "." + method->GetName()));
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
             _builder.SetInsertPoint(entry);
             _vars.push({});
@@ -428,7 +434,7 @@ namespace marble {
 
                     llvm::Constant *fmtStr = _builder.CreateGlobalStringPtr("%s", "printf.format");
 
-                    _builder.CreateCall(_module->getFunction("printf"), { fmtStr, selectedStr });
+                    _builder.CreateCall(GetLLVMModule()->getFunction("printf"), { fmtStr, selectedStr });
                     return nullptr;
                 }
                 case 8:
@@ -455,7 +461,7 @@ namespace marble {
         else if (type->isPointerTy()) {
             format = "%p";
         }
-        _builder.CreateCall(_module->getFunction("printf"), { _builder.CreateGlobalString(format, "printf.format"), val });
+        _builder.CreateCall(GetLLVMModule()->getFunction("printf"), { _builder.CreateGlobalString(format, "printf.format"), val });
         return nullptr;
     }
 
@@ -465,7 +471,7 @@ namespace marble {
         createLoad = false;
         llvm::Value *ptr = Visit(ds->GetExpr());
         createLoad = oldLoad;
-        _builder.CreateCall(_module->getFunction("free"), { _builder.CreateLoad(_builder.getPtrTy(), ptr) });
+        _builder.CreateCall(GetLLVMModule()->getFunction("free"), { _builder.CreateLoad(_builder.getPtrTy(), ptr) });
         _builder.CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::get(_context, 0)), ptr);
         return nullptr;
     }
@@ -509,7 +515,7 @@ namespace marble {
             llvm::Value *leftInt = _builder.CreatePtrToInt(lhs, _builder.getInt64Ty());
             llvm::Value *rightInt = _builder.CreatePtrToInt(rhs, _builder.getInt64Ty());
             llvm::Value *diff = _builder.CreateSub(leftInt, rightInt, "ptr.diff.bytes");
-            const llvm::DataLayout &dl = _module->getDataLayout();
+            const llvm::DataLayout &dl = GetLLVMModule()->getDataLayout();
             uint64_t elemSize = dl.getTypeAllocSize(pointeeLLVMTy);
             if (elemSize > 1) {
                 llvm::Value *sizeVal = _builder.getInt64(elemSize);
@@ -671,7 +677,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFunCallExpr(FunCallExpr *fce) {
-        llvm::Function *fun = _functions.at(fce->GetName());
+        llvm::Function *fun = getFunction(fce->GetName());
         std::vector<llvm::Value *> args(fce->GetArgs().size());
         for (int i = 0; i < fce->GetArgs().size(); ++i) {
             bool oldLoad = createLoad;
@@ -916,7 +922,7 @@ namespace marble {
             return nullptr;
         }
 
-        llvm::Function *fun = _functions.at(fullName);
+        llvm::Function *fun = getFunction(fullName);
         std::vector<llvm::Value *> args(fun->getFunctionType()->getNumParams());
 
         if (!obj->getType()->isPointerTy()) {
@@ -995,8 +1001,8 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitNewExpr(NewExpr *ne) {
-        llvm::Value *size = _builder.getInt64(_module->getDataLayout().getTypeAllocSize(typeToLLVM(ne->GetType())));
-        llvm::Value *ptr = _builder.CreateCall(_module->getFunction("malloc"), { size });
+        llvm::Value *size = _builder.getInt64(GetLLVMModule()->getDataLayout().getTypeAllocSize(typeToLLVM(ne->GetType())));
+        llvm::Value *ptr = _builder.CreateCall(GetLLVMModule()->getFunction("malloc"), { size });
         if (ne->GetStructExpr()) {
             llvm::Value *se = VisitStructExpr(ne->GetStructExpr());
             _builder.CreateStore(se, ptr);
@@ -1212,7 +1218,7 @@ namespace marble {
             }
             case NkFunCallExpr: {
                 std::string name = llvm::dyn_cast<FunCallExpr>(expr)->GetName();
-                llvm::Function *fun = _functions.at(name);
+                llvm::Function *fun = getFunction(name);
                 if (auto *metadata = fun->getMetadata("struct_name")) {
                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
                         return mdStr->getString().str();
@@ -1247,7 +1253,7 @@ namespace marble {
                     return "";
                 }
 
-                llvm::Function *fun = _functions.at(parentStructName + "." + mce->GetName());
+                llvm::Function *fun = getFunction(parentStructName + "." + mce->GetName());
                 if (auto *metadata = fun->getMetadata("struct_name")) {
                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
                         return mdStr->getString().str();
@@ -1265,7 +1271,7 @@ namespace marble {
     CodeGen::createCheckForNil(llvm::Value *ptr, llvm::SMLoc loc) {
         auto [line, col] = _srcMgr.getLineAndColumn(loc);
 
-        std::string msgStr = "Error: Null pointer dereference at " + _module->getSourceFileName() + ":" +
+        std::string msgStr = "Error: Null pointer dereference at " + GetLLVMModule()->getSourceFileName() + ":" +
                              std::to_string(line) + ":" + std::to_string(col) + "!\n";
 
         llvm::BasicBlock *currentBB = _builder.GetInsertBlock();
@@ -1280,15 +1286,15 @@ namespace marble {
         _builder.SetInsertPoint(nullBB);
 
         llvm::Constant *errMsg = llvm::ConstantDataArray::getString(_context, msgStr, true);
-        llvm::GlobalVariable *errMsgGlobal = new llvm::GlobalVariable(*_module, errMsg->getType(), true, llvm::GlobalValue::PrivateLinkage, errMsg, "null_err_msg");
+        llvm::GlobalVariable *errMsgGlobal = new llvm::GlobalVariable(*GetLLVMModule(), errMsg->getType(), true, llvm::GlobalValue::PrivateLinkage, errMsg, "null_err_msg");
         errMsgGlobal->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
         errMsgGlobal->setAlignment(llvm::MaybeAlign(1));
 
         llvm::Value *errMsgPtr = _builder.CreateGEP(errMsgGlobal->getValueType(), errMsgGlobal, { _builder.getInt64(0), _builder.getInt32(0) }, "err_msg_ptr");
 
-        _builder.CreateCall(_module->getFunction("printf"), { errMsgPtr }, "printf_call");
+        _builder.CreateCall(GetLLVMModule()->getFunction("printf"), { errMsgPtr }, "printf_call");
 
-        _builder.CreateCall(_module->getFunction("abort"));
+        _builder.CreateCall(GetLLVMModule()->getFunction("abort"));
         _builder.CreateUnreachable();
 
         _builder.SetInsertPoint(notNullBB);
@@ -1297,7 +1303,7 @@ namespace marble {
     llvm::Value *
     CodeGen::getOrCreateVTable(const std::string &structName, const std::string &traitName) {
         std::string vtableName = "vtable." + structName + ".as." + traitName;
-        if (auto *existingVTable = _module->getNamedGlobal(vtableName)) {
+        if (auto *existingVTable = GetLLVMModule()->getNamedGlobal(vtableName)) {
             return existingVTable;
         }
 
@@ -1308,13 +1314,13 @@ namespace marble {
         int i = 0;
         for (const auto &[methodName, _] : t.Methods) {
             std::string fullMethodName = structName + "." + methodName;
-            llvm::Function *fun = _functions.at(fullMethodName);
+            llvm::Function *fun = getFunction(fullMethodName);
             functions[i] = llvm::ConstantExpr::getBitCast(fun, voidPtrTy);
             ++i;
         }
 
         llvm::ArrayType *vtableArrTy = llvm::ArrayType::get(voidPtrTy, functions.size());
-        llvm::GlobalVariable *vtable = new llvm::GlobalVariable(*_module, vtableArrTy, true, llvm::GlobalValue::InternalLinkage,
+        llvm::GlobalVariable *vtable = new llvm::GlobalVariable(*GetLLVMModule(), vtableArrTy, true, llvm::GlobalValue::InternalLinkage,
                                                                 llvm::ConstantArray::get(vtableArrTy, functions), vtableName);
         return vtable;
     }
@@ -1339,5 +1345,22 @@ namespace marble {
         llvm::Value *vtablePtr = _builder.CreateBitCast(vtable, _builder.getPtrTy());
         fatPtr = _builder.CreateInsertValue(fatPtr, vtablePtr, 1);
         return fatPtr;
+    }
+
+    llvm::Function *
+    CodeGen::getFunction(std::string name) {
+        return GetLLVMModule()->getFunction(name);
+    }
+
+    std::string
+    CodeGen::getMangledName(std::vector<std::string> path, std::string name) {
+        std::string res;
+        for (int i = 0; i < path.size(); ++i) {
+            res += path[i];
+            if (i < path.size() - 1) {
+                res += "#";
+            }
+        }
+        return res + "$" + name;
     }
 }
