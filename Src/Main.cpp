@@ -56,10 +56,9 @@ main(int argc, char **argv) {
     diag.ResetErrors();
 
     marble::CodeGen codegen(mainMod, srcMgr);
+    codegen.DeclareRuntimeFunctions();
     codegen.DeclareMod(mainMod);
-    for (auto &stmt : mainMod->AST) {
-        codegen.Visit(stmt);
-    }
+    codegen.GenerateBodies(mainMod);
     if (diag.HasErrors()) {
         return 1;
     }

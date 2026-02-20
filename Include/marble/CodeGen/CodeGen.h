@@ -22,6 +22,7 @@ namespace marble {
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
 
         std::vector<std::string> _modulesPath;
+        std::unordered_map<std::string, std::string> _nameToMangled;
 
         struct Field {
             std::string Name;
@@ -40,12 +41,14 @@ namespace marble {
 
         struct Trait {
             std::string Name;
+            std::string MangledName;
             std::vector<std::pair<std::string, Method>> Methods; 
         };
         std::unordered_map<std::string, Trait> _traits;
 
         struct Struct {
             std::string Name;
+            std::string MangledName;
             llvm::StructType *Type;
             std::unordered_map<std::string, Field> Fields;
             std::unordered_map<std::string, Trait> TraitsImplements;
@@ -66,6 +69,15 @@ namespace marble {
 
         void
         DeclareMod(Module *mod);
+
+        void
+        DeclareStatements(std::vector<Stmt *> ast);
+
+        void
+        DeclareRuntimeFunctions();
+
+        void
+        GenerateBodies(Module *mod);
 
         llvm::Value *
         VisitVarDeclStmt(VarDeclStmt *vds);
@@ -189,6 +201,9 @@ namespace marble {
         getFunction(std::string name);
 
         std::string
-        getMangledName(std::vector<std::string> path, std::string name);
+        getMangledName(const std::vector<std::string> &path, const std::string &name) const;
+
+        std::string
+        getCurrentMangled(const std::string &name) const;
     };
 }
