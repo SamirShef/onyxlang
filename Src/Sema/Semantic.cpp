@@ -1,4 +1,3 @@
-#include <iostream>
 #include <marble/Sema/Semantic.h>
 #include <llvm/Support/Path.h>
 #include <cmath>
@@ -48,6 +47,24 @@ namespace marble {
                 << vds->GetName();
         }
         else {
+            if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct) {
+                Struct *s = findStruct(vds->GetType().GetVal());
+                if (!s) {
+                    _diag.Report(vds->GetStartLoc(), ErrUndeclaredStructure)
+                         << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
+                         << vds->GetType().GetVal();
+                    return std::nullopt;
+                }
+            }
+            else if (vds->GetType().GetTypeKind() == ASTTypeKind::Trait) {
+                Trait *t = findTrait(vds->GetType().GetVal());
+                if (!t) {
+                    _diag.Report(vds->GetStartLoc(), ErrUndeclaredTrait)
+                         << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
+                         << vds->GetType().GetVal();
+                    return std::nullopt;
+                }
+            }
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
                 val = ASTVal(ASTType(ASTTypeKind::Struct, vds->GetType().GetVal(), false, 0), ASTValData { .i32Val = 0 }, false, false);
@@ -1072,12 +1089,10 @@ namespace marble {
             }
         }
         else {
-            std::cout << "mod\n";
             Module *mod = obj->GetModule();
             if (auto it = mod->Functions.find(mce->GetName()); it != mod->Functions.end()) {
                 Function fun = it->second;
                 if (fun.Args.size() != mce->GetArgs().size()) {
-                    std::cout << "AWDAWd\n";
                     _diag.Report(mce->GetStartLoc(), ErrFewArgs)
                         << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
                         << mce->GetName()
@@ -1091,7 +1106,6 @@ namespace marble {
                 }
                 if (fun.RetType.GetTypeKind() != ASTTypeKind::Noth) {
                     isMemberAccessing = oldMemberAccessing;
-                    std::cout << "AWDAWd\n";
                     return ASTVal::GetDefaultByType(fun.RetType);
                 }
                 isMemberAccessing = oldMemberAccessing;
