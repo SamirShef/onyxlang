@@ -55,6 +55,9 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
+    // TODO: uncomment next line
+    return 0;
+
     marble::CodeGen codegen(mainMod, srcMgr);
     codegen.DeclareRuntimeFunctions();
     codegen.DeclareMod(mainMod);

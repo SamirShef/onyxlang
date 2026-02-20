@@ -78,6 +78,8 @@ namespace marble {
                 return ERR("field `%0` is private");
             case ErrMethodIsPrivate:
                 return ERR("method `%0` is private");
+            case ErrVarIsPrivate:
+                return ERR("variable `%0` is private");
             case ErrFunIsPrivate:
                 return ERR("function `%0` is private");
             case ErrStructIsPrivate:
@@ -118,6 +120,10 @@ namespace marble {
                 return ERR("cannot be found module `%0`");
             case ErrMultipleImport:
                 return ERR("multiple import of `%0`");
+            case ErrDoesNotHaveFunInMod:
+                return ERR("function `%0` does not contains in module `%1`");
+            case ErrDoesNotHaveVarInMod:
+                return ERR("variable `%0` does not contains in module `%1`");
         }
     }
 }

@@ -22,7 +22,6 @@ namespace marble {
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
 
         std::vector<std::string> _modulesPath;
-        std::unordered_map<std::string, std::string> _nameToMangled;
 
         struct Field {
             std::string Name;

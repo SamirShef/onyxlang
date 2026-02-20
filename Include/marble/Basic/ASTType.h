@@ -13,7 +13,8 @@ namespace marble {
         Struct,
         Trait,
         Noth,
-        Nil
+        Nil,
+        Mod,
     };
     
     class ASTType {

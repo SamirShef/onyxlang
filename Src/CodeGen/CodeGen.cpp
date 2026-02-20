@@ -36,9 +36,8 @@ namespace marble {
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
                     fun->setMetadata("struct_name", metadata);
                 }
-                _functions.emplace(fds->GetName(), fun);
-                _funArgsTypes.emplace(fds->GetName(), argsAST);
-                _nameToMangled[fds->GetName()] = mangled;
+                _functions.emplace(mangled, fun);
+                _funArgsTypes.emplace(mangled, argsAST);
             }
             else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
                 Struct &s = _structs.at(is->GetStructName());
@@ -66,9 +65,8 @@ namespace marble {
                     }
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, is->GetStructName()));
                     fun->setMetadata("this_struct_name", metadata);
-                    _functions.emplace(localKey, fun);
-                    _funArgsTypes.emplace(localKey, argsAST);
-                    _nameToMangled[localKey] = mangled;
+                    _functions.emplace(mangled, fun);
+                    _funArgsTypes.emplace(mangled, argsAST);
                 }
             }
             else if (StructStmt *ss = llvm::dyn_cast<StructStmt>(stmt)) {
@@ -77,17 +75,16 @@ namespace marble {
                 std::string mangled = getCurrentMangled(ss->GetName());
                 llvm::StructType *structType = llvm::StructType::create(_context, mangled);
                 Struct s { .Name = ss->GetName(), .MangledName = mangled, .Type = structType, .Fields = fields, .TraitsImplements = {} };
-                _structs.emplace(ss->GetName(), s);
-                _nameToMangled[ss->GetName()] = mangled;
+                _structs.emplace(mangled, s);
                 for (int i = 0; i < fieldsTypes.size(); ++i) {
                     VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
                     fieldsTypes[i] = typeToLLVM(vds->GetType());
                     fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
-                                                           .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false, .Index = i });
+                                                                .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false, .Index = i });
 
                     _structs.at(ss->GetName()).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
-                                                                                      .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
-                                                                                      .Index = i });
+                                                                                              .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
+                                                                                              .Index = i });
                 }
                 structType->setBody(fieldsTypes);
             }
@@ -103,8 +100,7 @@ namespace marble {
                         t.Methods.push_back({ fds->GetName(), Method { .Name = fds->GetName(), .RetType = typeToLLVM(fds->GetRetType()), .Args = args } });
                     }
                 }
-                _traits.emplace(tds->GetName(), t);
-                _nameToMangled[tds->GetName()] = mangled;
+                _traits.emplace(mangled, t);
             }
             else if (ModuleDeclStmt *mds = llvm::dyn_cast<ModuleDeclStmt>(stmt)) {
                 _modulesPath.push_back(mds->GetName());
@@ -1184,7 +1180,7 @@ namespace marble {
                 base = _structs.at(type.GetVal()).Type;
                 break;
             case ASTTypeKind::Trait: {
-                std::string mangled = _nameToMangled.count(type.GetVal()) ? _nameToMangled.at(type.GetVal()) : getCurrentMangled(type.GetVal());
+                std::string mangled = getCurrentMangled(type.GetVal());
                 llvm::StructType *existingType = llvm::StructType::getTypeByName(_context, mangled);
                 if (existingType) {
                     return existingType;
@@ -1403,12 +1399,6 @@ namespace marble {
 
     llvm::Function *
     CodeGen::getFunction(std::string name) {
-        if (auto it = _functions.find(name); it != _functions.end()) {
-            return it->second;
-        }
-        if (auto it = _nameToMangled.find(name); it != _nameToMangled.end()) {
-            return GetLLVMModule()->getFunction(it->second);
-        }
         return GetLLVMModule()->getFunction(getCurrentMangled(name));
     }
 

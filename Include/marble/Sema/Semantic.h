@@ -12,15 +12,10 @@ namespace marble {
         DiagnosticEngine &_diag;
         llvm::SourceMgr &_srcMgr;
         ModuleManager &_modManager;
+        Module *_rootMod = nullptr;
         Module *_currentMod = nullptr;
         const std::string &_libsPath;
         
-        struct Variable {
-            std::string Name;
-            ASTType Type;
-            std::optional<ASTVal> Val;
-            bool IsConst;
-        };
         std::stack<std::unordered_map<std::string, Variable>> _vars;
 
         std::stack<ASTType> _funRetsTypes;
@@ -128,6 +123,9 @@ namespace marble {
     private:
         void
         discover(Module *mod);
+
+        Variable *
+        findVar(std::string name);
 
         Function *
         findFunction(std::string name);

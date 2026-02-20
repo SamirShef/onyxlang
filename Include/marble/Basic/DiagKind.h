@@ -39,6 +39,7 @@ namespace marble {
         ErrAccessFromNonStruct,
         ErrFieldIsPrivate,
         ErrMethodIsPrivate,
+        ErrVarIsPrivate,
         ErrFunIsPrivate,
         ErrStructIsPrivate,
         ErrTraitIsPrivate,
@@ -59,5 +60,7 @@ namespace marble {
         ErrDelOfCreatedNotByNew,
         ErrCannotFindModule,
         ErrMultipleImport,
+        ErrDoesNotHaveFunInMod,
+        ErrDoesNotHaveVarInMod,
     };
 }

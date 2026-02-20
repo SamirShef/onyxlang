@@ -9,6 +9,14 @@
 #include <vector>
 
 namespace marble {
+    struct Variable {
+        std::string Name;
+        ASTType Type;
+        std::optional<ASTVal> Val;
+        bool IsConst;
+        AccessModifier Access;
+    };
+    
     struct Function {
         std::string Name;
         ASTType RetType;
@@ -54,6 +62,7 @@ namespace marble {
 
         public:
             std::vector<Stmt *> AST;
+            std::unordered_map<std::string, Variable> Variables;
             std::unordered_map<std::string, Function> Functions;
             std::unordered_map<std::string, Struct> Structs;
             std::unordered_map<std::string, std::vector<ImplStmt *>> Implementations;
