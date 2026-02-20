@@ -1,3 +1,4 @@
+#include <iostream>
 #include <marble/Sema/Semantic.h>
 #include <llvm/Support/Path.h>
 #include <cmath>
@@ -984,7 +985,21 @@ namespace marble {
                 isMemberAccessing = oldMemberAccessing;
                 return mod;
             }
-            // TODO: create logic of containing variables in modules
+            else if (auto it = mod->Variables.find(fae->GetName()); it != mod->Variables.end()) {
+                if (it->second.Access == AccessPriv && _currentMod != mod) {
+                    _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << fae->GetName();
+                }
+                isMemberAccessing = oldMemberAccessing;
+                return it->second.Val;
+            }
+            else {
+                _diag.Report(fae->GetStartLoc(), ErrDoesNotHaveVarInMod)
+                    << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                    << fae->GetName()
+                    << mod->GetName();
+            }
         }
         isMemberAccessing = oldMemberAccessing;
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
@@ -1057,10 +1072,12 @@ namespace marble {
             }
         }
         else {
+            std::cout << "mod\n";
             Module *mod = obj->GetModule();
             if (auto it = mod->Functions.find(mce->GetName()); it != mod->Functions.end()) {
                 Function fun = it->second;
                 if (fun.Args.size() != mce->GetArgs().size()) {
+                    std::cout << "AWDAWd\n";
                     _diag.Report(mce->GetStartLoc(), ErrFewArgs)
                         << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
                         << mce->GetName()
@@ -1074,6 +1091,7 @@ namespace marble {
                 }
                 if (fun.RetType.GetTypeKind() != ASTTypeKind::Noth) {
                     isMemberAccessing = oldMemberAccessing;
+                    std::cout << "AWDAWd\n";
                     return ASTVal::GetDefaultByType(fun.RetType);
                 }
                 isMemberAccessing = oldMemberAccessing;
@@ -1385,6 +1403,7 @@ namespace marble {
             return &_rootMod->Variables.at(name);
         }
 
+        /*
         for (auto &[_, imp] : _rootMod->Imports) {
             if (imp->Variables.count(name)) {
                 auto v = imp->Variables.at(name);
@@ -1398,6 +1417,7 @@ namespace marble {
                 }
             }
         }
+        */
         return nullptr;
     }
 
@@ -1407,6 +1427,7 @@ namespace marble {
             return &_rootMod->Functions.at(name);
         }
 
+        /*
         for (auto &[_, imp] : _rootMod->Imports) {
             if (imp->Functions.count(name)) {
                 auto f = imp->Functions.at(name);
@@ -1420,6 +1441,7 @@ namespace marble {
                 }
             }
         }
+        */
         return nullptr;
     }
 
@@ -1429,6 +1451,7 @@ namespace marble {
             return &_rootMod->Structs.at(name);
         }
 
+        /*
         for (auto &[_, imp] : _rootMod->Imports) {
             if (imp->Structs.count(name)) {
                 auto s = imp->Structs.at(name);
@@ -1442,6 +1465,7 @@ namespace marble {
                 }
             }
         }
+        */
         return nullptr;
     }
 
@@ -1451,6 +1475,7 @@ namespace marble {
             return &_rootMod->Traits.at(name);
         }
 
+        /*
         for (auto &[_, imp] : _rootMod->Imports) {
             if (imp->Traits.count(name)) {
                 auto t = imp->Traits.at(name);
@@ -1464,6 +1489,7 @@ namespace marble {
                 }
             }
         }
+        */
         return nullptr;
     }
 
