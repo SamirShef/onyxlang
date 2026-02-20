@@ -7,7 +7,6 @@ static marble::AccessModifier access;
 static std::unordered_map<std::string, marble::ASTType> types;
 static llvm::BumpPtrAllocator allocator;
 
-extern llvm::SourceMgr _srcMgr;
 extern std::string libsPath;
 
 namespace marble {
@@ -817,7 +816,7 @@ namespace marble {
         if (std::error_code ec = bufferOrErr.getError()) {
             path += "/mod";
         }
-        Module *mod = _modManager.LoadModule(path + ".mr", AccessPub);
+        Module *mod = _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
         if (mod) {
             registerTypes(mod);
         }
@@ -838,11 +837,13 @@ namespace marble {
         for (auto *stmt : mod->AST) {
             if (auto *s = llvm::dyn_cast<StructStmt>(stmt)) {
                 types.emplace(s->GetName(), ASTType(ASTTypeKind::Struct, s->GetName(), false, 0));
-                mod->Structs[s->GetName()] = Struct { .Name = s->GetName(), .Fields = {}/* TODO: create logic */, .Methods = {}, .TraitsImplements = {}, .Access = s->GetAccess() };
+                mod->Structs[s->GetName()] = Struct { .Name = s->GetName(), .Fields = {}, .Methods = {}, .TraitsImplements = {}, .Access = s->GetAccess() };
+                //                                                          ^^^^^^^^^^^^ fields will be initialized in sema
             }
             else if (auto *t = llvm::dyn_cast<TraitDeclStmt>(stmt)) {
                 types.emplace(t->GetName(), ASTType(ASTTypeKind::Trait, t->GetName(), false, 0));
                 mod->Traits[t->GetName()] = Trait { .Name = t->GetName(), .Methods = {}, .Access = t->GetAccess() };
+                //                                                        ^^^^^^^^^^^^^ methods will be initialized in sema
             }
             else if (auto *m = llvm::dyn_cast<ModuleDeclStmt>(stmt)) {
                 registerTypes(new Module(m->GetName(), m->GetName(), m->GetAccess()));

@@ -6,8 +6,6 @@
 #include <string>
 #include <unordered_map>
 
-extern llvm::SourceMgr _srcMgr;
-
 namespace marble {
     class ModuleManager {
         std::unordered_map<std::string, Module *> _loadedModules;
@@ -17,7 +15,7 @@ namespace marble {
         ModuleManager(DiagnosticEngine &diag) : _diag(diag) {}
 
         Module *
-        LoadModule(std::string fullPath, AccessModifier access) {
+        LoadModule(std::string fullPath, AccessModifier access, llvm::SourceMgr &srcMgr) {
             if (_loadedModules.find(fullPath) != _loadedModules.end()) {
                 return _loadedModules[fullPath];
             }
@@ -28,9 +26,15 @@ namespace marble {
 
             Module *mod = new Module(fullPath, fullPath, access);
             _loadedModules[fullPath] = mod;
-            unsigned bufferID = _srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
-            Lexer lex(_diag, bufferID);
-            Parser parser(lex, _diag, *this);
+
+            std::unique_ptr<llvm::MemoryBuffer> buffer = std::move(*bufferOrErr);
+            const char *bufferStart = buffer->getBufferStart();
+            const char *bufferEnd = buffer->getBufferEnd();
+            unsigned bufferID = srcMgr.AddNewSourceBuffer(std::move(buffer), llvm::SMLoc());
+            llvm::StringRef srcMgrBuffer = srcMgr.getMemoryBuffer(bufferID)->getBuffer();
+            
+            Lexer lex(_diag, srcMgr, bufferID);
+            Parser parser(lex, _diag, srcMgr, *this);
             mod->AST = parser.ParseAll();
 
             return mod;

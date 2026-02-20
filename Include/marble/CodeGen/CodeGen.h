@@ -7,6 +7,7 @@
 
 namespace marble {
     class CodeGen : public ASTVisitor<CodeGen, llvm::Value *> {
+        llvm::SourceMgr &_srcMgr;
         llvm::LLVMContext _context;
         std::unique_ptr<llvm::Module> _module;
         llvm::IRBuilder<> _builder;
@@ -49,7 +50,8 @@ namespace marble {
         std::unordered_map<std::string, Struct> _structs;
 
     public:
-        explicit CodeGen(std::string fileName) : _context(), _builder(_context), _module(std::make_unique<llvm::Module>(fileName, _context)) {
+        explicit CodeGen(std::string fileName, llvm::SourceMgr &srcMgr) : _srcMgr(srcMgr), _context(), _builder(_context),
+                                                                          _module(std::make_unique<llvm::Module>(fileName, _context)) {
             _vars.push({});
         }
 

@@ -2,8 +2,6 @@
 
 static bool createLoad = true;
 
-extern llvm::SourceMgr _srcMgr;
-
 namespace marble {
     void
     CodeGen::DeclareFunctionsAndStructures(std::vector<Stmt *> &ast) {
