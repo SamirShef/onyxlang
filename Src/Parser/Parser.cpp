@@ -560,7 +560,6 @@ namespace marble {
                     }
                     default: {
                         Expr *expr = createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
-                        // TODO: create handling of compound-named struct initializing
                         if (expect(TkDot)) {
                             return parseChainExpr(expr);
                         }

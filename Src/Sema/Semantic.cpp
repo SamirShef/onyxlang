@@ -364,6 +364,13 @@ namespace marble {
                 << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
         }
         std::optional<ASTVal> obj = Visit(fas->GetObject());
+        obj->SetType(resolveType(obj->GetType(), _currentMod));
+        if (obj->GetType().IsUnknown()) {
+            _diag.Report(fas->GetStartLoc(), ErrUndeclaredStructure)
+                << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                << obj->GetType().GetVal();
+            return std::nullopt;
+        }
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct && obj->GetType().GetTypeKind() != ASTTypeKind::Mod) {
             _diag.Report(fas->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
@@ -397,10 +404,18 @@ namespace marble {
                     isMemberAccessing = oldMemberAccessing;
                     return std::nullopt;
                 }
+                field->second.Type = resolveType(field->second.Type, _currentMod);
+                if (field->second.Type.IsUnknown()) {
+                    _diag.Report(fas->GetStartLoc(), ErrUndeclaredStructure)
+                        << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                        << field->second.Type.GetVal();
+                    return std::nullopt;
+                }
                 implicitlyCast(Visit(fas->GetExpr()).value(), s->Fields.at(fas->GetName()).Type, fas->GetStartLoc(), fas->GetEndLoc());
             }
         }
         else {
+            fas->SetObjType(obj->GetType());
             Module *mod = obj->GetModule();
             if (auto it = mod->Variables.find(fas->GetName()); it != mod->Variables.end()) {
                 if (it->second.Access == AccessPriv && _currentMod != mod) {
@@ -412,6 +427,13 @@ namespace marble {
                     _diag.Report(fas->GetStartLoc(), ErrAssignmentConst)
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
                     isMemberAccessing = oldMemberAccessing;
+                    return std::nullopt;
+                }
+                it->second.Type = resolveType(it->second.Type, _currentMod);
+                if (it->second.Type.IsUnknown()) {
+                    _diag.Report(fas->GetStartLoc(), ErrUndeclaredStructure)
+                        << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                        << it->second.Type.GetVal();
                     return std::nullopt;
                 }
                 implicitlyCast(Visit(fas->GetExpr()).value(), it->second.Type, fas->GetStartLoc(), fas->GetEndLoc());
@@ -760,7 +782,6 @@ namespace marble {
             }
             current = current->SubModules[name];
         }
-        _rootMod->Imports[parts.back()] = current;  // accessing by last name from parts
         discover(current);
         return std::nullopt;
     }
@@ -1043,6 +1064,13 @@ namespace marble {
         bool oldMemberAccessing = isMemberAccessing;
         isMemberAccessing = true;
         std::optional<ASTVal> obj = Visit(fae->GetObject());
+        obj->SetType(resolveType(obj->GetType(), _currentMod));
+        if (obj->GetType().IsUnknown()) {
+            _diag.Report(fae->GetStartLoc(), ErrUndeclaredStructure)
+                << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                << obj->GetType().GetVal();
+            return std::nullopt;
+        }
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct && obj->GetType().GetTypeKind() != ASTTypeKind::Mod) {
             _diag.Report(fae->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc());
@@ -1071,10 +1099,19 @@ namespace marble {
                         << fae->GetName();
                 }
                 isMemberAccessing = oldMemberAccessing;
+                field->second.Type = resolveType(field->second.Type, _currentMod);
+                field->second.Val->SetType(resolveType(field->second.Val->GetType(), _currentMod));
+                if (field->second.Type.IsUnknown() || field->second.Val->GetType().IsUnknown()) {
+                    _diag.Report(fae->GetStartLoc(), ErrUndeclaredStructure)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << field->second.Type.GetVal();
+                    return std::nullopt;
+                }
                 return s->Fields.at(fae->GetName()).Val;
             }
         }
         else {
+            fae->SetObjType(obj->GetType());
             Module *mod = obj->GetModule();
             if (auto it = mod->SubModules.find(fae->GetName()); it != mod->SubModules.end()) {
                 ASTVal mod = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
@@ -1095,6 +1132,13 @@ namespace marble {
                         << fae->GetName();
                 }
                 isMemberAccessing = oldMemberAccessing;
+                it->second.Type = resolveType(it->second.Type, _currentMod);
+                if (it->second.Type.IsUnknown()) {
+                    _diag.Report(fae->GetStartLoc(), ErrUndeclaredStructure)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << it->second.Type.GetVal();
+                    return std::nullopt;
+                }
                 return it->second.Val;
             }
             else {
@@ -1175,6 +1219,7 @@ namespace marble {
             }
         }
         else {
+            mce->SetObjType(obj->GetType());
             Module *mod = obj->GetModule();
             if (auto it = mod->Functions.find(mce->GetName()); it != mod->Functions.end()) {
                 Function fun = it->second;
@@ -1249,6 +1294,13 @@ namespace marble {
         if (ne->GetStructExpr()) {
             VisitStructExpr(ne->GetStructExpr());
         }
+        ne->SetType(resolveType(ne->GetType(), _currentMod));
+        if (ne->GetType().IsUnknown()) {
+            _diag.Report(ne->GetStartLoc(), ErrUndeclaredStructure)
+                << llvm::SMRange(ne->GetStartLoc(), ne->GetEndLoc())
+                << ne->GetType().GetVal();
+            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
+        }
         return ASTVal(ne->GetType().Ref(), ASTValData { .i32Val = 0 }, false, true);
     }
 
@@ -1261,6 +1313,7 @@ namespace marble {
         switch (stmt->GetKind()) {
             case NkVarDeclStmt: {
                 auto *vds = llvm::dyn_cast<VarDeclStmt>(stmt);
+                
                 vds->SetType(resolveType(vds->GetType(), mod));
                 if (vds->GetType().IsUnknown()) {
                     _diag.Report(vds->GetStartLoc(), ErrUndeclaredStructure)
@@ -1335,6 +1388,9 @@ namespace marble {
     
     void
     SemanticAnalyzer::discover(Module *mod) {
+        Module *oldMod = _currentMod;
+        _currentMod = mod;
+
         for (auto &stmt : mod->AST) {
             switch (stmt->GetKind()) {
                 case NkVarDeclStmt: {
@@ -1467,7 +1523,7 @@ namespace marble {
                                 continue;
                             }
                             FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
-                            method->SetRetType(resolveType(method->GetRetType(), _currentMod));
+                            method->SetRetType(resolveType(method->GetRetType(), mod));
                             if (method->GetRetType().IsUnknown()) {
                                 _diag.Report(method->GetStartLoc(), ErrUndeclaredStructure)
                                     << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
@@ -1496,7 +1552,7 @@ namespace marble {
                                 }
 
                                 Function traitFun = tMethodIt->second.Fun;
-                                traitFun.RetType = resolveType(traitFun.RetType, _currentMod);
+                                traitFun.RetType = resolveType(traitFun.RetType, mod);
                                 if (traitFun.RetType.IsUnknown()) {
                                     _diag.Report(method->GetStartLoc(), ErrUndeclaredStructure)
                                         << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
@@ -1521,7 +1577,7 @@ namespace marble {
                                 }
                                 else {
                                     for (int i = 0; i < method->GetArgs().size(); ++i) {
-                                        method->GetArgs()[i].SetType(resolveType(method->GetArgs()[i].GetType(), _currentMod));
+                                        method->GetArgs()[i].SetType(resolveType(method->GetArgs()[i].GetType(), mod));
                                         if (method->GetRetType().IsUnknown()) {
                                             _diag.Report(method->GetStartLoc(), ErrUndeclaredStructure)
                                                 << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
@@ -1602,36 +1658,38 @@ namespace marble {
                 resolveTypeInStatement(stmt, mod);
             }
         }
+
+        _currentMod = oldMod;
     }
 
     Variable *
     SemanticAnalyzer::findVar(std::string name) {
-        if (_rootMod->Variables.count(name)) {
-            return &_rootMod->Variables.at(name);
+        if (_currentMod->Variables.count(name)) {
+            return &_currentMod->Variables.at(name);
         }
         return nullptr;
     }
 
     Function *
     SemanticAnalyzer::findFunction(std::string name) {
-        if (_rootMod->Functions.count(name)) {
-            return &_rootMod->Functions.at(name);
+        if (_currentMod->Functions.count(name)) {
+            return &_currentMod->Functions.at(name);
         }
         return nullptr;
     }
 
     Struct *
     SemanticAnalyzer::findStruct(std::string name) {
-        if (_rootMod->Structs.count(name)) {
-            return &_rootMod->Structs.at(name);
+        if (_currentMod->Structs.count(name)) {
+            return &_currentMod->Structs.at(name);
         }
         return nullptr;
     }
 
     Trait *
     SemanticAnalyzer::findTrait(std::string name) {
-        if (_rootMod->Traits.count(name)) {
-            return &_rootMod->Traits.at(name);
+        if (_currentMod->Traits.count(name)) {
+            return &_currentMod->Traits.at(name);
         }
         return nullptr;
     }
@@ -1802,8 +1860,24 @@ namespace marble {
             contextMod = _currentMod ? _currentMod : _rootMod;
         }
 
+        if (auto it = contextMod->Structs.find(path); it != contextMod->Structs.end()) {
+            return &it->second;
+        }
+
         auto parts = splitPath(path);
         if (parts.empty()) {
+            return nullptr;
+        }
+
+        if (parts.size() == 1) {
+            for (const auto &[_, imported] : contextMod->Imports) {
+                if (auto it = imported->Structs.find(parts[0]); it != imported->Structs.end()) {
+                    return &it->second;
+                }
+            }
+            if (auto it = contextMod->Structs.find(parts[0]); it != contextMod->Structs.end()) {
+                return &it->second;
+            }
             return nullptr;
         }
 
@@ -1846,8 +1920,24 @@ namespace marble {
             contextMod = _currentMod ? _currentMod : _rootMod;
         }
 
+        if (auto it = contextMod->Traits.find(path); it != contextMod->Traits.end()) {
+            return &it->second;
+        }
+
         auto parts = splitPath(path);
         if (parts.empty()) {
+            return nullptr;
+        }
+
+        if (parts.size() == 1) {
+            for (const auto &[_, imported] : contextMod->Imports) {
+                if (auto it = imported->Traits.find(parts[0]); it != imported->Traits.end()) {
+                    return &it->second;
+                }
+            }
+            if (auto it = contextMod->Traits.find(parts[0]); it != contextMod->Traits.end()) {
+                return &it->second;
+            }
             return nullptr;
         }
 

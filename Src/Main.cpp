@@ -11,7 +11,7 @@
 #include <llvm/Support/Path.h>
 #include <llvm/TargetParser/Host.h>
 
-std::string libsPath = "libs/"; // TODO: change path to real libs path
+std::string libsPath = "Libs/";
 
 int
 main(int argc, char **argv) {
@@ -59,16 +59,11 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    // TODO: delete next line
-    return 0;
-
     marble::CodeGen codegen(mainMod, srcMgr);
     codegen.DeclareRuntimeFunctions();
     codegen.DeclareMod(mainMod);
     codegen.GenerateBodies(mainMod);
-    if (diag.HasErrors()) {
-        return 1;
-    }
+
     llvm::Module *mod = codegen.GetLLVMModule();
     marble::InitializeLLVMTargets();
     

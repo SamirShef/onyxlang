@@ -22,6 +22,7 @@ namespace marble {
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
 
         std::vector<std::string> _modulesPath;
+        Module *_currentMod = nullptr;
 
         struct Field {
             std::string Name;
@@ -204,5 +205,17 @@ namespace marble {
 
         std::string
         getCurrentMangled(const std::string &name) const;
+
+        std::vector<std::string>
+        splitPath(const std::string &path);
+
+        std::string
+        getMangledForPath(const std::string &path);
+
+        std::string
+        getModulePathFromExpr(Expr *expr);
+
+        std::string
+        resolveFullTypeName(const ASTType& type);
     };
 }

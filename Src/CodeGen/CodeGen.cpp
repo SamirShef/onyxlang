@@ -1,11 +1,15 @@
 #include <marble/CodeGen/CodeGen.h>
+#include <sstream>
 
 static bool createLoad = true;
 
 namespace marble {
     void
     CodeGen::DeclareMod(Module *mod) {
-        for (auto &[importName, importedMod] : mod->Imports) {
+        Module* oldMod = _currentMod;
+        _currentMod = mod;
+        
+        for (auto &[_, importedMod] : mod->Imports) {
             DeclareMod(importedMod);
         }
 
@@ -16,6 +20,8 @@ namespace marble {
             DeclareMod(submod);
             _modulesPath.pop_back();
         }
+
+        _currentMod = oldMod;
     }
 
     void
@@ -40,7 +46,7 @@ namespace marble {
                 _funArgsTypes.emplace(mangled, argsAST);
             }
             else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
-                Struct &s = _structs.at(is->GetStructName());
+                Struct &s = _structs.at(resolveFullTypeName(ASTType(ASTTypeKind::Struct, is->GetStructName(), false, 0)));
                 if (!is->GetTraitName().empty()) {
                     s.TraitsImplements.emplace(is->GetTraitName(), _traits.at(is->GetTraitName()));
                 }
@@ -131,19 +137,22 @@ namespace marble {
             return;
         }
 
-        for (auto &[name, importedMod] : mod->Imports) {
+        Module* oldMod = _currentMod;
+        _currentMod = mod;
+
+        for (auto &[_, importedMod] : mod->Imports) {
             GenerateBodies(importedMod);
         }
-
         for (auto *stmt : mod->AST) {
             Visit(stmt);
         }
-
         for (auto &[name, submod] : mod->SubModules) {
             _modulesPath.push_back(name);
             GenerateBodies(submod);
             _modulesPath.pop_back();
         }
+
+        _currentMod = oldMod;
     }
 
     llvm::Value *
@@ -394,6 +403,20 @@ namespace marble {
         createLoad = oldLoad;
 
         ASTType objType = fas->GetObjType();
+        if (objType.GetTypeKind() == ASTTypeKind::Mod) {
+            std::string mangled = getCurrentMangled(fas->GetName());
+            llvm::GlobalVariable *gv = GetLLVMModule()->getGlobalVariable(mangled);
+
+            if (!gv) {
+                return nullptr;
+            }
+
+            llvm::Value *val = Visit(fas->GetExpr());
+            val = implicitlyCast(val, gv->getValueType());
+            _builder.CreateStore(val, gv);
+            return nullptr;
+        }
+        
         if (objType.IsPointer()) {
             for (int i = 0; i < objType.GetPointerDepth() - 1; ++i) {
                 createCheckForNil(obj, fas->GetStartLoc());
@@ -409,7 +432,7 @@ namespace marble {
             }
         }
 
-        Struct s = _structs.at(resolveStructName(fas->GetObject()));
+        Struct s = _structs.at(resolveFullTypeName(fas->GetObjType()));
         Field field = s.Fields.at(fas->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
         llvm::Value *val = Visit(fas->GetExpr());
@@ -670,6 +693,18 @@ namespace marble {
     
     llvm::Value *
     CodeGen::VisitVarExpr(VarExpr *ve) {
+        if (ve->GetName() == "self" || ve->GetName() == "parent") {
+            if (_currentMod && _currentMod->Variables.count(ve->GetName())) {
+                std::string mangled = getCurrentMangled(ve->GetName());
+                if (auto *gv = GetLLVMModule()->getGlobalVariable(mangled)) {
+                    if (createLoad) {
+                        return _builder.CreateLoad(gv->getValueType(), gv, ve->GetName() + ".load");
+                    }
+                    return gv;
+                }
+            }
+        }
+        
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName()); var != varsCopy.top().end()) {
@@ -766,7 +801,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitStructExpr(StructExpr *se) {
-        Struct s = _structs.at(se->GetName());
+        Struct s = _structs.at(resolveFullTypeName(ASTType(ASTTypeKind::Struct, se->GetName(), false, 0)));
         if (_vars.size() != 1) {
             llvm::AllocaInst *alloca = _builder.CreateAlloca(s.Type, nullptr, s.Name + ".alloca");
             for (int i = 0; i < se->GetInitializer().size(); ++i) {
@@ -825,8 +860,47 @@ namespace marble {
         createLoad = fae->GetObjType().IsPointer();
         llvm::Value *obj = Visit(fae->GetObject());
         createLoad = oldLoad;
+
+        std::string baseName;
+        if (auto *ve = llvm::dyn_cast<VarExpr>(fae->GetObject())) {
+            if (ve->GetName() == "self" || ve->GetName() == "parent") {
+                baseName = ve->GetName();
+            }
+        }
+
+        if (baseName == "self" || baseName == "parent") {
+            std::string varName = fae->GetName();
+            std::string mangled = getCurrentMangled(varName);
+            if (baseName == "parent") {
+                std::vector<std::string> p = _modulesPath;
+                p.pop_back();
+                mangled = getMangledName(p, varName);
+            }
+            if (auto *gv = GetLLVMModule()->getGlobalVariable(mangled)) {
+                if (createLoad) {
+                    return _builder.CreateLoad(gv->getValueType(), gv);
+                }
+                return gv;
+            }
+        }
         
         ASTType objASTType = fae->GetObjType();
+        
+        if (objASTType.GetTypeKind() == ASTTypeKind::Mod) {
+            _modulesPath.push_back(objASTType.GetVal());
+            std::string mangled = getCurrentMangled(fae->GetName());
+            if (auto *gv = GetLLVMModule()->getGlobalVariable(mangled)) {
+                if (createLoad) {
+                    _modulesPath.pop_back();
+                    return _builder.CreateLoad(gv->getValueType(), gv);
+                }
+                _modulesPath.pop_back();
+                return gv;
+            }
+            _modulesPath.pop_back();
+            return nullptr;
+        }
+
         if (objASTType.IsPointer()) {
             for (int i = 0; i < objASTType.GetPointerDepth() - 1; ++i) {
                 createCheckForNil(obj, fae->GetStartLoc());
@@ -842,7 +916,7 @@ namespace marble {
             }
         }
 
-        Struct s = _structs.at(resolveStructName(fae->GetObject()));
+        Struct s = _structs.at(resolveFullTypeName(objASTType));
         Field field = s.Fields.at(fae->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
         if (_vars.size() == 1) {
@@ -872,7 +946,61 @@ namespace marble {
         llvm::Value *obj = Visit(mce->GetObject());
         createLoad = oldLoad;
 
+        std::string baseName;
+        if (auto *ve = llvm::dyn_cast<VarExpr>(mce->GetObject())) {
+            if (ve->GetName() == "self" || ve->GetName() == "parent") {
+                baseName = ve->GetName();
+            }
+        }
+
+        if (baseName == "self" || baseName == "parent") {
+            std::string funName = mce->GetName();
+            std::string fullPath = getModulePathFromExpr(mce->GetObject());
+            std::string mangled = fullPath;
+            if (!fullPath.empty() && fullPath.back() != '#') {
+                mangled += "#";
+            }
+            mangled += mce->GetName();
+            if (baseName == "parent" && !_modulesPath.empty()) {
+                auto p = _modulesPath;
+                p.pop_back();
+                mangled = getMangledName(p, funName);
+            }
+            llvm::Function* fun = GetLLVMModule()->getFunction(mangled);
+            if (!fun) {
+                return nullptr;
+            }
+
+            std::vector<llvm::Value*> args(mce->GetArgs().size());
+            for (int i = 0; i < args.size(); ++i) {
+                args[i] = Visit(mce->GetArgs()[i]);
+            }
+            return _builder.CreateCall(fun, args);
+        }
+
         ASTType objType = mce->GetObjType();
+
+        if (objType.GetTypeKind() == ASTTypeKind::Mod) {
+            _modulesPath.push_back(objType.GetVal());
+            std::string fullPath = getModulePathFromExpr(mce->GetObject());
+            std::string mangled = fullPath;
+            if (!fullPath.empty() && fullPath.back() != '#') {
+                mangled += "#";
+            }
+            mangled += mce->GetName();
+            _modulesPath.pop_back();
+            llvm::Function *fun = GetLLVMModule()->getFunction(mangled);
+            if (!fun) {
+                return nullptr;
+            }
+
+            std::vector<llvm::Value*> args(mce->GetArgs().size());
+            for (int i = 0; i < args.size(); ++i) {
+                args[i] = Visit(mce->GetArgs()[i]);
+            }
+            return _builder.CreateCall(fun, args);
+        }
+        
         if (objType.IsPointer()) {
             for (int i = 0; i < objType.GetPointerDepth() - 1; ++i) {
                 createCheckForNil(obj, mce->GetStartLoc());
@@ -920,7 +1048,7 @@ namespace marble {
             return _builder.CreateCall(FTy, funcPtr, args);
         }
         
-        std::string structName = resolveStructName(mce->GetObject());
+        std::string structName = resolveFullTypeName(objType);
         if (structName.empty() && obj->getType()->isStructTy()) {
             structName = obj->getType()->getStructName().str();
             size_t dotPos = structName.find('.');
@@ -1177,10 +1305,15 @@ namespace marble {
                 base = TYPE(getDoubleTy);
                 break;
             case ASTTypeKind::Struct:
-                base = _structs.at(type.GetVal()).Type;
+                if (auto it = _structs.find(resolveFullTypeName(type)); it != _structs.end()) {
+                    base = it->second.Type;
+                }
+                else {
+                    base = _structs.at(type.GetVal()).Type;
+                }
                 break;
             case ASTTypeKind::Trait: {
-                std::string mangled = getCurrentMangled(type.GetVal());
+                std::string mangled = resolveFullTypeName(type);
                 llvm::StructType *existingType = llvm::StructType::getTypeByName(_context, mangled);
                 if (existingType) {
                     return existingType;
@@ -1200,7 +1333,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::defaultStructConst(ASTType type) {
-        Struct s = _structs.at(type.GetVal());
+        Struct s = _structs.at(resolveFullTypeName(type));
         std::vector<llvm::Constant *> fields(s.Fields.size());
         int i = 0;
         for (auto &field : s.Fields) {
@@ -1226,6 +1359,9 @@ namespace marble {
         switch (expr->GetKind()) {
             case NkVarExpr: {
                 std::string name = llvm::dyn_cast<VarExpr>(expr)->GetName();
+                if (_currentMod && name == "self" || name == "parent") {
+                    return _currentMod->GetName();
+                }
                 auto varsCopy = _vars;
                 while (!varsCopy.empty()) {
                     for (auto var : varsCopy.top()) {
@@ -1414,5 +1550,66 @@ namespace marble {
     std::string
     CodeGen::getCurrentMangled(const std::string &name) const {
         return getMangledName(_modulesPath, name);
+    }
+
+    std::vector<std::string>
+    CodeGen::splitPath(const std::string &path) {
+        std::vector<std::string> result;
+        std::stringstream ss(path);
+        std::string item;
+        while (std::getline(ss, item, '/')) {
+            if (!item.empty()) {
+                result.push_back(item);
+            }
+        }
+        return result;
+    }
+
+    std::string
+    CodeGen::getMangledForPath(const std::string &path) {
+        if (path.empty()) {
+            return "";
+        }
+
+        std::vector<std::string> parts = splitPath(path);
+        if (parts.empty()) {
+            return "";
+        }
+
+        std::string res = parts[0];
+        for (int i = 1; i < parts.size(); ++i) {
+            res += "#" + parts[i];
+        }
+        return res;
+    }
+
+    std::string
+    CodeGen::getModulePathFromExpr(Expr *expr) {
+        std::string path;
+        while (auto *fae = llvm::dyn_cast<FieldAccessExpr>(expr)) {
+            path = fae->GetName() + (path.empty() ? "" : "#" + path);
+            expr = fae->GetObject();
+        }
+        if (auto *ve = llvm::dyn_cast<VarExpr>(expr)) {
+            std::string base = ve->GetName();
+            if (base == "parent" && !_modulesPath.empty()) {
+                auto p = _modulesPath; p.pop_back();
+                base = getMangledName(p, "");
+            }
+            else if (base == "self") {
+                base = getCurrentMangled("");
+            }
+            path = base + (path.empty() ? "" : "#" + path);
+        }
+        return path;
+    }
+
+    std::string
+    CodeGen::resolveFullTypeName(const ASTType& type) {
+        if (type.GetTypeKind() != ASTTypeKind::Struct && type.GetTypeKind() != ASTTypeKind::Trait) {
+            return type.GetVal();
+        }
+
+        return getMangledForPath(type.GetVal());
     }
 }

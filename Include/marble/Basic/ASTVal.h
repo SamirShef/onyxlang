@@ -34,6 +34,11 @@ namespace marble {
             return _data;
         }
 
+        void
+        SetType(ASTType type) {
+            _type = type;
+        }
+
         bool
         IsNil() const {
             return _isNil;
