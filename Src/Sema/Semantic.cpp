@@ -773,6 +773,11 @@ namespace marble {
                             << path;
                         return std::nullopt;
                     }
+                    for (auto stmt : newMod->AST) {
+                        if (auto mds = llvm::dyn_cast<ModuleDeclStmt>(stmt)) {
+                            newMod->SubModules[mds->GetName()] = createModule(newMod, mds->GetName(), newMod->GetFullPath(), mds->GetAccess(), mds->GetBody());
+                        }
+                    }
                 }
                 else {
                     newMod = new Module(name, "", AccessPub);
@@ -1659,6 +1664,10 @@ namespace marble {
             }
         }
 
+        for (auto &[_, sub] : mod->SubModules) {
+            discover(sub);
+        }
+
         _currentMod = oldMod;
     }
 
@@ -1983,5 +1992,18 @@ namespace marble {
             type.SetTypeKind(ASTTypeKind::Trait);
         }
         return type;
+    }
+
+    Module *
+    SemanticAnalyzer::createModule(Module *base, std::string name, std::string fullPath, AccessModifier access, std::vector<Stmt *> ast) {
+        Module *mod = new Module(name, fullPath, access);
+        mod->AST = ast;
+        mod->Parent = base;
+        for (auto stmt : ast) {
+            if (auto mds = llvm::dyn_cast<ModuleDeclStmt>(stmt)) {
+                mod->SubModules[mds->GetName()] = createModule(mod, mds->GetName(), mod->GetFullPath(), mds->GetAccess(), mds->GetBody());
+            }
+        }
+        return mod;
     }
 }

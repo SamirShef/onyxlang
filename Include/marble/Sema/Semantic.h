@@ -123,7 +123,7 @@ namespace marble {
     private:
         void
         resolveTypeInStatement(Stmt *stmt, Module *mod);
-        
+
         void
         discover(Module *mod);
 
@@ -165,5 +165,8 @@ namespace marble {
         
         ASTType
         resolveType(ASTType type, Module *contextMod);
+
+        Module *
+        createModule(Module *base, std::string name, std::string fullPath, AccessModifier access, std::vector<Stmt *> ast);
     };
 }
