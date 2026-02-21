@@ -30,6 +30,8 @@ namespace marble {
         { "echo", TkEcho },
         { "nil", TkNil },
         { "new", TkNew },
-        { "del", TkDel }
+        { "del", TkDel },
+        { "import", TkImport },
+        { "mod", TkMod },
     };
 }

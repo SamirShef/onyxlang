@@ -20,6 +20,8 @@ namespace marble {
         NkTraitDeclStmt,
         NkEchoStmt,
         NkDelStmt,
+        NkImportStmt,
+        NkModuleDeclStmt,
         NkEndStmts,
 
         NkStartExprs,
@@ -35,6 +37,7 @@ namespace marble {
         NkNewExpr,
         NkDerefExpr,
         NkRefExpr,
+        NkModuleAccessExpr,
         NkEndExprs,
     };
 

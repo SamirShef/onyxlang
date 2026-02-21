@@ -18,5 +18,10 @@ namespace marble {
         GetType() const {
             return _type;
         }
+
+        void
+        SetType(ASTType type) {
+            _type = type;
+        }
     };
 }

@@ -7,7 +7,7 @@ namespace marble {
         bool _hasErrors = false;
 
     public:
-        explicit DiagnosticEngine(llvm::SourceMgr &mgr) : _srcMgr(mgr) {}
+        explicit DiagnosticEngine(llvm::SourceMgr &srcMgr) : _srcMgr(srcMgr) {}
 
         DiagnosticBuilder
         Report(llvm::SMLoc loc, DiagKind kind) {
