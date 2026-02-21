@@ -33,6 +33,11 @@ namespace marble {
             return _retType;
         }
 
+        void
+        SetRetType(ASTType type) {
+            _retType = type;
+        }
+
         std::vector<Argument>
         GetArgs() const {
             return _args;

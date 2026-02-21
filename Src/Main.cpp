@@ -38,6 +38,10 @@ main(int argc, char **argv) {
     marble::DiagnosticEngine diag(srcMgr);
     marble::ModuleManager modManager(diag);
     marble::Module *mainMod = modManager.LoadModule(fileName, marble::AccessPriv, srcMgr);
+    if (diag.HasErrors()) {
+        return 1;
+    }
+    diag.ResetErrors();
 
     if (marble::EmitAction == marble::EmitAST) {
         marble::ASTPrinter printer;
@@ -55,7 +59,7 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    // TODO: uncomment next line
+    // TODO: delete next line
     return 0;
 
     marble::CodeGen codegen(mainMod, srcMgr);

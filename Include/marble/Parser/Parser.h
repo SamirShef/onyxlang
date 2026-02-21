@@ -90,6 +90,9 @@ namespace marble {
         Expr *
         parseChainExpr(Expr *base);
 
+        Expr *
+        parseStructExprInitializer(std::string name, llvm::SMLoc start);
+
         Token
         consume();
 

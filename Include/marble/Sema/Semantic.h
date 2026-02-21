@@ -122,6 +122,9 @@ namespace marble {
 
     private:
         void
+        resolveTypeInStatement(Stmt *stmt, Module *mod);
+        
+        void
         discover(Module *mod);
 
         Variable *
@@ -150,5 +153,17 @@ namespace marble {
         
         ASTVal
         implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc);
+
+        std::vector<std::string>
+        splitPath(const std::string &path);
+
+        Struct *
+        findStructByPath(const std::string &path, Module *contextMod = nullptr);
+        
+        Trait *
+        findTraitByPath(const std::string &path, Module *contextMod = nullptr);
+        
+        ASTType
+        resolveType(ASTType type, Module *contextMod);
     };
 }

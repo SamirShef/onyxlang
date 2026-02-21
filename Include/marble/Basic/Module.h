@@ -67,6 +67,7 @@ namespace marble {
             std::unordered_map<std::string, Struct> Structs;
             std::unordered_map<std::string, std::vector<ImplStmt *>> Implementations;
             std::unordered_map<std::string, Trait> Traits;
+            Module *Parent = nullptr;
             std::unordered_map<std::string, Module *> SubModules;
             std::unordered_map<std::string, Module *> Imports;
             llvm::Module *Mod = nullptr;
