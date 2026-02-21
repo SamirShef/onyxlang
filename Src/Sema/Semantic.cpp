@@ -662,21 +662,41 @@ namespace marble {
         if (std::error_code ec = bufferOrErr.getError()) {
             path += "/mod";
         }
-        Module *mod = _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
-        if (!mod) {
-            _diag.Report(is->GetStartLoc(), ErrCannotFindModule)
-                << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
-                << is->GetPath();
-            return std::nullopt;
+
+        std::vector<std::string> parts(1);
+        std::string modPath = is->GetPath();
+        for (char c : modPath) {
+            if (c == '/') {
+                parts.push_back("");
+                continue;
+            }
+            parts.back() += c;
         }
-        if (_rootMod->Imports.find(is->GetPath()) != _rootMod->Imports.end()) {
-            _diag.Report(is->GetStartLoc(), ErrMultipleImport)
-                << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
-                << is->GetPath();
-            return std::nullopt;
+
+        Module *current = _rootMod;
+        for (int i = 0; i < parts.size(); ++i) {
+            const std::string &name = parts[i];
+            auto it = current->SubModules.find(name);
+            if (it == current->SubModules.end()) {
+                Module *newMod = nullptr;
+                if (i == parts.size() - 1) {
+                    newMod = _modManager.LoadModule(path + ".mr", AccessPub, _srcMgr);
+                    if (!newMod) {
+                        _diag.Report(is->GetStartLoc(), ErrCannotFindModule)
+                            << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                            << path;
+                        return std::nullopt;
+                    }
+                }
+                else {
+                    newMod = new Module(name, "", AccessPub);
+                }
+
+                current->SubModules[name] = newMod;
+            }
+            current = current->SubModules[name];
         }
-        _rootMod->Imports[is->GetPath()] = mod;
-        discover(mod);
+        discover(current);
         return std::nullopt;
     }
 
