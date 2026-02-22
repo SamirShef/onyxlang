@@ -9,6 +9,7 @@ namespace marble {
         std::string _name;
         ASTType _objType;
         bool _isModule;
+        bool _isStaticAccessing = false;
 
     public:
         explicit FieldAccessExpr(Expr *obj, std::string name, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -47,6 +48,16 @@ namespace marble {
         void
         SetIsModule(bool isModule) {
             _isModule = isModule;
+        }
+
+        bool
+        IsStaticAccessing() const {
+            return _isStaticAccessing;
+        }
+
+        void
+        SetStaticAccessing(bool isStaticAccessing) {
+            _isStaticAccessing = isStaticAccessing;
         }
     };
 }

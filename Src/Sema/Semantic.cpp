@@ -393,6 +393,7 @@ namespace marble {
                     << s->Name;
             }
             else {
+                fas->SetStaticAccessing(obj->IsType());
                 if (field->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
@@ -1107,6 +1108,7 @@ namespace marble {
                     << s->Name;
             }
             else {
+                fae->SetStaticAccessing(obj->IsType());
                 if (field->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
                         << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())

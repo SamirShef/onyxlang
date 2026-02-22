@@ -30,6 +30,7 @@ namespace marble {
             marble::ASTType ASTType;
             llvm::Value *Val;
             bool ManualInitialized;
+            bool IsStatic;
             long Index;
         };
 
