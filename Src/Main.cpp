@@ -131,7 +131,7 @@ main(int argc, char **argv) {
     }
     if (marble::EmitAction == marble::EmitBinary) {
         marble::LinkObjectFile(objFile, marble::GetOutputName(fileName, triple));
-        llvm::sys::fs::remove(objFile);
+        llvm::sys::fs::remove(objFile); // NOLINT
     }
     llvm::outs().flush();   // explicitly flushing the buffer
     

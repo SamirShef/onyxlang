@@ -191,12 +191,20 @@ namespace marble {
         llvm::Value *var;
         if (_vars.size() == 1) {
             std::string mangled = getCurrentMangled(vds->GetName());
-            var = new llvm::GlobalVariable(*GetLLVMModule(), type, vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer),
-                                           mangled);
+            var = new llvm::GlobalVariable(*GetLLVMModule(), type, vds->IsConst(), vds->IsStatic() ? llvm::GlobalValue::InternalLinkage :
+                                                                                                     llvm::GlobalValue::ExternalLinkage,
+                                           llvm::cast<llvm::Constant>(initializer), mangled);
         }
         else {
-            var = _builder.CreateAlloca(type, nullptr, vds->GetName());
-            _builder.CreateStore(initializer, var);
+            if (vds->IsStatic()) {
+                llvm::Function *parent = _builder.GetInsertPoint()->getFunction();
+                var = new llvm::GlobalVariable(*GetLLVMModule(), type, vds->IsConst(), llvm::GlobalValue::PrivateLinkage, llvm::cast<llvm::Constant>(initializer),
+                                               parent->getName() + "." + vds->GetName());
+            }
+            else {
+                var = _builder.CreateAlloca(type, nullptr, vds->GetName());
+                _builder.CreateStore(initializer, var);
+            }
         }
         if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct ||
             vds->GetType().GetTypeKind() == ASTTypeKind::Trait) {

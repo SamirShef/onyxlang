@@ -29,6 +29,17 @@ namespace marble {
         if (expect(TkPub)) {
             access = AccessPub;
         }
+        bool isStatic = expect(TkStatic);
+        if (isStatic) {
+            Stmt *stmt = parseVarDeclStmt();
+            if (consumeSemi && !expect(TkSemi)) {
+                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                    << getRangeFromTok(_curTok)
+                    << ";"                  // expected
+                    << _curTok.GetText();   // got
+            }
+            return stmt;
+        }
         switch (_curTok.GetKind()) {
             case TkVar:
             case TkConst: {
@@ -186,6 +197,10 @@ namespace marble {
     Stmt *
     Parser::parseVarDeclStmt() {
         Token firstTok = _curTok;
+        bool isStatic = _lastTok.Is(TkStatic);
+        if (isStatic) {
+            firstTok = _lastTok;
+        }
         bool isConst = consume().Is(TkConst);
         std::string name = _curTok.GetText();
         if (!expect(TkId)) {
@@ -206,7 +221,7 @@ namespace marble {
         if (expect(TkEq)) {
             expr = parseExpr(PrecLowest);
         }
-        return createNode<VarDeclStmt>(name, isConst, type, expr, access, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<VarDeclStmt>(name, isConst, type, expr, isStatic, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *

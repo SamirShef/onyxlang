@@ -5,7 +5,7 @@ namespace marble {
     void
     ASTPrinter::VisitVarDeclStmt(VarDeclStmt *vds) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(VarDeclStmt: " << vds->GetType().ToString() << ' ' << vds->GetName();
+        llvm::outs() << "(VarDeclStmt: " << (vds->IsStatic() ? "static " : "") << vds->GetType().ToString() << ' ' << vds->GetName();
         if (vds->GetExpr()) {
             llvm::outs() << " = ";
             int spaces = _spaces;
