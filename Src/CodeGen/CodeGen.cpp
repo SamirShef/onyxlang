@@ -482,7 +482,7 @@ namespace marble {
         Struct s = _structs.at(getCurrentMangled(is->GetStructName()));
         for (auto &stmt : is->GetBody()) {
             FunDeclStmt *method = llvm::cast<FunDeclStmt>(stmt);
-            llvm::Function *fun = getFunction(getCurrentMangled(s.Name + "." + method->GetName()));
+            llvm::Function *fun = getFunction(s.Name + "." + method->GetName());
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
             _builder.SetInsertPoint(entry);
             _vars.push({});
