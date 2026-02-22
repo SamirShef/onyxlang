@@ -33,6 +33,7 @@ namespace marble {
         bool IsConst;
         AccessModifier Access;
         bool ManualInitialized;
+        bool IsStatic;
     };
     
     struct Method {
