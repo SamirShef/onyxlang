@@ -46,7 +46,7 @@ namespace marble {
                 _funArgsTypes.emplace(mangled, argsAST);
             }
             else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
-                Struct &s = _structs.at(resolveFullTypeName(ASTType(ASTTypeKind::Struct, is->GetStructName(), false, 0)));
+                Struct &s = _structs.at(getCurrentMangled(is->GetStructName()));
                 if (!is->GetTraitName().empty()) {
                     s.TraitsImplements.emplace(is->GetTraitName(), _traits.at(is->GetTraitName()));
                 }
@@ -54,16 +54,23 @@ namespace marble {
                     FunDeclStmt *fds = llvm::cast<FunDeclStmt>(stmt);
                     std::vector<llvm::Type *> args(fds->GetArgs().size() + 1);
                     std::vector<ASTType> argsAST(fds->GetArgs().size() + 1);
-                    args[0] = llvm::PointerType::get(_structs.at(is->GetStructName()).Type, 0);
-                    argsAST[0] = ASTType(ASTTypeKind::Struct, is->GetStructName(), true, 0);
+                    if (!fds->IsStatic()) {
+                        args[0] = llvm::PointerType::get(s.Type, 0);
+                        argsAST[0] = ASTType(ASTTypeKind::Struct, is->GetStructName(), true, 0);
+                    }
+                    else {
+                        args.pop_back();
+                        argsAST.pop_back();
+                    }
                     for (int i = 0; i < fds->GetArgs().size(); ++i) {
-                        args[i + 1] = typeToLLVM(fds->GetArgs()[i].GetType());
-                        argsAST[i + 1] = fds->GetArgs()[i].GetType();
+                        args[i + !fds->IsStatic()] = typeToLLVM(fds->GetArgs()[i].GetType());
+                        argsAST[i + !fds->IsStatic()] = fds->GetArgs()[i].GetType();
                     }
                     llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
                     std::string localKey = is->GetStructName() + "." + fds->GetName();
                     std::string mangled = getCurrentMangled(localKey);
-                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, mangled, *GetLLVMModule());
+                    llvm::Function *fun = llvm::Function::Create(retType, fds->IsStatic() ? llvm::GlobalValue::InternalLinkage : llvm::GlobalValue::ExternalLinkage,
+                                                                 mangled, *GetLLVMModule());
                     
                     if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                         llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
@@ -472,18 +479,23 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitImplStmt(ImplStmt *is) {
-        Struct s = _structs.at(is->GetStructName());
+        Struct s = _structs.at(getCurrentMangled(is->GetStructName()));
         for (auto &stmt : is->GetBody()) {
             FunDeclStmt *method = llvm::cast<FunDeclStmt>(stmt);
-            llvm::Function *fun = getFunction((s.Name + "." + method->GetName()));
+            llvm::Function *fun = getFunction(getCurrentMangled(s.Name + "." + method->GetName()));
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
             _builder.SetInsertPoint(entry);
             _vars.push({});
             _funRetsTypes.push(fun->getReturnType());
-            ASTType thisType = ASTType(ASTTypeKind::Struct, is->GetStructName(), false, 0);
+            ASTType thisType = ASTType(ASTTypeKind::Struct, getCurrentMangled(is->GetStructName()), false, 0);
             int index = 0;
             for (auto &arg : fun->args()) {
-                arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
+                if (!method->IsStatic()) {
+                    arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
+                }
+                else {
+                    arg.setName(method->GetArgs()[index].GetName());
+                }
                 _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
                 ++index;
             }
@@ -503,6 +515,7 @@ namespace marble {
     CodeGen::VisitMethodCallStmt(MethodCallStmt *mcs) {
         MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
         expr->SetObjType(mcs->GetObjType());
+        expr->SetStaticAccessing(mcs->IsStaticAccessing());
         VisitMethodCallExpr(expr);
         delete expr;
         return nullptr;
@@ -979,6 +992,20 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitMethodCallExpr(MethodCallExpr *mce) {
+        if (mce->IsStaticAccessing()) {
+            std::string name = getMangledForPath(mce->GetObjType().GetVal()) + "." + mce->GetName();
+            llvm::Function *fun = GetLLVMModule()->getFunction(name);
+            if (!fun) {
+                return nullptr;
+            }
+
+            std::vector<llvm::Value*> args(mce->GetArgs().size());
+            for (int i = 0; i < args.size(); ++i) {
+                args[i] = Visit(mce->GetArgs()[i]);
+            }
+            return _builder.CreateCall(fun, args);
+        }
+
         bool oldLoad = createLoad;
         createLoad = mce->GetObjType().IsPointer();
         llvm::Value *obj = Visit(mce->GetObject());
@@ -1614,9 +1641,30 @@ namespace marble {
             return "";
         }
 
-        std::string res = parts[0];
-        for (int i = 1; i < parts.size(); ++i) {
-            res += "#" + parts[i];
+        std::vector<std::string> normalized;
+        std::vector<std::string> currentPath = _modulesPath;
+
+        for (const std::string &part : parts) {
+            if (part == "parent") {
+                if (!currentPath.empty()) {
+                    currentPath.pop_back();
+                }
+            }
+            else if (part == "self") {
+                normalized.insert(normalized.end(), currentPath.begin(), currentPath.end());
+            } else {
+                normalized.push_back(part);
+                currentPath.push_back(part);
+            }
+        }
+
+        if (normalized.empty()) {
+            return "";
+        }
+
+        std::string res = normalized[0];
+        for (int i = 1; i < normalized.size(); ++i) {
+            res += "#" + normalized[i];
         }
         return res;
     }

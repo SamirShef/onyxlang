@@ -23,6 +23,7 @@ namespace marble {
 
         std::vector<std::string> _modulesPath;
         Module *_currentMod = nullptr;
+        Module *_rootMod = nullptr;
 
         struct Field {
             std::string Name;
