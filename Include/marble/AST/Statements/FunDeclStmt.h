@@ -2,7 +2,6 @@
 #include <marble/AST/Argument.h>
 #include <marble/AST/Stmt.h>
 #include <marble/Basic/ASTType.h>
-#include <llvm/ADT/StringRef.h>
 #include <vector>
 
 namespace marble {
