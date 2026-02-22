@@ -12,10 +12,14 @@ impl Human {
     pub fun GetHeight(): f32 {
         return this.height;
     }
+
+    pub static fun New(a: i32, h: f32): Human { // static method
+        return Human { age: a, height: h };
+    }
 }
 
 fun main(): i32 {
-    var h: Human = Human { age: 16, height: 1.76f };    // its me :)
+    var h: Human = Human.New(16, 1.76f);    // its me :)
     var age: i32 = h.GetAge();
     var height: f32 = h.GetHeight();
     echo age; echo '\n';
