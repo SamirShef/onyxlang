@@ -76,21 +76,32 @@ namespace marble {
                 }
             }
             else if (StructStmt *ss = llvm::dyn_cast<StructStmt>(stmt)) {
-                std::vector<llvm::Type *> fieldsTypes(ss->GetBody().size());
+                std::vector<llvm::Type *> fieldsTypes;
                 std::unordered_map<std::string, Field> fields;
                 std::string mangled = getCurrentMangled(ss->GetName());
                 llvm::StructType *structType = llvm::StructType::create(_context, mangled);
                 Struct s { .Name = ss->GetName(), .MangledName = mangled, .Type = structType, .Fields = fields, .TraitsImplements = {} };
                 _structs.emplace(mangled, s);
-                for (int i = 0; i < fieldsTypes.size(); ++i) {
+                int index = 0;
+                for (int i = 0; i < ss->GetBody().size(); ++i) {
                     VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
-                    fieldsTypes[i] = typeToLLVM(vds->GetType());
-                    fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
-                                                                .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false, .Index = i });
+                    if (vds->IsStatic()) {
+                        llvm::Value *initializer = vds->GetExpr() ? Visit(vds->GetExpr()) : llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
+                        llvm::GlobalVariable *gv = new llvm::GlobalVariable(*GetLLVMModule(), typeToLLVM(vds->GetType()), vds->IsConst(),
+                                                                            llvm::GlobalValue::InternalLinkage, llvm::cast<llvm::Constant>(initializer),
+                                                                            mangled + "." + vds->GetName());
+                    }
+                    else {
+                        fieldsTypes.push_back(typeToLLVM(vds->GetType()));
+                        fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
+                                                               .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
+                                                               .IsStatic = vds->IsStatic(), .Index = index });
 
-                    _structs.at(ss->GetName()).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
-                                                                                              .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
-                                                                                              .Index = i });
+                        _structs.at(mangled).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
+                                                                                    .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr,
+                                                                                    .ManualInitialized = false, .IsStatic = vds->IsStatic(), .Index = index });
+                        ++index;
+                    }
                 }
                 structType->setBody(fieldsTypes);
             }
@@ -405,6 +416,16 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
+        if (fas->IsStaticAccessing()) {
+            std::string name = getMangledForPath(fas->GetObjType().GetVal()) + "." + fas->GetName();
+            llvm::GlobalVariable *gv = GetLLVMModule()->getNamedGlobal(name);
+
+            llvm::Value *val = Visit(fas->GetExpr());
+            val = implicitlyCast(val, gv->getValueType());
+            _builder.CreateStore(val, gv);
+            return nullptr;
+        }
+
         bool oldLoad = createLoad;
         createLoad = fas->GetObjType().IsPointer();
         llvm::Value *obj = Visit(fas->GetObject());
@@ -864,6 +885,15 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFieldAccessExpr(FieldAccessExpr *fae) {
+        if (fae->IsStaticAccessing()) {
+            std::string name = getMangledForPath(fae->GetObjType().GetVal()) + "." + fae->GetName();
+            llvm::GlobalVariable *gv = GetLLVMModule()->getNamedGlobal(name);
+            if (createLoad) {
+                return _builder.CreateLoad(gv->getValueType(), gv, name + ".load");
+            }
+            return gv;
+        }
+
         bool oldLoad = createLoad;
         createLoad = fae->GetObjType().IsPointer();
         llvm::Value *obj = Visit(fae->GetObject());

@@ -124,6 +124,10 @@ namespace marble {
                 return ERR("function `%0` does not contains in module `%1`");
             case ErrDoesNotHaveVarInMod:
                 return ERR("variable `%0` does not contains in module `%1`");
+            case ErrAccessStaticFieldFromNonType:
+                return ERR("accessing of static field `%0` from non-type");
+            case ErrAccessingNonStaticFieldFromType:
+                return ERR("accessing of non-static field `%0` from type");
         }
     }
 }

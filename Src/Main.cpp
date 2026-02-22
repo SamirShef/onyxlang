@@ -58,7 +58,7 @@ main(int argc, char **argv) {
         return 1;
     }
     diag.ResetErrors();
-
+    
     marble::CodeGen codegen(mainMod, srcMgr);
     codegen.DeclareRuntimeFunctions();
     codegen.DeclareMod(mainMod);

@@ -349,7 +349,7 @@ namespace marble {
                 implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
             }
             s->Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .IsConst = vds->IsConst(), .Access = vds->GetAccess(),
-                             .ManualInitialized = false });
+                             .ManualInitialized = false, .IsStatic = vds->IsStatic() });
         }
 
         return std::nullopt;
@@ -393,6 +393,7 @@ namespace marble {
                     << s->Name;
             }
             else {
+                fas->SetStaticAccessing(obj->IsType());
                 if (field->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
@@ -987,6 +988,11 @@ namespace marble {
                 mod.SetModule(it->second);
                 return mod;
             }
+            else if (auto it = _rootMod->Structs.find(ve->GetName()); it != _rootMod->Structs.end()) {
+                ASTVal val = ASTVal(ASTType(ASTTypeKind::Struct, ve->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
+                val.SetIsType(true);
+                return val;
+            }
         }
         if (inModule) {
             if (ve->GetName() == "self" || ve->GetName() == "parent") {
@@ -1070,6 +1076,10 @@ namespace marble {
         isMemberAccessing = true;
         std::optional<ASTVal> obj = Visit(fae->GetObject());
         obj->SetType(resolveType(obj->GetType(), _currentMod));
+        static std::string fullPath;
+        if (obj->GetType().GetTypeKind() == ASTTypeKind::Mod && fullPath.empty()) {
+            fullPath += obj->GetType().GetVal();
+        }
         if (obj->GetType().IsUnknown()) {
             _diag.Report(fae->GetStartLoc(), ErrUndeclaredStructure)
                 << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
@@ -1098,8 +1108,19 @@ namespace marble {
                     << s->Name;
             }
             else {
+                fae->SetStaticAccessing(obj->IsType());
                 if (field->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << fae->GetName();
+                }
+                if (!obj->IsType() && field->second.IsStatic) {
+                    _diag.Report(fae->GetStartLoc(), ErrAccessStaticFieldFromNonType)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << fae->GetName();
+                }
+                if (obj->IsType() && !field->second.IsStatic) {
+                    _diag.Report(fae->GetStartLoc(), ErrAccessingNonStaticFieldFromType)
                         << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
                         << fae->GetName();
                 }
@@ -1119,20 +1140,23 @@ namespace marble {
             fae->SetObjType(obj->GetType());
             Module *mod = obj->GetModule();
             if (auto it = mod->SubModules.find(fae->GetName()); it != mod->SubModules.end()) {
+                fullPath += (!fullPath.empty() ? "/" : "") + fae->GetName();
                 ASTVal mod = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
                 mod.SetModule(it->second);
                 isMemberAccessing = oldMemberAccessing;
                 return mod;
             }
             else if (auto it = mod->Imports.find(fae->GetName()); it != mod->Imports.end()) {
+                fullPath += (!fullPath.empty() ? "/" : "") + fae->GetName();
                 ASTVal mod = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
                 mod.SetModule(it->second);
                 isMemberAccessing = oldMemberAccessing;
                 return mod;
             }
             else if (auto it = mod->Variables.find(fae->GetName()); it != mod->Variables.end()) {
+                fullPath = "";
                 if (it->second.Access == AccessPriv && _currentMod != mod) {
-                    _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
+                    _diag.Report(fae->GetStartLoc(), ErrVarIsPrivate)
                         << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
                         << fae->GetName();
                 }
@@ -1146,7 +1170,24 @@ namespace marble {
                 }
                 return it->second.Val;
             }
+            else if (auto it = mod->Structs.find(fae->GetName()); it != mod->Structs.end()) {
+                if (it->second.Access == AccessPriv && _currentMod != mod) {
+                    _diag.Report(fae->GetStartLoc(), ErrStructIsPrivate)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << fae->GetName();
+                }
+                isMemberAccessing = oldMemberAccessing;
+                if (!fullPath.empty()) {
+                    fullPath += "/";
+                }
+                fullPath += fae->GetName();
+                ASTVal val = ASTVal(ASTType(ASTTypeKind::Struct, fullPath, false, 0), ASTValData { .i32Val = 0 }, false, false);
+                fullPath = "";
+                val.SetIsType(true);
+                return val;
+            }
             else {
+                fullPath = "";
                 _diag.Report(fae->GetStartLoc(), ErrDoesNotHaveVarInMod)
                     << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
                     << fae->GetName()
@@ -1429,7 +1470,7 @@ namespace marble {
                     break;
                 }
                 case NkStructStmt: {
-                    if (_rootMod != mod) {
+                    if (!inRootMod(mod)) {
                         auto *ss = llvm::dyn_cast<StructStmt>(stmt);
                         mod->Structs[ss->GetName()] = Struct { .Name = ss->GetName(), .Fields = {}, .Methods = {},
                                                                .TraitsImplements = {}, .Access = ss->GetAccess() };
@@ -1458,13 +1499,13 @@ namespace marble {
                                 implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
                             }
                             s.Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .IsConst = vds->IsConst(),
-                                                                     .Access = vds->GetAccess(), .ManualInitialized = false });
+                                                                     .Access = vds->GetAccess(), .ManualInitialized = false, .IsStatic = vds->IsStatic() });
                         }
                     }
                     break;
                 }
                 case NkTraitDeclStmt: {
-                    if (_rootMod != mod) {
+                    if (!inRootMod(mod)) {
                         auto *tds = llvm::dyn_cast<TraitDeclStmt>(stmt);
                         mod->Traits[tds->GetName()] = Trait { .Name = tds->GetName(), .Methods = {}, .Access = tds->GetAccess() };
                         Trait &t = mod->Traits.at(tds->GetName());
@@ -1489,7 +1530,7 @@ namespace marble {
                     break;
                 }
                 case NkImplStmt: {
-                    if (_rootMod != mod) {
+                    if (!inRootMod(mod)) {
                         auto *is = llvm::dyn_cast<ImplStmt>(stmt);
                         mod->Implementations[is->GetStructName()].push_back(is);
 
@@ -1669,6 +1710,22 @@ namespace marble {
         }
 
         _currentMod = oldMod;
+    }
+
+    bool
+    SemanticAnalyzer::inRootMod(const Module *mod) {
+        if (!mod || !_rootMod) {
+            return false;
+        }
+
+        const Module *current = mod;
+        while (current) {
+            if (current == _rootMod) {
+                return true;
+            }
+            current = current->Parent;
+        }
+        return false;
     }
 
     Variable *
