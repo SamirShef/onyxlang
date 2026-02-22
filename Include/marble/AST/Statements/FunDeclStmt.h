@@ -11,11 +11,13 @@ namespace marble {
         std::vector<Argument> _args;
         std::vector<Stmt *> _block;
         bool _isDeclaration;
+        bool _isStatic;
 
     public:
-        explicit FunDeclStmt(std::string name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, bool isDeclaration, AccessModifier access,
+        explicit FunDeclStmt(std::string name, ASTType retType, std::vector<Argument> args, std::vector<Stmt *> block, bool isDeclaration, bool isStatic, AccessModifier access,
                              llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                           : _name(name), _retType(retType), _args(args), _block(block), _isDeclaration(isDeclaration), Stmt(NkFunDeclStmt, access, startLoc, endLoc) {}
+                           : _name(name), _retType(retType), _args(args), _block(block), _isDeclaration(isDeclaration), _isStatic(isStatic),
+                             Stmt(NkFunDeclStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const Node *node) {
@@ -50,6 +52,11 @@ namespace marble {
         bool
         IsDeclaration() const {
             return _isDeclaration;
+        }
+
+        bool
+        IsStatic() const {
+            return _isStatic;
         }
     };
 }

@@ -64,5 +64,7 @@ namespace marble {
         ErrDoesNotHaveVarInMod,
         ErrAccessStaticFieldFromNonType,
         ErrAccessingNonStaticFieldFromType,
+        ErrAccessStaticMethodFromNonType,
+        ErrAccessingNonStaticMethodFromType,
     };
 }

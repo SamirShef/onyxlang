@@ -128,6 +128,10 @@ namespace marble {
                 return ERR("accessing of static field `%0` from non-type");
             case ErrAccessingNonStaticFieldFromType:
                 return ERR("accessing of non-static field `%0` from type");
+            case ErrAccessStaticMethodFromNonType:
+                return ERR("accessing of static method `%0` from non-type");
+            case ErrAccessingNonStaticMethodFromType:
+                return ERR("accessing of non-static method `%0` from type");
         }
     }
 }

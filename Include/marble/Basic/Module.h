@@ -39,6 +39,7 @@ namespace marble {
     struct Method {
         Function Fun;
         AccessModifier Access;
+        bool IsStatic;
     };
 
     struct Trait {
