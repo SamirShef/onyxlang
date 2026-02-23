@@ -91,8 +91,8 @@ namespace marble {
                 int index = 0;
                 for (int i = 0; i < ss->GetBody().size(); ++i) {
                     VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
-                    llvm::Value *initializer = llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
                     if (vds->IsStatic()) {
+                        llvm::Value *initializer = vds->GetExpr() ? Visit(vds->GetExpr()) : llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
                         llvm::GlobalVariable *gv = new llvm::GlobalVariable(*GetLLVMModule(), typeToLLVM(vds->GetType()), vds->IsConst(),
                                                                             llvm::GlobalValue::InternalLinkage, llvm::cast<llvm::Constant>(initializer),
                                                                             mangled + "." + vds->GetName());
@@ -100,11 +100,11 @@ namespace marble {
                     else {
                         fieldsTypes.push_back(typeToLLVM(vds->GetType()));
                         fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
-                                                               .Val = initializer, .ManualInitialized = false,
+                                                               .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
                                                                .IsStatic = vds->IsStatic(), .Index = index });
 
                         _structs.at(mangled).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[index], .ASTType = vds->GetType(),
-                                                                                    .Val = initializer,
+                                                                                    .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr,
                                                                                     .ManualInitialized = false, .IsStatic = vds->IsStatic(), .Index = index });
                         ++index;
                     }
