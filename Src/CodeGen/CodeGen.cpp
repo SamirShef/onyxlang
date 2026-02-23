@@ -37,7 +37,6 @@ namespace marble {
                 llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
                 std::string mangled = getCurrentMangled(fds->GetName());
                 llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, mangled, *GetLLVMModule());
-                
                 if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
                     fun->setMetadata("struct_name", metadata);
@@ -92,8 +91,8 @@ namespace marble {
                 int index = 0;
                 for (int i = 0; i < ss->GetBody().size(); ++i) {
                     VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
+                    llvm::Value *initializer = llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
                     if (vds->IsStatic()) {
-                        llvm::Value *initializer = vds->GetExpr() ? Visit(vds->GetExpr()) : llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
                         llvm::GlobalVariable *gv = new llvm::GlobalVariable(*GetLLVMModule(), typeToLLVM(vds->GetType()), vds->IsConst(),
                                                                             llvm::GlobalValue::InternalLinkage, llvm::cast<llvm::Constant>(initializer),
                                                                             mangled + "." + vds->GetName());
@@ -101,11 +100,11 @@ namespace marble {
                     else {
                         fieldsTypes.push_back(typeToLLVM(vds->GetType()));
                         fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
-                                                               .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
+                                                               .Val = initializer, .ManualInitialized = false,
                                                                .IsStatic = vds->IsStatic(), .Index = index });
 
-                        _structs.at(mangled).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
-                                                                                    .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr,
+                        _structs.at(mangled).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[index], .ASTType = vds->GetType(),
+                                                                                    .Val = initializer,
                                                                                     .ManualInitialized = false, .IsStatic = vds->IsStatic(), .Index = index });
                         ++index;
                     }
@@ -1345,7 +1344,7 @@ namespace marble {
 
     llvm::Type *
     CodeGen::typeToLLVM(ASTType type) {
-        llvm::Type *base;
+        llvm::Type *base = nullptr;
         switch (type.GetTypeKind()) {
             #define TYPE(func) llvm::Type::func(_context);
             case ASTTypeKind::Bool:
@@ -1381,11 +1380,13 @@ namespace marble {
                 std::string mangled = resolveFullTypeName(type);
                 llvm::StructType *existingType = llvm::StructType::getTypeByName(_context, mangled);
                 if (existingType) {
-                    return existingType;
+                    base = existingType;
+                    break;
                 }
                 llvm::Type *voidPtrTy = llvm::PointerType::get(_context, 0);
                 llvm::Type *vtablePtrTy = llvm::PointerType::get(voidPtrTy, 0);
-                return llvm::StructType::create(_context, { voidPtrTy, vtablePtrTy }, mangled);
+                base = llvm::StructType::create(_context, { voidPtrTy, vtablePtrTy }, mangled);
+                break;
             }
             case ASTTypeKind::Noth:
                 base = TYPE(getVoidTy);
@@ -1587,7 +1588,7 @@ namespace marble {
         else {
             llvm::AllocaInst *tmp = _builder.CreateAlloca(src->getType());
             _builder.CreateStore(src, tmp);
-            dataPtr = tmp;
+            dataPtr = _builder.CreateBitCast(tmp, _builder.getPtrTy());
         }
         fatPtr = _builder.CreateInsertValue(fatPtr, dataPtr, 0);
 

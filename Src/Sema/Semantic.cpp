@@ -170,7 +170,7 @@ namespace marble {
                                                           .IsConst = arg.GetType().IsConst(), .Access = AccessPriv });
         }
         _funRetsTypes.push(fds->GetRetType());
-        bool hasRet;
+        bool hasRet = false;
         for (auto stmt : fds->GetBody()) {
             if (stmt->GetKind() == NkRetStmt) {
                 hasRet = true;
@@ -1026,6 +1026,7 @@ namespace marble {
                 return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
             }
             for (int i = 0; i < fun->Args.size(); ++i) {
+                fun->Args[i].SetType(resolveType(fun->Args[i].GetType(), _currentMod));
                 implicitlyCast(Visit(fce->GetArgs()[i]).value(), fun->Args[i].GetType(), fce->GetArgs()[i]->GetStartLoc(), fce->GetArgs()[i]->GetEndLoc());
             }
             if (fun->RetType.GetTypeKind() != ASTTypeKind::Noth) {
@@ -1489,13 +1490,17 @@ namespace marble {
                             << fds->GetName();
                         continue;
                     }
+                    for (auto &arg : fds->GetArgs()) {
+                        arg.SetType(resolveType(arg.GetType(), mod));
+                    }
                     mod->Functions[fds->GetName()] = Function { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(),
                                                                 .IsDeclaration = fds->IsDeclaration(), .Access = fds->GetAccess() };
                     break;
                 }
                 case NkStructStmt: {
+                    auto *ss = llvm::dyn_cast<StructStmt>(stmt);
+                    mod->TypesDeclarations[ss->GetName()] = ASTTypeKind::Struct;
                     if (!inRootMod(mod)) {
-                        auto *ss = llvm::dyn_cast<StructStmt>(stmt);
                         mod->Structs[ss->GetName()] = Struct { .Name = ss->GetName(), .Fields = {}, .Methods = {},
                                                                .TraitsImplements = {}, .Access = ss->GetAccess() };
                         Struct &s = mod->Structs.at(ss->GetName());
@@ -1529,8 +1534,9 @@ namespace marble {
                     break;
                 }
                 case NkTraitDeclStmt: {
+                    auto *tds = llvm::dyn_cast<TraitDeclStmt>(stmt);
+                    mod->TypesDeclarations[tds->GetName()] = ASTTypeKind::Trait;
                     if (!inRootMod(mod)) {
-                        auto *tds = llvm::dyn_cast<TraitDeclStmt>(stmt);
                         mod->Traits[tds->GetName()] = Trait { .Name = tds->GetName(), .Methods = {}, .Access = tds->GetAccess() };
                         Trait &t = mod->Traits.at(tds->GetName());
                         for (auto stmt : tds->GetBody()) {
@@ -1894,7 +1900,8 @@ namespace marble {
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
             Struct *s = findStructByPath(src.GetType().GetVal());
-            if (s->TraitsImplements.find(expectType.GetVal()) != s->TraitsImplements.end()) {
+            Trait *t = findTraitByPath(expectType.GetVal());
+            if (t) {
                 return true;
             }
         }
@@ -1914,7 +1921,8 @@ namespace marble {
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
             Struct *s = findStructByPath(src.GetType().GetVal());
-            if (s->TraitsImplements.find(expectType.GetVal()) != s->TraitsImplements.end()) {
+            Trait *t = findTraitByPath(expectType.GetVal());
+            if (t) {
                 return ASTVal::GetVal(0, expectType);
             }
         }
@@ -2068,11 +2076,8 @@ namespace marble {
         if (type.GetTypeKind() != ASTTypeKind::Unknown) {
             return type;
         }
-        if (findStructByPath(type.GetVal(), contextMod)) {
-            type.SetTypeKind(ASTTypeKind::Struct);
-        }
-        else if (findTraitByPath(type.GetVal(), contextMod)) {
-            type.SetTypeKind(ASTTypeKind::Trait);
+        if (auto it = contextMod->TypesDeclarations.find(type.GetVal()); it != contextMod->TypesDeclarations.end()) {
+            type.SetTypeKind(it->second);
         }
         return type;
     }

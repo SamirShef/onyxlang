@@ -39,8 +39,8 @@ namespace marble {
             _retType = type;
         }
 
-        std::vector<Argument>
-        GetArgs() const {
+        std::vector<Argument> &
+        GetArgs() {
             return _args;
         }
 
