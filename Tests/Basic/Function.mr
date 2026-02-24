@@ -1,0 +1,16 @@
+fun main(): i32 {
+    print(factorial(5));
+    print(factorial(6));
+    return 0;
+}
+
+fun factorial(n: i32): i64 {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+fun print(a: i64) {
+    echo a; echo '\n';
+}

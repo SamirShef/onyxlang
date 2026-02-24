@@ -203,9 +203,12 @@ namespace marble {
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
-            llvm::AllocaInst *alloca = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName() + ".addr");
-            _builder.CreateStore(&arg, alloca);
-            _vars.top().emplace(arg.getName(), std::make_tuple(alloca, arg.getType(), fds->GetArgs()[index].GetType()));
+            llvm::Value *var = &arg;
+            if (arg.getType()->isPointerTy()) {
+                var = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName() + ".addr");
+                _builder.CreateStore(&arg, var);
+            }
+            _vars.top().emplace(arg.getName(), std::make_tuple(var, arg.getType(), fds->GetArgs()[index].GetType()));
             ++index;
         }
         for (auto &stmt : fds->GetBody()) {
@@ -372,7 +375,12 @@ namespace marble {
             int index = 0;
             for (auto &arg : fun->args()) {
                 arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
-                _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
+                llvm::Value *var = &arg;
+                if (arg.getType()->isPointerTy()) {
+                    var = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName() + ".addr");
+                    _builder.CreateStore(&arg, var);
+                }
+                _vars.top().emplace(arg.getName(), std::make_tuple(var, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
                 ++index;
             }
             for (auto &stmt : method->GetBody()) {
