@@ -20,11 +20,6 @@ namespace marble {
             return _type;
         }
 
-        void
-        SetType(ASTType type) {
-            _type = type;
-        }
-
         StructExpr *
         GetStructExpr() const {
             return _se;

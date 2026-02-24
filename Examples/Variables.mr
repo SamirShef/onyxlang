@@ -1,34 +1,11 @@
 // variables and constants definiton
 var a: i32 = 10;
 var b: i32;         // initializing by zero value
-static var x: i32;  // static variable
 
 const c: i32 = 10;
 const d: i32;       // initializing by zero value
 
 // 'main' function is always required
 fun main(): i32 {
-    for var i: i32, i < 10, i += 1 {
-        echo test(); echo '\n';
-    }
     return 0;
 }
-
-fun test(): i32 {
-    static var count: i32;
-    count += 1;
-    return count;
-}
-
-/* output:
- * 1
- * 2
- * 3
- * 4
- * 5
- * 6
- * 7
- * 8
- * 9
- * 10
-*/

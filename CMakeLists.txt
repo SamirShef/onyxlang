@@ -52,8 +52,6 @@ add_subdirectory(Src/Compilation)
 add_definitions(-w)
 add_executable(${PROJECT_NAME} Src/Main.cpp)
 
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/Libs/" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/Libs/")
-
 target_include_directories(${PROJECT_NAME} PRIVATE ${LLVM_INCLUDE_DIRS}include)
 target_compile_definitions(${PROJECT_NAME} PRIVATE ${LLVM_DEFINITIONS})
 separate_arguments(LLVM_LIBS)

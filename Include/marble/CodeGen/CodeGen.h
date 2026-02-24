@@ -1,5 +1,4 @@
 #pragma once
-#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/Visitor.h>
 #include <marble/Basic/DiagnosticEngine.h>
 #include <llvm/IR/Module.h>
@@ -10,7 +9,7 @@ namespace marble {
     class CodeGen : public ASTVisitor<CodeGen, llvm::Value *> {
         llvm::SourceMgr &_srcMgr;
         llvm::LLVMContext _context;
-        Module *_module;
+        std::unique_ptr<llvm::Module> _module;
         llvm::IRBuilder<> _builder;
 
         std::stack<std::unordered_map<std::string, std::tuple<llvm::Value *, llvm::Type *, ASTType>>> _vars;
@@ -20,9 +19,6 @@ namespace marble {
         std::stack<llvm::Type *> _funRetsTypes;
 
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
-
-        std::vector<std::string> _modulesPath;
-        Module *_currentMod = nullptr;
 
         struct Field {
             std::string Name;
@@ -41,14 +37,12 @@ namespace marble {
 
         struct Trait {
             std::string Name;
-            std::string MangledName;
             std::vector<std::pair<std::string, Method>> Methods; 
         };
         std::unordered_map<std::string, Trait> _traits;
 
         struct Struct {
             std::string Name;
-            std::string MangledName;
             llvm::StructType *Type;
             std::unordered_map<std::string, Field> Fields;
             std::unordered_map<std::string, Trait> TraitsImplements;
@@ -56,28 +50,18 @@ namespace marble {
         std::unordered_map<std::string, Struct> _structs;
 
     public:
-        explicit CodeGen(Module *mod, llvm::SourceMgr &srcMgr) : _srcMgr(srcMgr), _context(), _builder(_context),
-                                                                          _module(mod) {
-            _module->Mod = new llvm::Module(mod->GetName(), _context);
+        explicit CodeGen(std::string fileName, llvm::SourceMgr &srcMgr) : _srcMgr(srcMgr), _context(), _builder(_context),
+                                                                          _module(std::make_unique<llvm::Module>(fileName, _context)) {
             _vars.push({});
         }
 
-        llvm::Module *
-        GetLLVMModule() {
-            return _module->Mod;
+        std::unique_ptr<llvm::Module>
+        GetModule() {
+            return std::move(_module);
         }
 
         void
-        DeclareMod(Module *mod);
-
-        void
-        DeclareStatements(std::vector<Stmt *> ast);
-
-        void
-        DeclareRuntimeFunctions();
-
-        void
-        GenerateBodies(Module *mod);
+        DeclareFunctionsAndStructures(std::vector<Stmt *> &ast);
 
         llvm::Value *
         VisitVarDeclStmt(VarDeclStmt *vds);
@@ -126,12 +110,6 @@ namespace marble {
 
         llvm::Value *
         VisitDelStmt(DelStmt *ds);
-
-        llvm::Value *
-        VisitImportStmt(ImportStmt *is);
-
-        llvm::Value *
-        VisitModuleDeclStmt(ModuleDeclStmt *mds);
 
         llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);
@@ -196,26 +174,5 @@ namespace marble {
 
         llvm::Value *
         castToTrait(llvm::Value *src, llvm::Type *traitType, const std::string &structName);
-
-        llvm::Function *
-        getFunction(std::string name);
-
-        std::string
-        getMangledName(const std::vector<std::string> &path, const std::string &name) const;
-
-        std::string
-        getCurrentMangled(const std::string &name) const;
-
-        std::vector<std::string>
-        splitPath(const std::string &path);
-
-        std::string
-        getMangledForPath(const std::string &path);
-
-        std::string
-        getModulePathFromExpr(Expr *expr);
-
-        std::string
-        resolveFullTypeName(const ASTType& type);
     };
 }

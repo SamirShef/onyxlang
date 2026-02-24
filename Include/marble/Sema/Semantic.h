@@ -1,5 +1,4 @@
 #pragma once
-#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/AST.h>
 #include <marble/AST/Visitor.h>
 #include <marble/Basic/DiagnosticEngine.h>
@@ -10,25 +9,62 @@
 namespace marble {
     class SemanticAnalyzer : public ASTVisitor<SemanticAnalyzer, std::optional<ASTVal>> {
         DiagnosticEngine &_diag;
-        llvm::SourceMgr &_srcMgr;
-        ModuleManager &_modManager;
-        Module *_rootMod = nullptr;
-        Module *_currentMod = nullptr;
-        const std::string &_libsPath;
         
+        struct Variable {
+            std::string Name;
+            ASTType Type;
+            std::optional<ASTVal> Val;
+            bool IsConst;
+        };
         std::stack<std::unordered_map<std::string, Variable>> _vars;
 
+        struct Function {
+            std::string Name;
+            ASTType RetType;
+            std::vector<Argument> Args;
+            std::vector<Stmt *> Body;
+            bool IsDeclaration;
+        };
+        std::unordered_map<std::string, Function> _functions;
         std::stack<ASTType> _funRetsTypes;
+
         int _loopDeth = 0;
+
+        struct Field {
+            std::string Name;
+            std::optional<ASTVal> Val;
+            ASTType Type;
+            bool IsConst;
+            AccessModifier Access;
+            bool ManualInitialized;
+        };
+        
+        struct Method {
+            Function Fun;
+            AccessModifier Access;
+        };
+
+        struct Trait {
+            std::string Name;
+            std::unordered_map<std::string, Method> Methods;
+        };
+        std::unordered_map<std::string, Trait> _traits;
+
+        struct Struct {
+            std::string Name;
+            std::unordered_map<std::string, Field> Fields;
+            std::unordered_map<std::string, Method> Methods;
+            std::unordered_map<std::string, Trait> TraitsImplements;
+        };
+        std::unordered_map<std::string, Struct> _structs;
         
     public:
-        explicit SemanticAnalyzer(DiagnosticEngine &diag, llvm::SourceMgr &srcMgr, const std::string &libsPath, ModuleManager &mm)
-                                : _diag(diag), _srcMgr(srcMgr), _libsPath(libsPath), _modManager(mm) {
+        explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {
             _vars.push({});
         }
         
         void
-        Analyze(Module *mod);
+        DeclareFunctions(std::vector<Stmt *> &ast);
 
         std::optional<ASTVal>
         VisitVarDeclStmt(VarDeclStmt *vds);
@@ -79,12 +115,6 @@ namespace marble {
         VisitDelStmt(DelStmt *ds);
 
         std::optional<ASTVal>
-        VisitImportStmt(ImportStmt *is);
-
-        std::optional<ASTVal>
-        VisitModuleDeclStmt(ModuleDeclStmt *mds);
-
-        std::optional<ASTVal>
         VisitBinaryExpr(BinaryExpr *be);
         
         std::optional<ASTVal>
@@ -121,24 +151,6 @@ namespace marble {
         VisitNewExpr(NewExpr *ne);
 
     private:
-        void
-        resolveTypeInStatement(Stmt *stmt, Module *mod);
-
-        void
-        discover(Module *mod);
-
-        Variable *
-        findVar(std::string name);
-
-        Function *
-        findFunction(std::string name);
-        
-        Struct *
-        findStruct(std::string name);
-
-        Trait *
-        findTrait(std::string name);
-
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;
 
@@ -149,24 +161,9 @@ namespace marble {
         variableExists(std::string name) const;
 
         bool
-        canImplicitlyCast(ASTVal src, ASTType expectType);
+        canImplicitlyCast(ASTVal src, ASTType expectType) const;
         
         ASTVal
-        implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc);
-
-        std::vector<std::string>
-        splitPath(const std::string &path);
-
-        Struct *
-        findStructByPath(const std::string &path, Module *contextMod = nullptr);
-        
-        Trait *
-        findTraitByPath(const std::string &path, Module *contextMod = nullptr);
-        
-        ASTType
-        resolveType(ASTType type, Module *contextMod);
-
-        Module *
-        createModule(Module *base, std::string name, std::string fullPath, AccessModifier access, std::vector<Stmt *> ast);
+        implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc) const;
     };
 }

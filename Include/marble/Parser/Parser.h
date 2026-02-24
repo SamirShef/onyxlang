@@ -5,33 +5,25 @@
 #include <llvm/Support/Allocator.h>
 
 namespace marble {
-    class Module;
-    class ModuleManager;
-
     class Parser {
         Lexer &_lex;
         DiagnosticEngine &_diag;
-        llvm::SourceMgr &_srcMgr;
-        ModuleManager &_modManager;
         Token _lastTok;
         Token _curTok;
         Token _nextTok;
+        llvm::BumpPtrAllocator _allocator;
 
     public:
-        explicit Parser(Lexer &lex, DiagnosticEngine &diag, llvm::SourceMgr &srcMgr, ModuleManager &mm)
-                      : _lex(lex), _diag(diag), _srcMgr(srcMgr), _modManager(mm), _lastTok(Token(TkUnknown, "", llvm::SMLoc())),
-                        _curTok(Token(TkUnknown, "", llvm::SMLoc())), _nextTok(Token(TkUnknown, "", llvm::SMLoc())) {
+        explicit Parser(Lexer &lex, DiagnosticEngine &diag) : _lex(lex), _diag(diag), _lastTok(Token(TkUnknown, "", llvm::SMLoc())),
+                                                              _curTok(Token(TkUnknown, "", llvm::SMLoc())), _nextTok(Token(TkUnknown, "", llvm::SMLoc())) {
             consume();
             consume();
         }
 
-        std::vector<Stmt *>
-        ParseAll();
-
-    private:
         Stmt *
         ParseStmt(bool consumeSemi = true);
 
+    private:
         template<typename T, typename ...Args>
         T *
         createNode(Args &&... args);
@@ -72,12 +64,6 @@ namespace marble {
         Stmt *
         parseDelStmt();
 
-        Stmt *
-        parseImportStmt();
-
-        Stmt *
-        parseModuleDeclStmt();
-
         Argument
         parseArgument();
         
@@ -90,9 +76,6 @@ namespace marble {
         Expr *
         parseChainExpr(Expr *base);
 
-        Expr *
-        parseStructExprInitializer(std::string name, llvm::SMLoc start);
-
         Token
         consume();
 
@@ -101,12 +84,6 @@ namespace marble {
 
         Expr *
         createCompoundAssignmentOp(Token op, Expr *base, Expr *expr);
-
-        void
-        importModuleHandler(std::string path, bool isLocalImport, llvm::SMLoc startLoc);
-
-        void
-        registerTypes(Module *mod);
 
         bool
         expect(TokenKind kind);

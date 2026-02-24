@@ -23,7 +23,6 @@ namespace marble {
         ErrRedefinitionField,
         ErrRedefinitionMethod,
         ErrRedefinitionTrait,
-        ErrRedefinitionModule,
         ErrTypeMismatchNotNum,
         ErrTypeMismatchNotBool,
         ErrCannotCast,
@@ -39,10 +38,6 @@ namespace marble {
         ErrAccessFromNonStruct,
         ErrFieldIsPrivate,
         ErrMethodIsPrivate,
-        ErrVarIsPrivate,
-        ErrFunIsPrivate,
-        ErrStructIsPrivate,
-        ErrTraitIsPrivate,
         ErrCannotDeclareHere,
         ErrUndeclaredType,
         ErrMethodNotInTrait,
@@ -58,9 +53,5 @@ namespace marble {
         ErrDelOfNonPtr,
         ErrDelOfNil,
         ErrDelOfCreatedNotByNew,
-        ErrCannotFindModule,
-        ErrMultipleImport,
-        ErrDoesNotHaveFunInMod,
-        ErrDoesNotHaveVarInMod,
     };
 }

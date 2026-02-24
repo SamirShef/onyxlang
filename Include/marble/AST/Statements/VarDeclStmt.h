@@ -10,11 +10,10 @@ namespace marble {
         bool _isConst;
         ASTType _type;
         Expr *_expr;
-        bool _isStatic;
 
     public:
-        explicit VarDeclStmt(std::string name, bool isConst, ASTType type, Expr *expr, bool isStatic, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                           : _name(name), _type(type), _isConst(isConst), _expr(expr), _isStatic(isStatic), Stmt(NkVarDeclStmt, access, startLoc, endLoc) {}
+        explicit VarDeclStmt(std::string name, bool isConst, ASTType type, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                           : _name(name), _type(type), _isConst(isConst), _expr(expr), Stmt(NkVarDeclStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const Node *node) {
@@ -35,20 +34,10 @@ namespace marble {
         GetType() const {
             return _type;
         }
-
-        void
-        SetType(ASTType type) {
-            _type = type;
-        }
         
         Expr *
         GetExpr() const {
             return _expr;
-        }
-
-        bool
-        IsStatic() const {
-            return _isStatic;
         }
     };
 }

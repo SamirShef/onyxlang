@@ -1,4 +1,3 @@
-#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/Printer.h>
 #include <marble/CodeGen/CodeGen.h>
 #include <marble/Compilation/Compilation.h>
@@ -11,8 +10,6 @@
 #include <llvm/Support/Path.h>
 #include <llvm/TargetParser/Host.h>
 
-std::string libsPath = "Libs/";
-
 int
 main(int argc, char **argv) {
     if (argc < 2) {
@@ -24,20 +21,30 @@ main(int argc, char **argv) {
     llvm::cl::ParseCommandLineOptions(argc, argv, "Marble Compiler\n");
     llvm::outs().SetUnbuffered();
 
-    llvm::SourceMgr srcMgr;
     std::string fileName = marble::InputFilename;
 
+    llvm::SourceMgr srcMgr;
     auto bufferOrErr = llvm::MemoryBuffer::getFile(fileName);
     
     if (std::error_code ec = bufferOrErr.getError()) {
-        llvm::errs() << llvm::errs().RED << "Could not open file " << llvm::errs().RESET << '`' << fileName << "`: " << ec.message() << '\n';
+        llvm::errs() << llvm::errs().RED << "Could not open file: " << llvm::errs().RESET << ec.message() << '\n';
         return 1;
     }
     srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
 
     marble::DiagnosticEngine diag(srcMgr);
-    marble::ModuleManager modManager(diag);
-    marble::Module *mainMod = modManager.LoadModule(fileName, marble::AccessPriv, srcMgr);
+    
+    marble::Lexer lex(srcMgr, diag);
+    marble::Parser parser(lex, diag);
+
+    std::vector<marble::Stmt *> ast;
+    while (1) {
+        marble::Stmt *stmt = parser.ParseStmt();
+        if (!stmt) {
+            break;
+        }
+        ast.push_back(stmt);
+    }
     if (diag.HasErrors()) {
         return 1;
     }
@@ -45,29 +52,32 @@ main(int argc, char **argv) {
 
     if (marble::EmitAction == marble::EmitAST) {
         marble::ASTPrinter printer;
-        for (auto stmt : mainMod->AST) {
+        for (auto stmt : ast) {
             printer.Visit(stmt);
             llvm::outs() << '\n';
         }
         return 0; 
     }
 
-    marble::SemanticAnalyzer sema(diag, srcMgr, libsPath, modManager);
-    sema.Analyze(mainMod);
+    marble::SemanticAnalyzer sema(diag);
+    sema.DeclareFunctions(ast);
+    for (auto &stmt : ast) {
+        sema.Visit(stmt);
+    }
     if (diag.HasErrors()) {
         return 1;
     }
     diag.ResetErrors();
-    
-    // TODO: remove next line
-    return 0;
 
-    marble::CodeGen codegen(mainMod, srcMgr);
-    codegen.DeclareRuntimeFunctions();
-    codegen.DeclareMod(mainMod);
-    codegen.GenerateBodies(mainMod);
-
-    llvm::Module *mod = codegen.GetLLVMModule();
+    marble::CodeGen codegen(fileName, srcMgr);
+    codegen.DeclareFunctionsAndStructures(ast);
+    for (auto &stmt : ast) {
+        codegen.Visit(stmt);
+    }
+    if (diag.HasErrors()) {
+        return 1;
+    }
+    std::unique_ptr<llvm::Module> mod = codegen.GetModule();
     marble::InitializeLLVMTargets();
     
     std::string tripleStr = llvm::sys::getDefaultTargetTriple();
@@ -134,9 +144,8 @@ main(int argc, char **argv) {
     }
     if (marble::EmitAction == marble::EmitBinary) {
         marble::LinkObjectFile(objFile, marble::GetOutputName(fileName, triple));
-        llvm::sys::fs::remove(objFile); // NOLINT
+        llvm::sys::fs::remove(objFile);
     }
     llvm::outs().flush();   // explicitly flushing the buffer
-    
     return 0;
 }

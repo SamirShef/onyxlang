@@ -17,8 +17,6 @@
 #include <marble/AST/Statements/TraitDeclStmt.h>
 #include <marble/AST/Statements/EchoStmt.h>
 #include <marble/AST/Statements/DelStmt.h>
-#include <marble/AST/Statements/ImportStmt.h>
-#include <marble/AST/Statements/ModuleDeclStmt.h>
 
 #include <marble/AST/Expressions/BinaryExpr.h>
 #include <marble/AST/Expressions/LiteralExpr.h>

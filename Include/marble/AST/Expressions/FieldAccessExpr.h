@@ -8,7 +8,6 @@ namespace marble {
         Expr *_object;
         std::string _name;
         ASTType _objType;
-        bool _isModule;
 
     public:
         explicit FieldAccessExpr(Expr *obj, std::string name, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -37,16 +36,6 @@ namespace marble {
         void
         SetObjType(ASTType t) {
             _objType = t;
-        }
-
-        bool
-        IsModule() const {
-            return _isModule;
-        }
-
-        void
-        SetIsModule(bool isModule) {
-            _isModule = isModule;
         }
     };
 }

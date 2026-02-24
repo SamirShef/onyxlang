@@ -97,7 +97,7 @@ namespace marble {
             text += c;
         }
         ++_curPtr;  // skip "
-        return Token(TkStrLit, text, llvm::SMLoc::getFromPointer(tokStart));
+        return Token(TkStrLit, std::string(tokStart, _curPtr - tokStart), llvm::SMLoc::getFromPointer(tokStart));
     }
 
     Token

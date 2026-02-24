@@ -13,9 +13,7 @@ namespace marble {
         Struct,
         Trait,
         Noth,
-        Nil,
-        Mod,
-        Unknown,
+        Nil
     };
     
     class ASTType {
@@ -55,11 +53,6 @@ namespace marble {
             return _kind;
         }
 
-        void
-        SetTypeKind(ASTTypeKind kind) {
-            _kind = kind;
-        }
-
         std::string
         GetVal() const {
             return _val;
@@ -73,11 +66,6 @@ namespace marble {
         bool
         IsPointer() const {
             return _pointerDepth;
-        }
-
-        bool
-        IsUnknown() const {
-            return _kind == ASTTypeKind::Unknown;
         }
 
         unsigned char

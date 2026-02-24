@@ -5,7 +5,7 @@ namespace marble {
     void
     ASTPrinter::VisitVarDeclStmt(VarDeclStmt *vds) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(VarDeclStmt: " << (vds->IsStatic() ? "static " : "") << vds->GetType().ToString() << ' ' << vds->GetName();
+        llvm::outs() << "(VarDeclStmt: " << vds->GetType().ToString() << ' ' << vds->GetName();
         if (vds->GetExpr()) {
             llvm::outs() << " = ";
             int spaces = _spaces;
@@ -286,32 +286,6 @@ namespace marble {
         Visit(ds->GetExpr());
         _spaces = spaces;
         llvm::outs() << ')';
-    }
-
-    void
-    ASTPrinter::VisitImportStmt(ImportStmt *is) {
-        llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(ImportStmt: " << is->GetPath() << ')';
-    }
-
-    void
-    ASTPrinter::VisitModuleDeclStmt(ModuleDeclStmt *mds) {
-        llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(ModuleDeclStmt: " << mds->GetName() << " {";
-        if (mds->GetBody().size() != 0) {
-            llvm::outs() << '\n';
-        }
-        _spaces += 2;
-        for (auto stmt : mds->GetBody()) {
-            llvm::outs() << (stmt->GetAccess() == AccessPub ? "pub " : "priv");
-            Visit(stmt);
-            llvm::outs() << '\n';
-        }
-        _spaces -= 2;
-        if (mds->GetBody().size() != 0) {
-            llvm::outs() << std::string(_spaces, ' ');
-        }
-        llvm::outs() << "})";
     }
     
     void

@@ -5,16 +5,19 @@
 
 namespace marble {
     class Lexer {
-        DiagnosticEngine &_diag;
         llvm::SourceMgr &_srcMgr;
+        DiagnosticEngine &_diag;
+        unsigned _curBuf;
+        const char *_bufStart;
         const char *_curPtr;
 
     public:
-        explicit Lexer(DiagnosticEngine &diag, llvm::SourceMgr &srcMgr, unsigned bufferID) : _diag(diag), _srcMgr(srcMgr) {
-            llvm::StringRef buffer = srcMgr.getMemoryBuffer(bufferID)->getBuffer();
-            _curPtr = buffer.begin();
+        explicit Lexer(llvm::SourceMgr &mgr, DiagnosticEngine &diag) : _srcMgr(mgr), _diag(diag) {
+            _curBuf = _srcMgr.getMainFileID();
+            auto *buf = _srcMgr.getMemoryBuffer(_curBuf);
+            _bufStart = buf->getBufferStart();
+            _curPtr = _bufStart;
         }
-
 
         Token
         NextToken();
