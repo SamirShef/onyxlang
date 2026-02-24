@@ -1,0 +1,29 @@
+fun main(argc: i32, argv: **char): i32 {
+    if argc < 2 {
+        return 1;
+    }
+    var a: i32 = strToInt(*(argv + 1));
+    print(a);
+    inc(&a);
+    print(a);
+    var p: *i32 = nil;
+    echo p + 1; echo '\n';  // 0x4
+    return 0;
+}
+
+fun strToInt(s: *char): i32 {
+    var res: i32;
+    for var i: i32, *(s + i) != '\0', i += 1 {
+        res *= 10;
+        res += *(s + i) - '0';
+    }
+    return res;
+}
+
+fun inc(a: *i32) {
+    *a += 1;
+}
+
+fun print(a: i32) {
+    echo a; echo '\n';
+}

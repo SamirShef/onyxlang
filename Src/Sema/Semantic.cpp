@@ -557,7 +557,9 @@ namespace marble {
             _diag.Report(es->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(es->GetStartLoc(), es->GetEndLoc());
         }
-        return Visit(es->GetRHS());
+        std::optional<ASTVal> val = Visit(es->GetExpr());
+        es->SetExprType(val->GetType());
+        return val;
     }
 
     std::optional<ASTVal>

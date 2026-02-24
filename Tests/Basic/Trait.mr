@@ -1,0 +1,84 @@
+trait TConvertible {
+    pub fun ToBool():   bool;
+    pub fun ToChar():   char;
+    pub fun ToI16():    i16;
+    pub fun ToI32():    i32;
+    pub fun ToI64():    i64;
+    pub fun ToF32():    f32;
+    pub fun ToF64():    f64;
+}
+
+struct String {
+    var v: *char;
+}
+
+impl TConvertible for String {
+    pub fun ToBool():   bool {
+        return *this.v != '0';
+    }
+
+    pub fun ToChar():   char {
+        return *this.v;
+    }
+
+    pub fun ToI16():    i16 {
+        var res: i16;
+        for var i: i32, *(this.v + i) != '\0', i += 1 {
+            res *= 10s;
+            res += *(this.v + i) - '0';
+        }
+        return res;
+    }
+
+    pub fun ToI32():    i32 {
+        var res: i32;
+        for var i: i32, *(this.v + i) != '\0', i += 1 {
+            res *= 10;
+            res += *(this.v + i) - '0';
+        }
+        return res;
+    }
+
+    pub fun ToI64():    i64 {
+        var res: i64;
+        for var i: i32, *(this.v + i) != '\0', i += 1 {
+            res *= 10;
+            res += *(this.v + i) - '0';
+        }
+        return res;
+    }
+
+    pub fun ToF32():    f32 {
+        var res: f32;
+        for var i: i32, *(this.v + i) != '\0', i += 1 {
+            res *= 10;
+            res += *(this.v + i) - '0';
+        }
+        return res;
+    }
+
+    pub fun ToF64():    f64 {
+        var res: f64;
+        for var i: i32, *(this.v + i) != '\0', i += 1 {
+            res *= 10;
+            res += *(this.v + i) - '0';
+        }
+        return res;
+    }
+}
+
+fun main(argc: i32, argv: **char): i32 {
+    var s: String = String { v: *(argv + 1) };
+    print(s);
+    return 0;
+}
+
+fun print(c: TConvertible) {
+    echo c.ToBool();    echo ' ';
+    echo c.ToChar();    echo ' ';
+    echo c.ToI16();     echo ' ';
+    echo c.ToI32();     echo ' ';
+    echo c.ToI64();     echo ' ';
+    echo c.ToF32();     echo ' ';
+    echo c.ToF64();     echo '\n';
+}

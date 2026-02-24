@@ -1,0 +1,21 @@
+struct Human {
+    pub var age:    i16;
+    pub var height: f32;
+    pub var weight: f32;
+}
+
+fun main(): i32 {
+    var h: Human = humanNew(16s, 1.76f, 70);
+    print(h);
+    return 0;
+}
+
+fun humanNew(a: i16, h: f32, w: f32): Human {
+    return Human { age: a, height: h, weight: w };
+}
+
+fun print(h: Human) {
+    echo h.age;     echo ' ';
+    echo h.height;  echo ' ';
+    echo h.weight;  echo '\n';
+}

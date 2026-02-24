@@ -272,7 +272,7 @@ namespace marble {
         llvm::outs() << "(EchoStmt: ";
         int spaces = _spaces;
         _spaces = 0;
-        Visit(es->GetRHS());
+        Visit(es->GetExpr());
         _spaces = spaces;
         llvm::outs() << ')';
     }

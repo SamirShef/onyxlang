@@ -4,7 +4,7 @@ project(marblec)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-add_compile_options(-w)
+add_compile_options(-w -g)
 
 include_directories(Include)
 

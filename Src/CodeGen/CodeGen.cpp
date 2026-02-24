@@ -203,12 +203,7 @@ namespace marble {
         int index = 0;
         for (auto &arg : fun->args()) {
             arg.setName(fds->GetArgs()[index].GetName());
-            llvm::Value *var = &arg;
-            if (arg.getType()->isPointerTy()) {
-                var = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName() + ".addr");
-                _builder.CreateStore(&arg, var);
-            }
-            _vars.top().emplace(arg.getName(), std::make_tuple(var, arg.getType(), fds->GetArgs()[index].GetType()));
+            _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), fds->GetArgs()[index].GetType()));
             ++index;
         }
         for (auto &stmt : fds->GetBody()) {
@@ -352,7 +347,7 @@ namespace marble {
             }
         }
 
-        Struct s = _structs.at(resolveStructName(fas->GetObject()));
+        Struct s = _structs.at(fas->GetObjType().GetVal());
         Field field = s.Fields.at(fas->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
         llvm::Value *val = Visit(fas->GetExpr());
@@ -375,12 +370,7 @@ namespace marble {
             int index = 0;
             for (auto &arg : fun->args()) {
                 arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
-                llvm::Value *var = &arg;
-                if (arg.getType()->isPointerTy()) {
-                    var = _builder.CreateAlloca(arg.getType(), nullptr, arg.getName() + ".addr");
-                    _builder.CreateStore(&arg, var);
-                }
-                _vars.top().emplace(arg.getName(), std::make_tuple(var, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
+                _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
                 ++index;
             }
             for (auto &stmt : method->GetBody()) {
@@ -412,15 +402,15 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitEchoStmt(EchoStmt *es) {
         std::string format;
-        llvm::Value *val = Visit(es->GetRHS());
+        llvm::Value *val = Visit(es->GetExpr());
         llvm::Type *type = val->getType();
         if (type->isIntegerTy()) {
             unsigned bitWidth = type->getIntegerBitWidth();
 
             switch (bitWidth) {
                 case 1: {
-                    llvm::Constant *trueStr = getOrCreateGlobalString("true\n", "str.true");
-                    llvm::Constant *falseStr = getOrCreateGlobalString("false\n", "str.false");
+                    llvm::Constant *trueStr = getOrCreateGlobalString("true", "str.true");
+                    llvm::Constant *falseStr = getOrCreateGlobalString("false", "str.false");
 
                     llvm::Value *selectedStr = _builder.CreateSelect(val, trueStr, falseStr, "bool.str");
 
@@ -451,7 +441,12 @@ namespace marble {
             }
         }
         else if (type->isPointerTy()) {
-            format = "%p";
+            if (es->GetExprType().GetTypeKind() == ASTTypeKind::Char) {
+                format = "%s";
+            }
+            else {
+                format = "%p";
+            }
         }
         _builder.CreateCall(_module->getFunction("printf"), { getOrCreateGlobalString(format, "printf.format"), val });
         return nullptr;
@@ -741,7 +736,7 @@ namespace marble {
                 if (!field.second.ManualInitialized) {
                     if (field.second.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
                         fields.push_back(llvm::dyn_cast<llvm::Constant>(field.second.ASTType.IsPointer() ? llvm::ConstantPointerNull::get(_builder.getPtrTy())
-                                                                      : defaultStructConst(field.second.ASTType)));
+                                                                                                         : defaultStructConst(field.second.ASTType)));
                     }
                     else {
                         fields.push_back(llvm::Constant::getNullValue(field.second.Type));
@@ -775,7 +770,7 @@ namespace marble {
             }
         }
 
-        Struct s = _structs.at(resolveStructName(fae->GetObject()));
+        Struct s = _structs.at(fae->GetObjType().GetVal());
         Field field = s.Fields.at(fae->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
         if (_vars.size() == 1) {
@@ -853,10 +848,10 @@ namespace marble {
             return _builder.CreateCall(FTy, funcPtr, args);
         }
         
-        std::string structName = resolveStructName(mce->GetObject());
+        std::string structName = mce->GetObjType().GetVal();
         if (structName.empty() && obj->getType()->isStructTy()) {
             structName = obj->getType()->getStructName().str();
-            size_t dotPos = structName.find('.');
+            int dotPos = structName.find('.');
             if (dotPos != std::string::npos) {
                 structName = structName.substr(0, dotPos);
             }
@@ -1043,7 +1038,7 @@ namespace marble {
             }
 
             std::string traitName = expectType->getStructName().str();
-            size_t dotPos = traitName.find('.');
+            int dotPos = traitName.find('.');
             if (dotPos != std::string::npos) {
                 traitName = traitName.substr(0, dotPos);
             }
@@ -1130,11 +1125,13 @@ namespace marble {
             case ASTTypeKind::Trait: {
                 llvm::StructType *existingType = llvm::StructType::getTypeByName(_context, type.GetVal());
                 if (existingType) {
-                    return existingType;
+                    base = existingType;
+                    break;
                 }
                 llvm::Type *voidPtrTy = llvm::PointerType::get(_context, 0);
                 llvm::Type *vtablePtrTy = llvm::PointerType::get(voidPtrTy, 0);
-                return llvm::StructType::create(_context, { voidPtrTy, vtablePtrTy }, type.GetVal());
+                base = llvm::StructType::create(_context, { voidPtrTy, vtablePtrTy }, type.GetVal());
+                break;
             }
             case ASTTypeKind::Noth:
                 base = TYPE(getVoidTy);
@@ -1225,7 +1222,7 @@ namespace marble {
             }
             case NkFieldAccessExpr: {
                 FieldAccessExpr *fae = llvm::dyn_cast<FieldAccessExpr>(expr);
-                std::string parentStructName = resolveStructName(fae->GetObject());
+                std::string parentStructName = fae->GetObjType().GetVal();
                 if (parentStructName.empty()) {
                     return "";
                 }
@@ -1245,7 +1242,7 @@ namespace marble {
             }
             case NkMethodCallExpr: {
                 MethodCallExpr *mce = llvm::dyn_cast<MethodCallExpr>(expr);
-                std::string parentStructName = resolveStructName(mce->GetObject());
+                std::string parentStructName = mce->GetObjType().GetVal();
                 if (parentStructName.empty()) {
                     return "";
                 }
@@ -1274,22 +1271,15 @@ namespace marble {
         llvm::BasicBlock *currentBB = _builder.GetInsertBlock();
         llvm::Function *parentFun = currentBB->getParent();
 
-        llvm::BasicBlock *notNullBB = llvm::BasicBlock::Create(_context, "not_null", parentFun);
-        llvm::BasicBlock *nullBB = llvm::BasicBlock::Create(_context, "null_error", parentFun);
+        llvm::BasicBlock *notNullBB = llvm::BasicBlock::Create(_context, "not.null", parentFun);
+        llvm::BasicBlock *nullBB = llvm::BasicBlock::Create(_context, "null.error", parentFun);
 
-        llvm::Value *isNull = _builder.CreateIsNull(ptr, "is_null_check");
+        llvm::Value *isNull = _builder.CreateIsNull(ptr, "is.null");
 
         _builder.CreateCondBr(isNull, nullBB, notNullBB);
         _builder.SetInsertPoint(nullBB);
 
-        llvm::Constant *errMsg = llvm::ConstantDataArray::getString(_context, msgStr, true);
-        llvm::GlobalVariable *errMsgGlobal = new llvm::GlobalVariable(*_module, errMsg->getType(), true, llvm::GlobalValue::PrivateLinkage, errMsg, "null_err_msg");
-        errMsgGlobal->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-        errMsgGlobal->setAlignment(llvm::MaybeAlign(1));
-
-        llvm::Value *errMsgPtr = _builder.CreateGEP(errMsgGlobal->getValueType(), errMsgGlobal, { _builder.getInt64(0), _builder.getInt32(0) }, "err_msg_ptr");
-
-        _builder.CreateCall(_module->getFunction("printf"), { errMsgPtr }, "printf_call");
+        _builder.CreateCall(_module->getFunction("printf"), { getOrCreateGlobalString(msgStr, "null.err.msg") }, "printf_call");
 
         _builder.CreateCall(_module->getFunction("abort"));
         _builder.CreateUnreachable();
