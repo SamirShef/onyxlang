@@ -69,7 +69,7 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    // TODO: delete next line
+    // TODO: uncomment next line
     return 0;
 
     marble::CodeGen codegen(fileName, srcMgr);

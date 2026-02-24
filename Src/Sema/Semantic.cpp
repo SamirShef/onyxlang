@@ -32,6 +32,7 @@ namespace marble {
         }
     }
     
+    
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
         if (vds->GetAccess() == AccessPub && _vars.size() != 1) {
@@ -410,6 +411,7 @@ namespace marble {
                 }
 
                 const Function &traitFun = tMethodIt->second.Fun;
+                const Function &traitFun = tMethodIt->second.Fun;
                 if (method->GetRetType() != traitFun.RetType) {
                     _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_RetTypeMismatch)
                         << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
@@ -775,6 +777,7 @@ namespace marble {
                     << s.Name;
             }
         }
+        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false, false);
         return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false, false);
     }
 
