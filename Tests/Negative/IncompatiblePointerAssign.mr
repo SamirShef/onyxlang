@@ -1,0 +1,6 @@
+fun main(): i32 {
+    var a: *i32 = nil;
+    var b: *f32 = nil;
+    a = b; // Error: Cannot cast *f32 to *i32
+    return 0;
+}

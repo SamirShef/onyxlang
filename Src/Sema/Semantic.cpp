@@ -1034,7 +1034,7 @@ namespace marble {
         if (src.GetType() == expectType) {
             return true;
         }
-        if (src.IsNil() && expectType.IsPointer()) {
+        if (src.IsNil() && expectType.IsPointer() && src.GetType() == expectType) {
             return true;
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
@@ -1054,7 +1054,7 @@ namespace marble {
         if (src.GetType() == expectType) {
             return src;
         }
-        if (src.IsNil() && expectType.IsPointer()) {
+        if (src.IsNil() && expectType.IsPointer() && (src.GetType() == expectType || src.GetType().GetTypeKind() == ASTTypeKind::Nil)) {
             return src;
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {

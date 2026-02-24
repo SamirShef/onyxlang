@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var x: bool = true;
+    var y: i32 = x + 1; // Error: Invalid operands for BinaryExpr (+)
+    return 0;
+}

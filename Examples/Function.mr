@@ -4,6 +4,11 @@ fun add(a: i32, b: i32): i32 {
     return a + b;
 }
 
-fun main() {                    // default function type is 'noth'
+fun main(): i32 {
     var sum: i32 = add(2, 3);
+    return 0;
+}
+
+fun print() {               // default function type is 'noth'
+    echo 123; echo '\n';
 }

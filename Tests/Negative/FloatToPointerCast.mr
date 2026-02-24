@@ -1,0 +1,4 @@
+fun main(): i32 {
+    var p: *i32 = 3.14; // Error: Cannot cast f64 to *i32
+    return 0;
+}

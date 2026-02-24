@@ -1,0 +1,4 @@
+fun main(): i32 {
+    var x: i32 = nil; // Error: nil can only be assigned to pointers
+    return 0;
+}

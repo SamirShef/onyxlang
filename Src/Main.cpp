@@ -82,7 +82,10 @@ main(int argc, char **argv) {
     
     std::string tripleStr = llvm::sys::getDefaultTargetTriple();
     llvm::Triple triple(tripleStr);
-    llvm::StringRef stem = llvm::sys::path::stem(fileName);
+    int last_dot_pos = fileName.find_last_of('.');
+    if (last_dot_pos != std::string::npos && last_dot_pos != 0) { 
+        fileName.erase(last_dot_pos);
+    }
     std::string outputName;
     if (!marble::OutputFilename.empty()) {
         outputName = marble::OutputFilename;
@@ -93,13 +96,13 @@ main(int argc, char **argv) {
                 outputName = "";
                 break;
             case marble::EmitLLVM:
-                outputName = (stem + ".ll").str();
+                outputName = fileName + ".ll";
                 break;
             case marble::EmitObj:
-                outputName = (stem + ".o").str();
+                outputName = fileName + ".o";
                 break;
             case marble::EmitBinary: 
-                outputName = stem.str();
+                outputName = fileName;
                 if (triple.isOSWindows()) {
                     outputName += ".exe";
                 }
@@ -138,12 +141,12 @@ main(int argc, char **argv) {
         return 0;
     }
     
-    std::string objFile = (marble::EmitAction == marble::EmitObj) ? outputName : (stem + ".o").str();
+    std::string objFile = (marble::EmitAction == marble::EmitObj) ? outputName : fileName + ".o";
     if (!marble::EmitObjectFile(&*mod, objFile, tripleStr)) {
         return 1;
     }
     if (marble::EmitAction == marble::EmitBinary) {
-        marble::LinkObjectFile(objFile, marble::GetOutputName(fileName, triple));
+        marble::LinkObjectFile(objFile, outputName);
         llvm::sys::fs::remove(objFile); // NOLINT
     }
     llvm::outs().flush();   // explicitly flushing the buffer

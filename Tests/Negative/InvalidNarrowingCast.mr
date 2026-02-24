@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var a: i64 = 100;
+    var b: i32 = a; // Error: i64 cannot be implicitly cast to i32
+    return 0;
+}

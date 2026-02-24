@@ -1,0 +1,29 @@
+struct Vec3 {
+    pub var x: f32;
+    pub var y: f32;
+    pub var z: f32;
+}
+
+impl Vec3 {
+    pub fun Add(other: Vec3): Vec3 {
+        this.x += other.x;
+        this.y += other.y;
+        this.z += other.z;
+        return this;
+    }
+}
+
+fun main(): i32 {
+    var v1: Vec3 = Vec3 { x: 1, y: 2, z: 3 };
+    var v2: Vec3 = Vec3 { x: 4, y: 5, z: 6 };
+    print(v1.Add(v2));
+    return 0;
+}
+
+fun print(v: Vec3) {
+    echo '(';
+    echo v.x; echo ' ';
+    echo v.y; echo ' ';
+    echo v.z; echo ')';
+    echo '\n';
+}
