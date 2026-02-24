@@ -7,6 +7,7 @@
 
 namespace marble {
     class CodeGen : public ASTVisitor<CodeGen, llvm::Value *> {
+        llvm::SourceMgr &_srcMgr;
         llvm::LLVMContext _context;
         std::unique_ptr<llvm::Module> _module;
         llvm::IRBuilder<> _builder;
@@ -18,6 +19,8 @@ namespace marble {
         std::stack<llvm::Type *> _funRetsTypes;
 
         std::stack<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> _loopDeth;    // first for break, second for continue
+
+        std::unordered_map<std::string, llvm::Constant *> _strPool;
 
         struct Field {
             std::string Name;
@@ -49,7 +52,8 @@ namespace marble {
         std::unordered_map<std::string, Struct> _structs;
 
     public:
-        explicit CodeGen(std::string fileName) : _context(), _builder(_context), _module(std::make_unique<llvm::Module>(fileName, _context)) {
+        explicit CodeGen(std::string fileName, llvm::SourceMgr &mgr) : _srcMgr(mgr), _context(), _builder(_context),
+                                                                       _module(std::make_unique<llvm::Module>(fileName, _context)) {
             _vars.push({});
         }
 
@@ -146,6 +150,9 @@ namespace marble {
         VisitNewExpr(NewExpr *ne);
 
     private:
+        void
+        declareRuntimeFunctions();
+
         llvm::Type *
         getCommonType(llvm::Type *left, llvm::Type *right);
         
@@ -172,5 +179,8 @@ namespace marble {
 
         llvm::Value *
         castToTrait(llvm::Value *src, llvm::Type *traitType, const std::string &structName);
+
+        llvm::Constant *
+        getOrCreateGlobalString(std::string val, std::string name = "");
     };
 }

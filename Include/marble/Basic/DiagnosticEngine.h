@@ -1,10 +1,9 @@
 #pragma once
 #include <marble/Basic/DiagnosticBuilder.h>
 
-extern llvm::SourceMgr _srcMgr;
-
 namespace marble {
     class DiagnosticEngine {
+        llvm::SourceMgr &_srcMgr;
         bool _hasErrors = false;
 
     public:

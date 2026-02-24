@@ -30,7 +30,7 @@ main(int argc, char **argv) {
         llvm::errs() << llvm::errs().RED << "Could not open file: " << llvm::errs().RESET << ec.message() << '\n';
         return 1;
     }
-    _srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
+    srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
 
     marble::DiagnosticEngine diag(srcMgr);
     
@@ -69,7 +69,7 @@ main(int argc, char **argv) {
     }
     diag.ResetErrors();
 
-    marble::CodeGen codegen(fileName);
+    marble::CodeGen codegen(fileName, srcMgr);
     codegen.DeclareFunctionsAndStructures(ast);
     for (auto &stmt : ast) {
         codegen.Visit(stmt);
@@ -144,7 +144,7 @@ main(int argc, char **argv) {
     }
     if (marble::EmitAction == marble::EmitBinary) {
         marble::LinkObjectFile(objFile, marble::GetOutputName(fileName, triple));
-        llvm::sys::fs::remove(objFile);
+        llvm::sys::fs::remove(objFile); // NOLINT
     }
     llvm::outs().flush();   // explicitly flushing the buffer
     return 0;

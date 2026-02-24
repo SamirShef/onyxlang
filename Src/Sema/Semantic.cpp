@@ -1,8 +1,6 @@
 #include <marble/Sema/Semantic.h>
 #include <cmath>
 
-extern llvm::SourceMgr _srcMgr;
-
 namespace marble {
     static std::unordered_map<ASTTypeKind, std::vector<ASTTypeKind>> implicitlyCastAllowed {
         { ASTTypeKind::Char, { ASTTypeKind::I16, ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64 } },
@@ -130,7 +128,7 @@ namespace marble {
                                                           .IsConst = arg.GetType().IsConst() });
         }
         _funRetsTypes.push(fds->GetRetType());
-        bool hasRet;
+        bool hasRet = false;
         for (auto stmt : fds->GetBody()) {
             if (stmt->GetKind() == NkRetStmt) {
                 hasRet = true;

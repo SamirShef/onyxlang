@@ -2,22 +2,10 @@
 
 static bool createLoad = true;
 
-extern llvm::SourceMgr _srcMgr;
-
 namespace marble {
     void
     CodeGen::DeclareFunctionsAndStructures(std::vector<Stmt *> &ast) {
-        llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(_context), { llvm::PointerType::get(_context, 0) }, true);
-        llvm::Function *printfFun = llvm::Function::Create(printfType, llvm::GlobalValue::ExternalLinkage, "printf", *_module);
-
-        llvm::FunctionType *abortType = llvm::FunctionType::get(_builder.getVoidTy(), false);
-        llvm::Function *abortFun = llvm::Function::Create(abortType, llvm::GlobalValue::ExternalLinkage, "abort", *_module);
-
-        llvm::FunctionType *mallocType = llvm::FunctionType::get(_builder.getPtrTy(), { _builder.getInt64Ty() }, false);
-        llvm::Function *mallocFun = llvm::Function::Create(mallocType, llvm::GlobalValue::ExternalLinkage, "malloc", *_module);
-
-        llvm::FunctionType *freeType = llvm::FunctionType::get(_builder.getVoidTy(), { _builder.getPtrTy() }, false);
-        llvm::Function *freeFun = llvm::Function::Create(freeType, llvm::GlobalValue::ExternalLinkage, "free", *_module);
+        declareRuntimeFunctions();
 
         for (auto &stmt : ast) {
             if (FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt)) {
@@ -423,12 +411,12 @@ namespace marble {
 
             switch (bitWidth) {
                 case 1: {
-                    llvm::Constant *trueStr = _builder.CreateGlobalStringPtr("true\n", "str.true");
-                    llvm::Constant *falseStr = _builder.CreateGlobalStringPtr("false\n", "str.false");
+                    llvm::Constant *trueStr = getOrCreateGlobalString("true\n", "str.true");
+                    llvm::Constant *falseStr = getOrCreateGlobalString("false\n", "str.false");
 
                     llvm::Value *selectedStr = _builder.CreateSelect(val, trueStr, falseStr, "bool.str");
 
-                    llvm::Constant *fmtStr = _builder.CreateGlobalStringPtr("%s", "printf.format");
+                    llvm::Constant *fmtStr = getOrCreateGlobalString("%s", "printf.format");
 
                     _builder.CreateCall(_module->getFunction("printf"), { fmtStr, selectedStr });
                     return nullptr;
@@ -457,7 +445,7 @@ namespace marble {
         else if (type->isPointerTy()) {
             format = "%p";
         }
-        _builder.CreateCall(_module->getFunction("printf"), { _builder.CreateGlobalString(format, "printf.format"), val });
+        _builder.CreateCall(_module->getFunction("printf"), { getOrCreateGlobalString(format, "printf.format"), val });
         return nullptr;
     }
 
@@ -995,6 +983,20 @@ namespace marble {
         }
         return ptr;
     }
+
+    void
+    CodeGen::declareRuntimeFunctions() {
+#define DECL(n, t, hasVariadic, ...)                                                                        \
+        llvm::Function::Create(llvm::FunctionType::get(_builder.t, { __VA_ARGS__ }, hasVariadic),       \
+                llvm::GlobalValue::ExternalLinkage, n, *_module);
+
+        DECL("printf",  getInt32Ty(),   true,   _builder.getPtrTy());
+        DECL("abort",   getVoidTy(),    false,  _builder.getVoidTy());
+        DECL("malloc",  getPtrTy(),     false,  _builder.getInt64Ty());
+        DECL("free",    getVoidTy(),    false,  _builder.getPtrTy());
+
+#undef DECL
+    }
     
     llvm::Type *
     CodeGen::getCommonType(llvm::Type *left, llvm::Type *right) {
@@ -1332,5 +1334,14 @@ namespace marble {
         llvm::Value *vtablePtr = _builder.CreateBitCast(vtable, _builder.getPtrTy());
         fatPtr = _builder.CreateInsertValue(fatPtr, vtablePtr, 1);
         return fatPtr;
+    }
+
+    llvm::Constant *
+    CodeGen::getOrCreateGlobalString(std::string val, std::string name) {
+        if (auto it = _strPool.find(val); it != _strPool.end()) {
+            return it->second;
+        }
+        _strPool[val] = _builder.CreateGlobalString(val, name);
+        return _strPool[val];
     }
 }
