@@ -30,7 +30,7 @@ main(int argc, char **argv) {
         llvm::errs() << llvm::errs().RED << "Could not open file: " << llvm::errs().RESET << ec.message() << '\n';
         return 1;
     }
-    srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
+    _srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
 
     marble::DiagnosticEngine diag(srcMgr);
     

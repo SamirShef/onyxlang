@@ -3,7 +3,16 @@
 #include <marble/Lexer/Keywords.h>
 #include <marble/Lexer/Lexer.h>
 
+extern llvm::SourceMgr _srcMgr;
+
 namespace marble {
+    Lexer::Lexer(DiagnosticEngine &diag, unsigned bufferID) : _diag(diag) {
+        _diag = diag;
+        auto *buf = _srcMgr.getMemoryBuffer(bufferID);
+        _bufStart = buf->getBufferStart();
+        _curPtr = _bufStart;
+    }
+
     Token
     Lexer::NextToken() {
         while (*_curPtr == ' ' || *_curPtr == '\n' || *_curPtr == '\t' || *_curPtr == '\r') {
