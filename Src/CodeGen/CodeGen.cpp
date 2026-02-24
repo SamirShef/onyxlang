@@ -37,7 +37,6 @@ namespace marble {
             }
             else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
                 Struct &s = _structs.at(is->GetStructName());
-                Struct &s = _structs.at(is->GetStructName());
                 if (!is->GetTraitName().empty()) {
                     s.TraitsImplements.emplace(is->GetTraitName(), _traits.at(is->GetTraitName()));
                 }
@@ -360,7 +359,6 @@ namespace marble {
             }
         }
 
-        Struct s = _structs.at(resolveStructName(fas->GetObject()));
         Struct s = _structs.at(resolveStructName(fas->GetObject()));
         Field field = s.Fields.at(fas->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
@@ -704,7 +702,6 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitStructExpr(StructExpr *se) {
         Struct s = _structs.at(se->GetName());
-        Struct s = _structs.at(se->GetName());
         if (_vars.size() != 1) {
             llvm::AllocaInst *alloca = _builder.CreateAlloca(s.Type, nullptr, s.Name + ".alloca");
             for (int i = 0; i < se->GetInitializer().size(); ++i) {
@@ -780,7 +777,6 @@ namespace marble {
             }
         }
 
-        Struct s = _structs.at(resolveStructName(fae->GetObject()));
         Struct s = _structs.at(resolveStructName(fae->GetObject()));
         Field field = s.Fields.at(fae->GetName());
         llvm::Value *gep = _builder.CreateStructGEP(s.Type, obj, field.Index);
@@ -859,7 +855,6 @@ namespace marble {
             return _builder.CreateCall(FTy, funcPtr, args);
         }
         
-        std::string structName = resolveStructName(mce->GetObject());
         std::string structName = resolveStructName(mce->GetObject());
         if (structName.empty() && obj->getType()->isStructTy()) {
             structName = obj->getType()->getStructName().str();
@@ -1140,7 +1135,6 @@ namespace marble {
 
     llvm::Value *
     CodeGen::defaultStructConst(ASTType type) {
-        Struct s = _structs.at(type.GetVal());
         Struct s = _structs.at(type.GetVal());
         std::vector<llvm::Constant *> fields(s.Fields.size());
         int i = 0;
