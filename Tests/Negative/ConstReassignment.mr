@@ -1,0 +1,5 @@
+fun main(): i32 {
+    const PI: f32 = 3.14f;
+    PI = 3.15; // Error: Cannot assign to a constant variable
+    return 0;
+}

@@ -1,0 +1,6 @@
+fun main(): i32 {
+    var x: i32 = 5;
+    const p: *i32 = &x; 
+    *p = 10; // Error depends on indirection const rules
+    return 0;
+}

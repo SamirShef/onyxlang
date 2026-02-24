@@ -1,0 +1,10 @@
+struct Point {
+    pub var x: i32;
+    var y: i32;
+}
+
+fun main(): i32 {
+    const p: Point;
+    p.x = 10; // Error: Cannot modify field of a constant struct
+    return 0;
+}

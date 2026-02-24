@@ -47,7 +47,7 @@ namespace marble {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
                 Struct s = _structs.at(vds->GetType().GetVal());
-                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false, false);
+                val = ASTVal(ASTType(ASTTypeKind::Struct, s.Name, vds->IsConst(), 0), ASTValData { .i32Val = 0 }, false, false);
             }
             Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
             if (vds->GetExpr()) {
@@ -337,7 +337,7 @@ namespace marble {
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
                         << fas->GetName();
                 }
-                if (field->second.IsConst) {
+                if (field->second.IsConst || obj->GetType().IsConst()) {
                     _diag.Report(fas->GetStartLoc(), ErrAssignmentConst)
                         << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
                     return std::nullopt;
@@ -708,10 +708,11 @@ namespace marble {
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
             if (auto var = varsCopy.top().find(ve->GetName()); var != varsCopy.top().end()) {
+                ASTType type = ASTType(var->second.Type.GetTypeKind(), var->second.Type.GetVal(), var->second.IsConst, var->second.Type.GetPointerDepth());
                 if (var->second.Type.GetTypeKind() == ASTTypeKind::Trait) {
-                    return ASTVal(var->second.Type, ASTValData { .i32Val = 0 }, var->second.Val->IsNil(), var->second.Val->CreatedByNew());
+                    return ASTVal(type, ASTValData { .i32Val = 0 }, var->second.Val->IsNil(), var->second.Val->CreatedByNew());
                 }
-                return ASTVal(var->second.Type, var->second.Val->GetData(), var->second.Val->IsNil(), var->second.Val->CreatedByNew());
+                return ASTVal(type, var->second.Val->GetData(), var->second.Val->IsNil(), var->second.Val->CreatedByNew());
             }
             varsCopy.pop();
         }
@@ -781,7 +782,6 @@ namespace marble {
                     << s.Name;
             }
         }
-        return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false, false);
         return ASTVal(ASTType(ASTTypeKind::Struct, s.Name, false, 0), ASTValData { .i32Val = 0 }, false, false);
     }
 
