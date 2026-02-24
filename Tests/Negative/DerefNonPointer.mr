@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var x: i32 = 10;
+    var y: i32 = *x; // Error: Cannot dereference non-pointer type i32
+    return 0;
+}

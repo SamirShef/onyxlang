@@ -1,0 +1,4 @@
+struct Node {
+    var value: i32;
+    var next: Node; // Error: Recursive struct 'Node' has infinite size (should be *Node)
+}

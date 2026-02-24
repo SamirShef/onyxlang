@@ -1,0 +1,9 @@
+trait Animal {
+    fun Eat();
+}
+
+struct Cat {}
+
+impl Animal for Cat {
+    // Error: Method 'eat' not implemented for 'Cat'
+}

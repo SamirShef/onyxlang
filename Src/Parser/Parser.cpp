@@ -525,8 +525,9 @@ namespace marble {
                 }
             }
             #define LIT(kind, type_val, field, val) \
-                createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, true, 0), \
-                                               ASTValData { .field = (val) }, false, false), consume().GetLoc(), _curTok.GetLoc())
+                createNode<LiteralExpr>(ASTVal(ASTType(ASTTypeKind::kind, type_val, false, 0),                                              \
+                                               ASTValData { .field = (val) }, false, false), consume().GetLoc(),                            \
+                                               llvm::SMLoc::getFromPointer(_curTok.GetLoc().getPointer() + _curTok.GetText().size()))
             case TkBoolLit:
                 return LIT(Bool, "bool", boolVal, text == "true");
             case TkCharLit:
@@ -561,7 +562,7 @@ namespace marble {
                 return expr;
             }
             case TkNil: {
-                return createNode<NilExpr>(consume().GetLoc(), _curTok.GetLoc());
+                return createNode<NilExpr>(consume().GetLoc(), llvm::SMLoc::getFromPointer(_curTok.GetLoc().getPointer() + _curTok.GetText().size()));
             }
             case TkStar: {
                 Token star = consume();
@@ -579,7 +580,7 @@ namespace marble {
                 StructExpr *se = nullptr;
                 if (_curTok.GetKind() == TkId && _nextTok.GetKind() == TkLBrace) {
                     se = llvm::cast<StructExpr>(parsePrefixExpr());
-                    type = ASTType(ASTTypeKind::Struct, se->GetName(), true, 0);
+                    type = ASTType(ASTTypeKind::Struct, se->GetName(), false, 0);
                 }
                 else {
                     type = consumeType();

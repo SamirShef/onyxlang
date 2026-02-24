@@ -1,0 +1,4 @@
+fun main(): i32 {
+    continue; // Error: 'continue' outside of loop
+    return 0;
+}

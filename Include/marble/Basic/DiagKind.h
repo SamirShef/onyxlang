@@ -53,5 +53,6 @@ namespace marble {
         ErrDelOfNonPtr,
         ErrDelOfNil,
         ErrDelOfCreatedNotByNew,
+        ErrEchoTypeIsNoth,
     };
 }

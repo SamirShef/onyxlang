@@ -1,0 +1,9 @@
+struct Data {
+    var val: i32;   // default is private 
+}
+
+fun main(): i32 {
+    var d: Data;
+    d.val = 10; // Error: Field 'val' is private
+    return 0;
+}

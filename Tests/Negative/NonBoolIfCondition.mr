@@ -1,0 +1,6 @@
+fun main(): i32 {
+    if 1 {          // Error: Condition must be bool, got i32
+        return 1;
+    }
+    return 0;
+}

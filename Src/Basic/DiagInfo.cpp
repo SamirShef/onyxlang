@@ -85,9 +85,9 @@ namespace marble {
             case ErrCannotImplTraitMethod_RetTypeMismatch:
                 return ERR("cannot imlement method `%0` from trait `%1`: expected return type `%2`, but received `%3`");
             case ErrCannotImplTraitMethod_FewArgs:
-                return ERR("cannot imlement method `%0` from trait `%1: expected %2 argument(s), but received %3");
+                return ERR("cannot imlement method `%0` from trait `%1`: expected %2 argument(s), but received %3");
             case ErrCannotImplTraitMethod_ArgTypeMismatch:
-                return ERR("cannot imlement method `%0` from trait `%1: argument `%2` expected type `%3`, but received `%4`");
+                return ERR("cannot imlement method `%0` from trait `%1`: argument `%2` expected type `%3`, but received `%4`");
             case ErrNotImplTraitMethod:
                 return ERR("method `%0` from trait `%1` does not implemented");
             case ErrExpectedDeclarationInTrait:
@@ -106,6 +106,8 @@ namespace marble {
                 return ERR("deleting of a nil value");
             case ErrDelOfCreatedNotByNew:
                 return ERR("deleting a value that was not created with new");
+            case ErrEchoTypeIsNoth:
+                return ERR("cannot printing noth value");
         }
     }
 }

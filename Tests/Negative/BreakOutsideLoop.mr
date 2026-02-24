@@ -1,0 +1,6 @@
+fun main(): i32 {
+    if true {
+        break; // Error: 'break' outside of loop
+    }
+    return 0;
+}

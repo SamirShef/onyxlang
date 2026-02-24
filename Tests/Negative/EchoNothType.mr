@@ -1,0 +1,6 @@
+fun foo() {}
+
+fun main(): i32 {
+    echo foo(); // Error: Cannot echo 'noth' type
+    return 0;
+}

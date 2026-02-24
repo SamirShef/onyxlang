@@ -1,0 +1,11 @@
+trait Proto {
+    fun Calc(a: i32): i32;
+}
+
+struct S {}
+
+impl Proto for S {
+    fun Calc(a: f32): i32 { // Error: Signature mismatch
+        return 0;
+    }
+}

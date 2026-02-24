@@ -1,0 +1,4 @@
+fun main(): i32 {
+    var p: UnknownType = new UnknownType; // Error: Unknown type
+    return 0;
+}

@@ -1,0 +1,4 @@
+fun main(): i32 {
+    for var i: i32 = 0, 10, i += 1 {} // Error: Loop condition must be bool
+    return 0;
+}

@@ -1,0 +1,2 @@
+fun foo() {}
+fun foo() {} // Error: Redefinition of function 'foo'

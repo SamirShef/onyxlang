@@ -1,0 +1,5 @@
+fun main(): i32 {
+    x = 10; // Error: Use of undeclared identifier 'x'
+    var x: i32;
+    return 0;
+}

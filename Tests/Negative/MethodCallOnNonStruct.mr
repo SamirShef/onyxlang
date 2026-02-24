@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var n: i32 = 10;
+    n.foo(); // Error: Type i32 does not have methods
+    return 0;
+}

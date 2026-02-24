@@ -1,0 +1,9 @@
+struct S {
+    var a: i32;
+}
+
+fun main(): i32 {
+    var s: S;
+    s.b = 1; // Error: Struct 'S' has no field named 'b'
+    return 0;
+}

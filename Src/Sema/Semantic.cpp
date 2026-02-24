@@ -21,8 +21,8 @@ namespace marble {
                     continue;
                 }
                 if (_functions.find(fds->GetName()) != _functions.end()) {
-                    _diag.Report(llvm::SMLoc::getFromPointer(fds->GetName().data()), ErrRedefinitionFun)
-                        << getRange(llvm::SMLoc::getFromPointer(fds->GetName().data()), fds->GetName().size())
+                    _diag.Report(fds->GetStartLoc(), ErrRedefinitionFun)
+                        << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc())
                         << fds->GetName();
                     continue;
                 }
@@ -39,8 +39,8 @@ namespace marble {
                 << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc());
         }
         if (_vars.top().find(vds->GetName()) != _vars.top().end()) {
-            _diag.Report(llvm::SMLoc::getFromPointer(vds->GetName().data()), ErrRedefinitionVar)
-                << getRange(llvm::SMLoc::getFromPointer(vds->GetName().data()), vds->GetName().size())
+            _diag.Report(vds->GetStartLoc(), ErrRedefinitionVar)
+                << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
                 << vds->GetName();
         }
         else {
@@ -431,7 +431,7 @@ namespace marble {
                         if (method->GetArgs()[i].GetType() != traitFun.Args[i].GetType()) {
                             _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_ArgTypeMismatch)
                                 << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
-                                << method->GetArgs()[i].GetName()
+                                << method->GetName()
                                 << traitDef->Name
                                 << method->GetArgs()[i].GetName()
                                 << traitFun.Args[i].GetType().ToString()
@@ -559,6 +559,10 @@ namespace marble {
         }
         std::optional<ASTVal> val = Visit(es->GetExpr());
         es->SetExprType(val->GetType());
+        if (val->GetType().GetTypeKind() == ASTTypeKind::Noth) {
+            _diag.Report(es->GetStartLoc(), ErrEchoTypeIsNoth)
+                << llvm::SMRange(es->GetStartLoc(), es->GetEndLoc());
+        }
         return val;
     }
 
@@ -717,7 +721,7 @@ namespace marble {
             varsCopy.pop();
         }
         _diag.Report(ve->GetStartLoc(), ErrUndeclaredVariable)
-            << getRange(ve->GetStartLoc(), ve->GetName().size())
+            << llvm::SMRange(ve->GetStartLoc(), ve->GetEndLoc())
             << ve->GetName();
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
     }

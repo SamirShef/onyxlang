@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var x: i32 = 1;
+    var x: f32 = 2.0; // Error: Redefinition of variable 'x'
+    return 0;
+}
