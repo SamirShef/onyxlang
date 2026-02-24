@@ -1,16 +1,12 @@
 // simple structure
 
 struct Human {
-    pub var age: i32;       // public field -> you can access of this field
-    var height: f32;        // private field -> you cannot access of this field
-    pub static var s: i32;  // static field -> you can access this field only from type
+    pub var age: i32;   // public field -> you can access of this field
+    var height: f32;    // private field -> you cannot access of this field
 }
 
 fun main(): i32 {
     var human: Human = Human { age: 16, height: 1.75f };  // it's me :)
     human.age = 16;
-    Human.s += 10;
-    echo Human.s;   // accessing of static field
-    echo '\n';
     return 0;
 }

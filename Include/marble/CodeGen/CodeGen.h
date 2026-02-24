@@ -23,7 +23,6 @@ namespace marble {
 
         std::vector<std::string> _modulesPath;
         Module *_currentMod = nullptr;
-        Module *_rootMod = nullptr;
 
         struct Field {
             std::string Name;
@@ -31,7 +30,6 @@ namespace marble {
             marble::ASTType ASTType;
             llvm::Value *Val;
             bool ManualInitialized;
-            bool IsStatic;
             long Index;
         };
 

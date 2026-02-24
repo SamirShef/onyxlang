@@ -127,9 +127,6 @@ namespace marble {
         void
         discover(Module *mod);
 
-        bool
-        inRootMod(const Module *mod);
-
         Variable *
         findVar(std::string name);
 

@@ -11,7 +11,6 @@ namespace marble {
         std::string _name;
         std::vector<Expr *> _args;
         ASTType _objType;
-        bool _isStaticAccessing = false;
 
     public:
         explicit MethodCallStmt(Expr *obj, std::string name, std::vector<Expr *> args, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -45,16 +44,6 @@ namespace marble {
         void
         SetObjType(ASTType t) {
             _objType = t;
-        }
-
-        bool
-        IsStaticAccessing() const {
-            return _isStaticAccessing;
-        }
-
-        void
-        SetStaticAccessing(bool isStaticAccessing) {
-            _isStaticAccessing = isStaticAccessing;
         }
     };
 }

@@ -31,18 +31,12 @@ namespace marble {
         }
         bool isStatic = expect(TkStatic);
         if (isStatic) {
-            Stmt *stmt;
-            if (_curTok.Is(TkVar)) {
-                stmt = parseVarDeclStmt();
-                if (consumeSemi && !expect(TkSemi)) {
-                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                        << getRangeFromTok(_curTok)
-                        << ";"                  // expected
-                        << _curTok.GetText();   // got
-                }
-            }
-            else {
-                stmt = parseFunDeclStmt();
+            Stmt *stmt = parseVarDeclStmt();
+            if (consumeSemi && !expect(TkSemi)) {
+                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                    << getRangeFromTok(_curTok)
+                    << ";"                  // expected
+                    << _curTok.GetText();   // got
             }
             return stmt;
         }
@@ -268,12 +262,7 @@ namespace marble {
 
     Stmt *
     Parser::parseFunDeclStmt() {
-        Token firstTok = _curTok;
-        bool isStatic = _lastTok.Is(TkStatic);
-        if (isStatic) {
-            firstTok = _lastTok;
-        }
-        consume();
+        Token firstTok = consume();
         std::string name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
@@ -305,7 +294,7 @@ namespace marble {
         }
 
         if (expect(TkSemi)) {
-            return createNode<FunDeclStmt>(name, retType, args, std::vector<Stmt *> {}, true, isStatic, access, firstTok.GetLoc(), _curTok.GetLoc());
+            return createNode<FunDeclStmt>(name, retType, args, std::vector<Stmt *> {}, true, access, firstTok.GetLoc(), _curTok.GetLoc());
         }
         if (!expect(TkLBrace)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
@@ -318,7 +307,7 @@ namespace marble {
         while (!expect(TkRBrace)) {
             block.push_back(ParseStmt());
         }
-        return createNode<FunDeclStmt>(name, retType, args, block, false, isStatic, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<FunDeclStmt>(name, retType, args, block, false, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *

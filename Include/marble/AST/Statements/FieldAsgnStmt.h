@@ -9,7 +9,6 @@ namespace marble {
         std::string _name;
         Expr *_expr;
         ASTType _objType;
-        bool _isStaticAccessing = false;
 
     public:
         explicit FieldAsgnStmt(Expr *obj, std::string name, Expr *expr, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
@@ -43,16 +42,6 @@ namespace marble {
         void
         SetObjType(ASTType t) {
             _objType = t;
-        }
-
-        bool
-        IsStaticAccessing() const {
-            return _isStaticAccessing;
-        }
-
-        void
-        SetStaticAccessing(bool isStaticAccessing) {
-            _isStaticAccessing = isStaticAccessing;
         }
     };
 }

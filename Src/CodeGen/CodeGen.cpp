@@ -37,6 +37,7 @@ namespace marble {
                 llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
                 std::string mangled = getCurrentMangled(fds->GetName());
                 llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, mangled, *GetLLVMModule());
+                
                 if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
                     fun->setMetadata("struct_name", metadata);
@@ -45,7 +46,7 @@ namespace marble {
                 _funArgsTypes.emplace(mangled, argsAST);
             }
             else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
-                Struct &s = _structs.at(getCurrentMangled(is->GetStructName()));
+                Struct &s = _structs.at(resolveFullTypeName(ASTType(ASTTypeKind::Struct, is->GetStructName(), false, 0)));
                 if (!is->GetTraitName().empty()) {
                     s.TraitsImplements.emplace(is->GetTraitName(), _traits.at(is->GetTraitName()));
                 }
@@ -53,23 +54,16 @@ namespace marble {
                     FunDeclStmt *fds = llvm::cast<FunDeclStmt>(stmt);
                     std::vector<llvm::Type *> args(fds->GetArgs().size() + 1);
                     std::vector<ASTType> argsAST(fds->GetArgs().size() + 1);
-                    if (!fds->IsStatic()) {
-                        args[0] = llvm::PointerType::get(s.Type, 0);
-                        argsAST[0] = ASTType(ASTTypeKind::Struct, is->GetStructName(), true, 0);
-                    }
-                    else {
-                        args.pop_back();
-                        argsAST.pop_back();
-                    }
+                    args[0] = llvm::PointerType::get(_structs.at(is->GetStructName()).Type, 0);
+                    argsAST[0] = ASTType(ASTTypeKind::Struct, is->GetStructName(), true, 0);
                     for (int i = 0; i < fds->GetArgs().size(); ++i) {
-                        args[i + !fds->IsStatic()] = typeToLLVM(fds->GetArgs()[i].GetType());
-                        argsAST[i + !fds->IsStatic()] = fds->GetArgs()[i].GetType();
+                        args[i + 1] = typeToLLVM(fds->GetArgs()[i].GetType());
+                        argsAST[i + 1] = fds->GetArgs()[i].GetType();
                     }
                     llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
                     std::string localKey = is->GetStructName() + "." + fds->GetName();
                     std::string mangled = getCurrentMangled(localKey);
-                    llvm::Function *fun = llvm::Function::Create(retType, fds->IsStatic() ? llvm::GlobalValue::InternalLinkage : llvm::GlobalValue::ExternalLinkage,
-                                                                 mangled, *GetLLVMModule());
+                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, mangled, *GetLLVMModule());
                     
                     if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                         llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
@@ -82,32 +76,21 @@ namespace marble {
                 }
             }
             else if (StructStmt *ss = llvm::dyn_cast<StructStmt>(stmt)) {
-                std::vector<llvm::Type *> fieldsTypes;
+                std::vector<llvm::Type *> fieldsTypes(ss->GetBody().size());
                 std::unordered_map<std::string, Field> fields;
                 std::string mangled = getCurrentMangled(ss->GetName());
                 llvm::StructType *structType = llvm::StructType::create(_context, mangled);
                 Struct s { .Name = ss->GetName(), .MangledName = mangled, .Type = structType, .Fields = fields, .TraitsImplements = {} };
                 _structs.emplace(mangled, s);
-                int index = 0;
-                for (int i = 0; i < ss->GetBody().size(); ++i) {
+                for (int i = 0; i < fieldsTypes.size(); ++i) {
                     VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
-                    if (vds->IsStatic()) {
-                        llvm::Value *initializer = vds->GetExpr() ? Visit(vds->GetExpr()) : llvm::Constant::getNullValue(typeToLLVM(vds->GetType()));
-                        llvm::GlobalVariable *gv = new llvm::GlobalVariable(*GetLLVMModule(), typeToLLVM(vds->GetType()), vds->IsConst(),
-                                                                            llvm::GlobalValue::InternalLinkage, llvm::cast<llvm::Constant>(initializer),
-                                                                            mangled + "." + vds->GetName());
-                    }
-                    else {
-                        fieldsTypes.push_back(typeToLLVM(vds->GetType()));
-                        fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
-                                                               .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
-                                                               .IsStatic = vds->IsStatic(), .Index = index });
+                    fieldsTypes[i] = typeToLLVM(vds->GetType());
+                    fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
+                                                                .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false, .Index = i });
 
-                        _structs.at(mangled).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[index], .ASTType = vds->GetType(),
-                                                                                    .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr,
-                                                                                    .ManualInitialized = false, .IsStatic = vds->IsStatic(), .Index = index });
-                        ++index;
-                    }
+                    _structs.at(ss->GetName()).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
+                                                                                              .Val = vds->GetExpr() ? Visit(vds->GetExpr()) : nullptr, .ManualInitialized = false,
+                                                                                              .Index = i });
                 }
                 structType->setBody(fieldsTypes);
             }
@@ -422,16 +405,6 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFieldAsgnStmt(FieldAsgnStmt *fas) {
-        if (fas->IsStaticAccessing()) {
-            std::string name = getMangledForPath(fas->GetObjType().GetVal()) + "." + fas->GetName();
-            llvm::GlobalVariable *gv = GetLLVMModule()->getNamedGlobal(name);
-
-            llvm::Value *val = Visit(fas->GetExpr());
-            val = implicitlyCast(val, gv->getValueType());
-            _builder.CreateStore(val, gv);
-            return nullptr;
-        }
-
         bool oldLoad = createLoad;
         createLoad = fas->GetObjType().IsPointer();
         llvm::Value *obj = Visit(fas->GetObject());
@@ -478,23 +451,18 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitImplStmt(ImplStmt *is) {
-        Struct s = _structs.at(getCurrentMangled(is->GetStructName()));
+        Struct s = _structs.at(is->GetStructName());
         for (auto &stmt : is->GetBody()) {
             FunDeclStmt *method = llvm::cast<FunDeclStmt>(stmt);
-            llvm::Function *fun = getFunction(s.Name + "." + method->GetName());
+            llvm::Function *fun = getFunction((s.Name + "." + method->GetName()));
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
             _builder.SetInsertPoint(entry);
             _vars.push({});
             _funRetsTypes.push(fun->getReturnType());
-            ASTType thisType = ASTType(ASTTypeKind::Struct, getCurrentMangled(is->GetStructName()), false, 0);
+            ASTType thisType = ASTType(ASTTypeKind::Struct, is->GetStructName(), false, 0);
             int index = 0;
             for (auto &arg : fun->args()) {
-                if (!method->IsStatic()) {
-                    arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
-                }
-                else {
-                    arg.setName(method->GetArgs()[index].GetName());
-                }
+                arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
                 _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
                 ++index;
             }
@@ -514,7 +482,6 @@ namespace marble {
     CodeGen::VisitMethodCallStmt(MethodCallStmt *mcs) {
         MethodCallExpr *expr = new MethodCallExpr(mcs->GetObject(), mcs->GetName(), mcs->GetArgs(), mcs->GetStartLoc(), mcs->GetEndLoc());
         expr->SetObjType(mcs->GetObjType());
-        expr->SetStaticAccessing(mcs->IsStaticAccessing());
         VisitMethodCallExpr(expr);
         delete expr;
         return nullptr;
@@ -897,15 +864,6 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFieldAccessExpr(FieldAccessExpr *fae) {
-        if (fae->IsStaticAccessing()) {
-            std::string name = getMangledForPath(fae->GetObjType().GetVal()) + "." + fae->GetName();
-            llvm::GlobalVariable *gv = GetLLVMModule()->getNamedGlobal(name);
-            if (createLoad) {
-                return _builder.CreateLoad(gv->getValueType(), gv, name + ".load");
-            }
-            return gv;
-        }
-
         bool oldLoad = createLoad;
         createLoad = fae->GetObjType().IsPointer();
         llvm::Value *obj = Visit(fae->GetObject());
@@ -991,20 +949,6 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitMethodCallExpr(MethodCallExpr *mce) {
-        if (mce->IsStaticAccessing()) {
-            std::string name = getMangledForPath(mce->GetObjType().GetVal()) + "." + mce->GetName();
-            llvm::Function *fun = GetLLVMModule()->getFunction(name);
-            if (!fun) {
-                return nullptr;
-            }
-
-            std::vector<llvm::Value*> args(mce->GetArgs().size());
-            for (int i = 0; i < args.size(); ++i) {
-                args[i] = Visit(mce->GetArgs()[i]);
-            }
-            return _builder.CreateCall(fun, args);
-        }
-
         bool oldLoad = createLoad;
         createLoad = mce->GetObjType().IsPointer();
         llvm::Value *obj = Visit(mce->GetObject());
@@ -1344,7 +1288,7 @@ namespace marble {
 
     llvm::Type *
     CodeGen::typeToLLVM(ASTType type) {
-        llvm::Type *base = nullptr;
+        llvm::Type *base;
         switch (type.GetTypeKind()) {
             #define TYPE(func) llvm::Type::func(_context);
             case ASTTypeKind::Bool:
@@ -1380,13 +1324,11 @@ namespace marble {
                 std::string mangled = resolveFullTypeName(type);
                 llvm::StructType *existingType = llvm::StructType::getTypeByName(_context, mangled);
                 if (existingType) {
-                    base = existingType;
-                    break;
+                    return existingType;
                 }
                 llvm::Type *voidPtrTy = llvm::PointerType::get(_context, 0);
                 llvm::Type *vtablePtrTy = llvm::PointerType::get(voidPtrTy, 0);
-                base = llvm::StructType::create(_context, { voidPtrTy, vtablePtrTy }, mangled);
-                break;
+                return llvm::StructType::create(_context, { voidPtrTy, vtablePtrTy }, mangled);
             }
             case ASTTypeKind::Noth:
                 base = TYPE(getVoidTy);
@@ -1588,7 +1530,7 @@ namespace marble {
         else {
             llvm::AllocaInst *tmp = _builder.CreateAlloca(src->getType());
             _builder.CreateStore(src, tmp);
-            dataPtr = _builder.CreateBitCast(tmp, _builder.getPtrTy());
+            dataPtr = tmp;
         }
         fatPtr = _builder.CreateInsertValue(fatPtr, dataPtr, 0);
 
@@ -1642,30 +1584,9 @@ namespace marble {
             return "";
         }
 
-        std::vector<std::string> normalized;
-        std::vector<std::string> currentPath = _modulesPath;
-
-        for (const std::string &part : parts) {
-            if (part == "parent") {
-                if (!currentPath.empty()) {
-                    currentPath.pop_back();
-                }
-            }
-            else if (part == "self") {
-                normalized.insert(normalized.end(), currentPath.begin(), currentPath.end());
-            } else {
-                normalized.push_back(part);
-                currentPath.push_back(part);
-            }
-        }
-
-        if (normalized.empty()) {
-            return "";
-        }
-
-        std::string res = normalized[0];
-        for (int i = 1; i < normalized.size(); ++i) {
-            res += "#" + normalized[i];
+        std::string res = parts[0];
+        for (int i = 1; i < parts.size(); ++i) {
+            res += "#" + parts[i];
         }
         return res;
     }

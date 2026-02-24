@@ -62,9 +62,5 @@ namespace marble {
         ErrMultipleImport,
         ErrDoesNotHaveFunInMod,
         ErrDoesNotHaveVarInMod,
-        ErrAccessStaticFieldFromNonType,
-        ErrAccessingNonStaticFieldFromType,
-        ErrAccessStaticMethodFromNonType,
-        ErrAccessingNonStaticMethodFromType,
     };
 }

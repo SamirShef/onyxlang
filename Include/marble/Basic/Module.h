@@ -33,13 +33,11 @@ namespace marble {
         bool IsConst;
         AccessModifier Access;
         bool ManualInitialized;
-        bool IsStatic;
     };
     
     struct Method {
         Function Fun;
         AccessModifier Access;
-        bool IsStatic;
     };
 
     struct Trait {
@@ -69,7 +67,6 @@ namespace marble {
             std::unordered_map<std::string, Struct> Structs;
             std::unordered_map<std::string, std::vector<ImplStmt *>> Implementations;
             std::unordered_map<std::string, Trait> Traits;
-            std::unordered_map<std::string, ASTTypeKind> TypesDeclarations;
             Module *Parent = nullptr;
             std::unordered_map<std::string, Module *> SubModules;
             std::unordered_map<std::string, Module *> Imports;
