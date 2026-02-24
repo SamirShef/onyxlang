@@ -46,7 +46,7 @@ add_subdirectory(Src/Lexer)
 add_subdirectory(Src/AST)
 add_subdirectory(Src/Parser)
 add_subdirectory(Src/Sema)
-add_subdirectory(Src/CodeGen) # TODO: uncomment
+add_subdirectory(Src/CodeGen)
 add_subdirectory(Src/Compilation)
 
 add_definitions(-w)
@@ -68,7 +68,7 @@ target_link_libraries(${PROJECT_NAME}
     MarbleAST
     MarbleParser
     MarbleSema
-    MarbleCodeGen             # TODO: uncomment
-    MarbleCompilation         # TODO: uncomment
+    MarbleCodeGen
+    MarbleCompilation
     -Wl,--end-group
 )

@@ -35,7 +35,6 @@ namespace marble {
         }
     }
     
-    
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
         if (vds->GetAccess() == AccessPub && _vars.size() != 1) {
