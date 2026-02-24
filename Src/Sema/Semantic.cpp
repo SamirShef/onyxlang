@@ -1,4 +1,3 @@
-#include <iostream>
 #include <marble/Sema/Semantic.h>
 #include <cmath>
 
@@ -42,8 +41,6 @@ namespace marble {
                 << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc());
         }
         if (_vars.top().find(vds->GetName()) != _vars.top().end()) {
-            _diag.Report(llvm::SMLoc::getFromPointer(vds->GetName().data()), ErrRedefinitionVar)
-                << getRange(llvm::SMLoc::getFromPointer(vds->GetName().data()), vds->GetName().size())
             _diag.Report(llvm::SMLoc::getFromPointer(vds->GetName().data()), ErrRedefinitionVar)
                 << getRange(llvm::SMLoc::getFromPointer(vds->GetName().data()), vds->GetName().size())
                 << vds->GetName();
@@ -827,8 +824,6 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitMethodCallExpr(MethodCallExpr *mce) {
-        std::cout << "mce\n";
-        std::cout << mce->GetName() << '\n';
         std::optional<ASTVal> obj = Visit(mce->GetObject());
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct &&
             obj->GetType().GetTypeKind() != ASTTypeKind::Trait) {
