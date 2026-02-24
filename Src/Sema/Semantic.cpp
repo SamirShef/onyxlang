@@ -127,7 +127,6 @@ namespace marble {
                                                           .Val = arg.GetType().IsPointer() ? ASTVal(arg.GetType(), ASTValData { .i32Val = 0 }, false, false)
                                                                                            : ASTVal::GetDefaultByType(arg.GetType()),
                                                           .IsConst = arg.GetType().IsConst() });
-                                                          .IsConst = arg.GetType().IsConst() });
         }
         _funRetsTypes.push(fds->GetRetType());
         bool hasRet;
@@ -313,11 +312,9 @@ namespace marble {
         }
         std::optional<ASTVal> obj = Visit(fas->GetObject());
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
-        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
             _diag.Report(fas->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
         }
-        else {
         else {
             fas->SetObjType(obj->GetType());
             bool objIsThis = false;
@@ -479,7 +476,6 @@ namespace marble {
                 _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(),
                                                               .Val = arg.GetType().IsPointer() ? ASTVal(arg.GetType(), ASTValData { .i32Val = 0 }, false, false)
                                                                                                : ASTVal::GetDefaultByType(arg.GetType()),
-                                                              .IsConst = arg.GetType().IsConst() });
                                                               .IsConst = arg.GetType().IsConst() });
             }
             _funRetsTypes.push(method->GetRetType());
@@ -793,11 +789,9 @@ namespace marble {
     SemanticAnalyzer::VisitFieldAccessExpr(FieldAccessExpr *fae) {
         std::optional<ASTVal> obj = Visit(fae->GetObject());
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
-        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
             _diag.Report(fae->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc());
         }
-        else {
         else {
             fae->SetObjType(obj->GetType());
             bool objIsThis = false;
@@ -832,11 +826,9 @@ namespace marble {
         std::optional<ASTVal> obj = Visit(mce->GetObject());
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct &&
             obj->GetType().GetTypeKind() != ASTTypeKind::Trait) {
-            obj->GetType().GetTypeKind() != ASTTypeKind::Trait) {
             _diag.Report(mce->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc());
         }
-        else {
         else {
             mce->SetObjType(obj->GetType());
             bool objIsThis = false;
