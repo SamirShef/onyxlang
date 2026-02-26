@@ -1016,7 +1016,7 @@ namespace marble {
                         << rhs.GetType().ToString();
                 }
                 if (lhs.GetType().IsPointer() &&
-                    !((be->GetOp().GetKind() == TkMinus || be->GetOp().GetKind() == TkMinus) && 
+                    !((be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus) && 
                        rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::I64)) {
                     _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
                         << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())

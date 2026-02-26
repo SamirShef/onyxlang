@@ -68,6 +68,9 @@ impl TConvertible for String {
 }
 
 fun main(argc: i32, argv: **char): i32 {
+    if argc < 2 {
+        return 1;
+    }
     var s: String = String { v: *(argv + 1) };
     print(s);
     return 0;

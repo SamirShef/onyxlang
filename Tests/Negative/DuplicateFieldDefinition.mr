@@ -1,0 +1,4 @@
+struct S {
+    var x: i32;
+    var x: f64; // Error: Redefinition of 'x'
+}
