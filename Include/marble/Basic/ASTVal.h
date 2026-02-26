@@ -21,8 +21,8 @@ namespace marble {
     public:
         explicit ASTVal(ASTType type, ASTValData data, bool isNil, bool createdByNew) : _type(type), _data(data), _isNil(isNil), _createdByNew(createdByNew) {}
         
-        ASTType
-        GetType() const {
+        ASTType &
+        GetType() {
             return _type;
         }
 

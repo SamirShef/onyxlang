@@ -11,7 +11,6 @@ namespace marble {
         Token _lastTok;
         Token _curTok;
         Token _nextTok;
-        llvm::BumpPtrAllocator _allocator;
 
     public:
         explicit Parser(Lexer &lex, DiagnosticEngine &diag) : _lex(lex), _diag(diag), _lastTok(Token(TkUnknown, "", llvm::SMLoc())),
@@ -20,14 +19,17 @@ namespace marble {
             consume();
         }
 
-        Stmt *
-        ParseStmt(bool consumeSemi = true);
+        std::vector<Stmt *>
+        ParseAll();
 
     private:
         template<typename T, typename ...Args>
         T *
         createNode(Args &&... args);
     
+        Stmt *
+        parseStmt(bool consumeSemi = true);
+
         Stmt *
         parseIdStartStmt();
 

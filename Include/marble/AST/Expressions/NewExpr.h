@@ -15,8 +15,8 @@ namespace marble {
             return node->GetKind() == NkNewExpr;
         }
 
-        ASTType
-        GetType() const {
+        ASTType &
+        GetType() {
             return _type;
         }
 

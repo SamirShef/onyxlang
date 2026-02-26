@@ -1,4 +1,5 @@
 #pragma once
+#include <marble/Basic/Module.h>
 #include <marble/AST/AST.h>
 #include <marble/AST/Visitor.h>
 #include <marble/Basic/DiagnosticEngine.h>
@@ -9,63 +10,29 @@
 namespace marble {
     class SemanticAnalyzer : public ASTVisitor<SemanticAnalyzer, std::optional<ASTVal>> {
         DiagnosticEngine &_diag;
-        
-        struct Variable {
-            std::string Name;
-            ASTType Type;
-            std::optional<ASTVal> Val;
-            bool IsConst;
-        };
+        Module *_curMod;
+
         std::stack<std::unordered_map<std::string, Variable>> _vars;
 
-        struct Function {
-            std::string Name;
-            ASTType RetType;
-            std::vector<Argument> Args;
-            std::vector<Stmt *> Body;
-            bool IsDeclaration;
-        };
-        std::unordered_map<std::string, Function> _functions;
         std::stack<ASTType> _funRetsTypes;
 
         int _loopDeth = 0;
-
-        struct Field {
-            std::string Name;
-            std::optional<ASTVal> Val;
-            ASTType Type;
-            bool IsConst;
-            AccessModifier Access;
-            bool ManualInitialized;
-        };
-        
-        struct Method {
-            Function Fun;
-            bool IsConst;
-            AccessModifier Access;
-        };
-
-        struct Trait {
-            std::string Name;
-            std::unordered_map<std::string, Method> Methods;
-        };
-        std::unordered_map<std::string, Trait> _traits;
-
-        struct Struct {
-            std::string Name;
-            std::unordered_map<std::string, Field> Fields;
-            std::unordered_map<std::string, Method> Methods;
-            std::unordered_map<std::string, Trait> TraitsImplements;
-        };
-        std::unordered_map<std::string, Struct> _structs;
         
     public:
-        explicit SemanticAnalyzer(DiagnosticEngine &diag) : _diag(diag) {
+        explicit SemanticAnalyzer(DiagnosticEngine &diag, Module *root) : _diag(diag), _curMod(root) {
             _vars.push({});
         }
+
+        void
+        AnalyzeModule(Module *mod);
+
+        void
+        DeclareInModule(Module *mod);
         
+        /*
         void
         DeclareFunctions(std::vector<Stmt *> &ast);
+        */
 
         std::optional<ASTVal>
         VisitVarDeclStmt(VarDeclStmt *vds);
@@ -152,6 +119,9 @@ namespace marble {
         VisitNewExpr(NewExpr *ne);
 
     private:
+        ASTType
+        resolveType(ASTType &type);
+
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;
 
@@ -162,9 +132,9 @@ namespace marble {
         variableExists(std::string name) const;
 
         bool
-        canImplicitlyCast(ASTVal src, ASTType expectType) const;
+        canImplicitlyCast(ASTVal src, ASTType expectType);
         
         ASTVal
-        implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc) const;
+        implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc);
     };
 }

@@ -28,13 +28,13 @@ namespace marble {
             return _name;
         }
 
-        ASTType
-        GetRetType() const {
+        ASTType &
+        GetRetType() {
             return _retType;
         }
 
-        std::vector<Argument>
-        GetArgs() const {
+        std::vector<Argument> &
+        GetArgs() {
             return _args;
         }
 

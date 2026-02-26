@@ -13,7 +13,9 @@ namespace marble {
         Struct,
         Trait,
         Noth,
-        Nil
+        Nil,
+        Mod,
+        Unknown,
     };
     
     class ASTType {
@@ -51,6 +53,11 @@ namespace marble {
         ASTTypeKind
         GetTypeKind() const {
             return _kind;
+        }
+
+        void
+        SetTypeKind(ASTTypeKind kind) {
+            _kind = kind;
         }
 
         std::string

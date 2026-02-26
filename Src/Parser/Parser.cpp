@@ -3,11 +3,27 @@
 
 static marble::AccessModifier access;
 
-static std::unordered_map<std::string, marble::ASTType> types;
+static llvm::BumpPtrAllocator _allocator;
 
 namespace marble {
+    std::vector<Stmt *>
+    Parser::ParseAll() {
+        std::vector<Stmt *> ast;
+        while (auto s = parseStmt()) {
+            ast.push_back(s);
+        }
+        return ast;
+    }
+    
+    template <typename T, typename ...Args>
+    T *
+    Parser::createNode(Args &&... args) {
+        void *mem = _allocator.Allocate<T>();
+        return new (mem) T(std::forward<Args>(args)...);
+    }
+
     Stmt *
-    Parser::ParseStmt(bool consumeSemi) {
+    Parser::parseStmt(bool consumeSemi) {
         if (_curTok.Is(TkEof)) {
             return nullptr;
         }
@@ -127,13 +143,6 @@ namespace marble {
                 consume();
                 return nullptr;
         }
-    }
-    
-    template <typename T, typename ...Args>
-    T *
-    Parser::createNode(Args &&... args) {
-        void *mem = _allocator.Allocate<T>();
-        return new (mem) T(std::forward<Args>(args)...);
     }
 
     Stmt *
@@ -264,7 +273,7 @@ namespace marble {
         AccessModifier accessCopy = access;
         std::vector<Stmt *> block;
         while (!expect(TkRBrace)) {
-            block.push_back(ParseStmt());
+            block.push_back(parseStmt());
         }
         return createNode<FunDeclStmt>(name, retType, args, block, false, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
@@ -293,18 +302,18 @@ namespace marble {
         }
         else {
             while (!expect(TkRBrace)) {
-                thenBranch.push_back(ParseStmt());
+                thenBranch.push_back(parseStmt());
             }
         }
         std::vector<Stmt *> elseBranch;
         if (expect(TkElse)) {
             if (expect(TkLBrace)) {
                 while (!expect(TkRBrace)) {
-                    elseBranch.push_back(ParseStmt());
+                    elseBranch.push_back(parseStmt());
                 }
             }
             else {
-                elseBranch.push_back(ParseStmt());
+                elseBranch.push_back(parseStmt());
             }
         }
         return createNode<IfElseStmt>(cond, thenBranch, elseBranch, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
@@ -316,7 +325,7 @@ namespace marble {
         Token firstTok = consume();
         Stmt *indexator = nullptr;
         if (_curTok.Is(TkVar) || _curTok.Is(TkId) && isAssignmentOp(_nextTok.GetKind())) {
-            indexator = ParseStmt(false);
+            indexator = parseStmt(false);
             if (!expect(TkComma)) {
                 _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                     << getRangeFromTok(_curTok)
@@ -333,7 +342,7 @@ namespace marble {
                     << ","                  // expected
                     << _curTok.GetText();   // got
             }
-            iteration = ParseStmt(false);
+            iteration = parseStmt(false);
         }
         std::vector<Stmt *> block;
         if (!expect(TkLBrace)) {
@@ -344,7 +353,7 @@ namespace marble {
         }
         else {
             while (!expect(TkRBrace)) {
-                block.push_back(ParseStmt());
+                block.push_back(parseStmt());
             }
         }
         return createNode<ForLoopStmt>(indexator, cond, iteration, block, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
@@ -366,10 +375,9 @@ namespace marble {
                 << "{"                  // expected
                 << _curTok.GetText();   // got
         }
-        types.emplace(name, ASTType(ASTTypeKind::Struct, name, false, 0));
         std::vector<Stmt *> body;
         while (!expect(TkRBrace)) {
-            body.push_back(ParseStmt());
+            body.push_back(parseStmt());
         }
         return createNode<StructStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
@@ -405,7 +413,7 @@ namespace marble {
         }
         std::vector<Stmt *> body;
         while (!expect(TkRBrace)) {
-            body.push_back(ParseStmt());
+            body.push_back(parseStmt());
         }
         return createNode<ImplStmt>(traitName, structName, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
@@ -428,9 +436,8 @@ namespace marble {
         }
         std::vector<Stmt *> body;
         while (!expect(TkRBrace)) {
-            body.push_back(ParseStmt());
+            body.push_back(parseStmt());
         }
-        types.emplace(name, ASTType(ASTTypeKind::Trait, name, false, 0));
         return createNode<TraitDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
@@ -689,17 +696,7 @@ namespace marble {
             case TkNoth:
                 return TYPE(Noth, "noth");
             case TkId: {
-                if (types.find(type.GetText()) == types.end()) {
-                    _diag.Report(_lastTok.GetLoc(), ErrUndeclaredType)
-                        << llvm::SMRange(_lastTok.GetLoc(), _curTok.GetLoc())
-                        << type.GetText();
-                    return TYPE(I32, "i32");
-                }
-                ASTTypeKind t = types.at(type.GetText()).GetTypeKind();
-                if (t == ASTTypeKind::Struct) {
-                    return TYPE(Struct, type.GetText());
-                }
-                return TYPE(Trait, type.GetText());
+                return TYPE(Unknown, type.GetText());
             }
             default:
                 _diag.Report(type.GetLoc(), ErrExpectedType)

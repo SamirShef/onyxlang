@@ -1,3 +1,5 @@
+#include <marble/Basic/Module.h>
+#include <marble/Basic/ModuleManager.h>
 #include <marble/AST/Printer.h>
 #include <marble/CodeGen/CodeGen.h>
 #include <marble/Compilation/Compilation.h>
@@ -24,54 +26,35 @@ main(int argc, char **argv) {
     std::string fileName = marble::InputFilename;
 
     llvm::SourceMgr srcMgr;
-    auto bufferOrErr = llvm::MemoryBuffer::getFile(fileName);
-    
-    if (std::error_code ec = bufferOrErr.getError()) {
-        llvm::errs() << llvm::errs().RED << "Could not open file: " << llvm::errs().RESET << ec.message() << '\n';
-        return 1;
-    }
-    srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
-
     marble::DiagnosticEngine diag(srcMgr);
-    
-    marble::Lexer lex(srcMgr, diag);
-    marble::Parser parser(lex, diag);
-
-    std::vector<marble::Stmt *> ast;
-    while (1) {
-        marble::Stmt *stmt = parser.ParseStmt();
-        if (!stmt) {
-            break;
-        }
-        ast.push_back(stmt);
-    }
-    if (diag.HasErrors()) {
+    marble::Module *root = marble::ModuleManager::LoadModule(fileName, srcMgr, diag);
+    if (!root) {
+        llvm::errs() << llvm::errs().RED << "Could not open file: file not found" << llvm::errs().RESET << '\n';
         return 1;
     }
-    diag.ResetErrors();
 
     if (marble::EmitAction == marble::EmitAST) {
         marble::ASTPrinter printer;
-        for (auto stmt : ast) {
+        for (auto stmt : root->AST) {
             printer.Visit(stmt);
             llvm::outs() << '\n';
         }
         return 0; 
     }
 
-    marble::SemanticAnalyzer sema(diag);
-    sema.DeclareFunctions(ast);
-    for (auto &stmt : ast) {
-        sema.Visit(stmt);
-    }
+    marble::SemanticAnalyzer sema(diag, root);
+    sema.AnalyzeModule(root);
     if (diag.HasErrors()) {
         return 1;
     }
     diag.ResetErrors();
 
+    // TODO: remove next line
+    return 0;
+
     marble::CodeGen codegen(fileName, srcMgr);
-    codegen.DeclareFunctionsAndStructures(ast);
-    for (auto &stmt : ast) {
+    codegen.DeclareFunctionsAndStructures(root->AST);
+    for (auto &stmt : root->AST) {
         codegen.Visit(stmt);
     }
     if (diag.HasErrors()) {
@@ -92,9 +75,6 @@ main(int argc, char **argv) {
     }
     else {
         switch (marble::EmitAction) {
-            case marble::EmitAST:
-                outputName = "";
-                break;
             case marble::EmitLLVM:
                 outputName = fileName + ".ll";
                 break;

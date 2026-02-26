@@ -14,8 +14,8 @@ namespace marble {
             return _name;
         }
 
-        ASTType
-        GetType() const {
+        ASTType &
+        GetType() {
             return _type;
         }
     };
