@@ -464,6 +464,16 @@ namespace marble {
     }
 
     llvm::Value *
+    CodeGen::VisitImportStmt(ImportStmt *is) {
+        return nullptr;
+    }
+
+    llvm::Value *
+    CodeGen::VisitModDeclStmt(ModDeclStmt *mds) {
+        return nullptr;
+    }
+
+    llvm::Value *
     CodeGen::VisitBinaryExpr(BinaryExpr *be) {
         llvm::Value *lhs = Visit(be->GetLHS());
         llvm::Value *rhs = Visit(be->GetRHS());

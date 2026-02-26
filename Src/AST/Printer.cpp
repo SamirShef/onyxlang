@@ -287,7 +287,32 @@ namespace marble {
         _spaces = spaces;
         llvm::outs() << ')';
     }
-    
+
+    void
+    ASTPrinter::VisitImportStmt(ImportStmt *is) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(ImportStmt: " << (is->IsLocalImport() ? "(local) " : "") << "\"" << is->GetPath() << "\")";
+    }
+
+    void
+    ASTPrinter::VisitModDeclStmt(ModDeclStmt *mds) {
+        llvm::outs() << std::string(_spaces, ' ');
+        llvm::outs() << "(ModDeclStmt: " << mds->GetName() << " {";
+        if (mds->GetBody().size() != 0) {
+            llvm::outs() << '\n';
+        }
+        _spaces += 2;
+        for (auto stmt : mds->GetBody()) {
+            Visit(stmt);
+            llvm::outs() << '\n';
+        }
+        _spaces -= 2;
+        if (mds->GetBody().size() != 0) {
+            llvm::outs() << std::string(_spaces, ' ');
+        }
+        llvm::outs() << "})";
+    }
+
     void
     ASTPrinter::VisitBinaryExpr(BinaryExpr *be) {
         llvm::outs() << std::string(_spaces, ' ');

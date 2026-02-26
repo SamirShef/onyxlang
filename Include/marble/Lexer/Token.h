@@ -30,6 +30,8 @@ namespace marble {
         TkNil,              // keyword `nil`
         TkNew,              // keyword `new`
         TkDel,              // keyword `del`
+        TkMod,              // keyword `mod`
+        TkImport,           // keyword `import`
         
         TkBoolLit,          // bool literal
         TkCharLit,          // character literal

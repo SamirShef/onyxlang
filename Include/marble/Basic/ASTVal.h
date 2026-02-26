@@ -2,6 +2,8 @@
 #include <marble/Basic/ASTType.h>
 
 namespace marble {
+    struct Module;
+
     union ASTValData {
         bool    boolVal;
         char    charVal;
@@ -17,6 +19,7 @@ namespace marble {
         ASTValData _data;
         bool _isNil;
         bool _createdByNew;
+        Module *_mod = nullptr;
 
     public:
         explicit ASTVal(ASTType type, ASTValData data, bool isNil, bool createdByNew) : _type(type), _data(data), _isNil(isNil), _createdByNew(createdByNew) {}
@@ -39,6 +42,16 @@ namespace marble {
         bool
         CreatedByNew() const {
             return _createdByNew;
+        }
+
+        Module *
+        GetModule() const {
+            return _mod;
+        }
+
+        void
+        SetModule(Module *mod) {
+            _mod = mod;
         }
 
         std::string

@@ -66,6 +66,12 @@ namespace marble {
         Stmt *
         parseDelStmt();
 
+        Stmt *
+        parseImportStmt();
+
+        Stmt *
+        parseModDeclStmt();
+
         Argument
         parseArgument();
         

@@ -114,6 +114,12 @@ namespace marble {
         VisitDelStmt(DelStmt *ds);
 
         llvm::Value *
+        VisitImportStmt(ImportStmt *is);
+
+        llvm::Value *
+        VisitModDeclStmt(ModDeclStmt *mds);
+
+        llvm::Value *
         VisitBinaryExpr(BinaryExpr *be);
         
         llvm::Value *

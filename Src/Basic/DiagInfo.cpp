@@ -46,6 +46,8 @@ namespace marble {
                 return ERR("redefinition the method `%0`");
             case ErrRedefinitionTrait:
                 return ERR("redefinition the trait `%0`");
+            case ErrRedefinitionMod:
+                return ERR("redefinition the module `%0`");
             case ErrTypeMismatchNotNum:
                 return ERR("expected number, but got `%0`");
             case ErrTypeMismatchNotBool:
@@ -76,6 +78,16 @@ namespace marble {
                 return ERR("field `%0` is private");
             case ErrMethodIsPrivate:
                 return ERR("method `%0` is private");
+            case ErrVarIsPrivate:
+                return ERR("variable `%0` is private");
+            case ErrFunIsPrivate:
+                return ERR("function `%0` is private");
+            case ErrStructIsPrivate:
+                return ERR("structure `%0` is private");
+            case ErrTraitIsPrivate:
+                return ERR("trait `%0` is private");
+            case ErrModIsPrivate:
+                return ERR("module `%0` is private");
             case ErrCannotDeclareHere:
                 return ERR("cannot make declaration here (only in traits)");
             case ErrUndeclaredType:

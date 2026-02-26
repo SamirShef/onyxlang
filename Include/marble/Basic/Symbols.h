@@ -14,6 +14,7 @@ namespace marble {
         ASTType Type;
         std::optional<ASTVal> Val;
         bool IsConst;
+        AccessModifier Access;
     };
 
     struct Function {
@@ -22,6 +23,7 @@ namespace marble {
         std::vector<Argument> Args;
         std::vector<Stmt *> Body;
         bool IsDeclaration;
+        AccessModifier Access;
     };
 
     struct Method {

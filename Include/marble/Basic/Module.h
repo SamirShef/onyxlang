@@ -10,6 +10,7 @@ namespace marble {
         std::string Name;
         AccessModifier Access;
         std::vector<Stmt *> AST;
+        Module *Parent = nullptr;
         std::unordered_map<std::string, Variable> Variables;
         std::unordered_map<std::string, Function> Functions;
         std::unordered_map<std::string, Struct> Structures;

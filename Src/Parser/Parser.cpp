@@ -136,6 +136,19 @@ namespace marble {
                 }
                 return stmt;
             }
+            case TkImport: {
+                Stmt *stmt = parseImportStmt();
+                if (consumeSemi && !expect(TkSemi)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                        << getRangeFromTok(_curTok)
+                        << ";"                  // expected
+                        << _curTok.GetText();   // got
+                }
+                return stmt;
+            }
+            case TkMod: {
+                return parseModDeclStmt();
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -447,6 +460,57 @@ namespace marble {
         Token firstTok = consume();
         Expr *expr = parseExpr(PrecLowest);
         return createNode<DelStmt>(expr, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseImportStmt() {
+        AccessModifier accessCopy = access;
+        Token firstTok = consume();
+        bool isLocalImport = false;
+        std::string path;
+        if (_curTok.GetKind() == TkStrLit) {
+            isLocalImport = true;
+            path = consume().GetKind();
+        }
+        else {
+            do {
+                std::string part = _curTok.GetText();
+                if (!expect(TkId)) {
+                    _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                        << getRangeFromTok(_curTok)
+                        << _curTok.GetText();
+                    consume();
+                }
+                path += part;
+                if (_curTok.Is(TkDot)) {
+                    path += "/";
+                }
+            } while (expect(TkDot));
+        }
+        return createNode<ImportStmt>(path, isLocalImport, access, firstTok.GetLoc(), _curTok.GetLoc());
+    }
+
+    Stmt *
+    Parser::parseModDeclStmt() {
+        AccessModifier accessCopy = access;
+        Token firstTok = consume();
+        std::string name = _curTok.GetText();
+        if (!expect(TkId)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                << getRangeFromTok(_curTok)
+                << _curTok.GetText();
+        }
+        if (!expect(TkLBrace)) {
+            _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                << getRangeFromTok(_curTok)
+                << "{"                  // expected
+                << _curTok.GetText();   // got
+        }
+        std::vector<Stmt *> body;
+        while (!expect(TkRBrace)) {
+            body.push_back(parseStmt());
+        }
+        return createNode<ModDeclStmt>(name, body, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Argument

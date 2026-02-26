@@ -14,26 +14,53 @@ namespace marble {
 
     void
     SemanticAnalyzer::AnalyzeModule(Module *mod) {
-        Module *prevMod = _curMod;
+        Module *oldMod = _curMod;
         _curMod = mod;
 
         DeclareInModule(mod);
-
-        for (auto *stmt : mod->AST) {
-            Visit(stmt);
-        }
 
         for (auto const &[_, submod] : mod->Submodules) {
             AnalyzeModule(submod);
         }
 
-        _curMod = prevMod;
+        for (auto *stmt : mod->AST) {
+            Visit(stmt);
+        }
+
+        _curMod = oldMod;
     }
 
     void
     SemanticAnalyzer::DeclareInModule(Module *mod) {
         for (auto *stmt : mod->AST) {
             switch (stmt->GetKind()) {
+                case NkVarDeclStmt: {
+                    auto *vds = llvm::dyn_cast<VarDeclStmt>(stmt);
+                    if (_curMod->FindGlobalVar(vds->GetName())) {
+                        _diag.Report(vds->GetStartLoc(), ErrRedefinitionVar)
+                            << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc());
+                        continue;
+                    }
+                    resolveType(vds->GetType());
+                    if (vds->GetType().GetTypeKind() == ASTTypeKind::Noth && !vds->GetType().IsPointer()) {
+                        _diag.Report(vds->GetStartLoc(), ErrNothVar)
+                            << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
+                            << vds->GetName();
+                    }
+                    else {
+                        std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
+                        if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
+                            Struct *s = _curMod->FindStruct(vds->GetType().GetVal());
+                            val = ASTVal(ASTType(ASTTypeKind::Struct, s->Name, vds->IsConst(), 0), ASTValData { .i32Val = 0 }, false, false);
+                        }
+                        Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst(), .Access = vds->GetAccess() };
+                        if (vds->GetExpr()) {
+                            implicitlyCast(var.Val.value(), var.Type, vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
+                        }
+                        mod->Variables.emplace(vds->GetName(), var);
+                    }
+                    break;
+                }
                 case NkFunDeclStmt: {
                     auto *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
                     if (fds->IsDeclaration()) {
@@ -65,7 +92,7 @@ namespace marble {
                         }
                     }
                     Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(),
-                                   .IsDeclaration = fds->IsDeclaration() };
+                                   .IsDeclaration = fds->IsDeclaration(), .Access = fds->GetAccess() };
                     resolveType(fun.RetType);
                     mod->Functions.emplace(fun.Name, fun);
                     break;
@@ -120,7 +147,7 @@ namespace marble {
                     std::unordered_map<std::string, bool> implementedTraitMethods;
                     
                     if (isTraitImpl) {
-                        Trait *t = _curMod->FindTrait(is->GetTraitName()); // TODO: remove this block: _traits.find(is->GetTraitName());
+                        Trait *t = _curMod->FindTrait(is->GetTraitName());
                         if (!t) {
                             _diag.Report(is->GetStartLoc(), ErrUndeclaredTrait)
                                 << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
@@ -210,7 +237,7 @@ namespace marble {
                         }
                         methods.push_back(method);
                         Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
-                                       .IsDeclaration = method->IsDeclaration() };
+                                       .IsDeclaration = method->IsDeclaration(), .Access = method->GetAccess() };
                         s->Methods.emplace(method->GetName(), Method { .Fun = fun, .IsConst = isConstMethod, .Access = method->GetAccess() });
                     }
 
@@ -249,7 +276,7 @@ namespace marble {
                                 resolveType(arg.GetType());
                             }
                             Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
-                                           .IsDeclaration = method->IsDeclaration() };
+                                           .IsDeclaration = method->IsDeclaration(), .Access = method->GetAccess() };
                             t.Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
                         }
                         else {
@@ -260,50 +287,26 @@ namespace marble {
                     mod->Traits.emplace(t.Name, t);
                     break;
                 }
+                case NkModDeclStmt: {
+                    auto *mds = llvm::dyn_cast<ModDeclStmt>(stmt);
+                    if (_curMod->Submodules.find(mds->GetName()) != _curMod->Submodules.end()) {
+                        _diag.Report(mds->GetStartLoc(), ErrRedefinitionMod)
+                            << llvm::SMRange(mds->GetStartLoc(), mds->GetEndLoc())
+                            << mds->GetName();
+                        continue;
+                    }
+                    Module *mod = new Module(mds->GetName(), mds->GetAccess());
+                    mod->AST = mds->GetBody();
+                    _curMod->Submodules.emplace(mds->GetName(), mod);
+                    mod->Parent = _curMod;
+                    break;
+                }
                 default:
                     break;
             }
         }
     }
 
-    /* TODO: remove this block
-    void
-    SemanticAnalyzer::DeclareFunctions(std::vector<Stmt *> &ast) {
-        for (auto &stmt : ast) {
-            if (stmt->GetKind() == NkFunDeclStmt) {
-                FunDeclStmt *fds = llvm::dyn_cast<FunDeclStmt>(stmt);
-                if (fds->IsDeclaration()) {
-                    _diag.Report(fds->GetStartLoc(), ErrCannotDeclareHere)
-                        << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
-                    continue;
-                }
-                if (_functions.find(fds->GetName()) != _functions.end()) {
-                    _diag.Report(fds->GetStartLoc(), ErrRedefinitionFun)
-                        << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc())
-                        << fds->GetName();
-                    continue;
-                }
-                if (fds->GetName() == "main") {
-                    auto args = fds->GetArgs();
-                    if (args.size() != 0 && args.size() != 2) {
-                        _diag.Report(fds->GetStartLoc(), ErrWrongMainSignature)
-                            << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
-                    }
-                    else if (args.size() == 2) {
-                        if (!(args[0].GetType().GetTypeKind() == ASTTypeKind::I32 && !args[0].GetType().IsPointer() &&
-                              args[1].GetType().GetTypeKind() == ASTTypeKind::Char && args[1].GetType().GetPointerDepth() == 2)) {
-                            _diag.Report(fds->GetStartLoc(), ErrWrongMainSignature)
-                                << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
-                        }
-                    }
-                }
-                Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(), .IsDeclaration = fds->IsDeclaration() };
-                _functions.emplace(fds->GetName(), fun);
-            }
-        }
-    }
-    */
-    
     std::optional<ASTVal>
     SemanticAnalyzer::VisitVarDeclStmt(VarDeclStmt *vds) {
         if (vds->GetAccess() == AccessPub && _vars.size() != 1) {
@@ -324,10 +327,10 @@ namespace marble {
         else {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
-                Struct *s = _curMod->FindStruct(vds->GetType().GetVal()); // TODO: remove this block: _structs.at(vds->GetType().GetVal());
+                Struct *s = _curMod->FindStruct(vds->GetType().GetVal());
                 val = ASTVal(ASTType(ASTTypeKind::Struct, s->Name, vds->IsConst(), 0), ASTValData { .i32Val = 0 }, false, false);
             }
-            Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst() };
+            Variable var { .Name = vds->GetName(), .Type = vds->GetType(), .Val = val, .IsConst = vds->IsConst(), .Access = vds->GetAccess() };
             if (vds->GetExpr()) {
                 implicitlyCast(var.Val.value(), var.Type, vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
             }
@@ -404,7 +407,7 @@ namespace marble {
             _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(),
                                                           .Val = arg.GetType().IsPointer() ? ASTVal(arg.GetType(), ASTValData { .i32Val = 0 }, false, false)
                                                                                            : ASTVal::GetDefaultByType(arg.GetType()),
-                                                          .IsConst = arg.GetType().IsConst() });
+                                                          .IsConst = arg.GetType().IsConst(), .Access = AccessPriv });
         }
         _funRetsTypes.push(fds->GetRetType());
         bool hasRet = false;
@@ -543,49 +546,6 @@ namespace marble {
             _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
         }
-        /* TODO: remove this block
-        if (_structs.find(ss->GetName()) != _structs.end()) {
-            _diag.Report(ss->GetStartLoc(), ErrRedefinitionStruct)
-                << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc())
-                << ss->GetName();
-            return std::nullopt;
-        }
-        */
-
-        /* TODO: is it necessary???
-        Struct *s = _curMod->FindStruct(ss->GetName()); // TODO: remove this block: { .Name = ss->GetName(), .Fields = {}, .Methods = {}, .TraitsImplements = {} };
-        for (int i = 0; i < ss->GetBody().size(); ++i) {
-            if (ss->GetBody()[i]->GetKind() != NkVarDeclStmt) {
-                _diag.Report(ss->GetStartLoc(), ErrCannotBeHere)
-                    << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc());
-                continue;
-            }
-
-            VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
-            if (!vds->GetType().IsPointer() && vds->GetType().GetVal() == ss->GetName()) {
-                _diag.Report(vds->GetStartLoc(), ErrIncompleteType)
-                    << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
-                    << vds->GetType().GetVal();
-            }
-            if (s->Fields.find(vds->GetName()) != s->Fields.end()) {
-                _diag.Report(vds->GetStartLoc(), ErrRedefinitionField)
-                    << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
-                    << vds->GetName();
-                continue;
-            }
-            std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
-            if (vds->GetExpr()) {
-                implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
-            }
-            s->Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .IsConst = vds->IsConst(), .Access = vds->GetAccess(),
-                             .ManualInitialized = false });
-        }
-        */
-
-        /* TODO: remove this block
-        _structs.emplace(s.Name, s);
-        */
-
         return std::nullopt;
     }
     
@@ -597,11 +557,12 @@ namespace marble {
         }
         std::optional<ASTVal> obj = Visit(fas->GetObject());
         resolveType(obj->GetType());
-        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct &&
+            obj->GetType().GetTypeKind() != ASTTypeKind::Mod) {
             _diag.Report(fas->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
         }
-        else {
+        else if (obj->GetType().GetTypeKind() == ASTTypeKind::Struct) {
             fas->SetObjType(obj->GetType());
             bool objIsThis = false;
             if (fas->GetObject()->GetKind() == NkVarExpr) {
@@ -611,7 +572,7 @@ namespace marble {
                     isConstMethod = false;
                 }
             }
-            Struct *s = _curMod->FindStruct(obj->GetType().GetVal()); // TODO: remove this block: _structs.at(obj->GetType().GetVal());
+            Struct *s = _curMod->FindStruct(obj->GetType().GetVal());
             auto field = s->Fields.find(fas->GetName());
             if (field == s->Fields.end()) {
                 _diag.Report(fas->GetStartLoc(), ErrUndeclaredField)
@@ -633,6 +594,30 @@ namespace marble {
                 implicitlyCast(Visit(fas->GetExpr()).value(), s->Fields.at(fas->GetName()).Type, fas->GetStartLoc(), fas->GetEndLoc());
             }
         }
+        else {
+            Module *mod = obj->GetModule();
+            if (auto it = mod->Variables.find(fas->GetName()); it != mod->Variables.end()) {
+                if (it->second.Access == AccessPriv) {
+                    _diag.Report(fas->GetStartLoc(), ErrVarIsPrivate)
+                        << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                        << fas->GetName();
+                    return std::nullopt;
+                }
+                if (it->second.IsConst || obj->GetType().IsConst()) {
+                    _diag.Report(fas->GetStartLoc(), ErrAssignmentConst)
+                        << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc());
+                    return std::nullopt;
+                }
+                implicitlyCast(Visit(fas->GetExpr()).value(), it->second.Type, fas->GetStartLoc(), fas->GetEndLoc());
+                return std::nullopt;
+            }
+            else {
+                _diag.Report(fas->GetStartLoc(), ErrUndeclaredVariable)
+                    << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                    << fas->GetName();
+                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
+            }
+        }
         return std::nullopt;
     }
 
@@ -642,126 +627,13 @@ namespace marble {
             _diag.Report(is->GetStartLoc(), ErrCannotBeHere)
                 << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc());
         }
-        Struct *s = _curMod->FindStruct(is->GetStructName()); // TODO: remove this block: _structs.at(is->GetStructName());
+        Struct *s = _curMod->FindStruct(is->GetStructName());
         if (!s) {
             _diag.Report(is->GetStartLoc(), ErrUndeclaredStructure)
                  << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
                  << is->GetStructName();
             return std::nullopt;
         }
-        /* TODO: is it necessary???
-        bool isTraitImpl = !is->GetTraitName().empty();
-        const Trait *traitDef = nullptr;
-        std::unordered_map<std::string, bool> implementedTraitMethods;
-        
-        if (isTraitImpl) {
-            Trait *t = _curMod->FindTrait(is->GetTraitName()); // TODO: remove this block: _traits.find(is->GetTraitName());
-            if (!t) {
-                _diag.Report(is->GetStartLoc(), ErrUndeclaredTrait)
-                    << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
-                    << is->GetTraitName();
-                return std::nullopt;
-            }
-            if (s->TraitsImplements.find(t->Name) != s->TraitsImplements.end()) {
-                _diag.Report(is->GetStartLoc(), ErrMultipleTraitImpl)
-                    << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
-                    << t->Name
-                    << s->Name;
-                return std::nullopt;
-            }
-            traitDef = t;
-            
-            for (auto &method : traitDef->Methods) {
-                implementedTraitMethods[method.first] = !method.second.Fun.IsDeclaration;
-            }
-        }
-
-        std::vector<FunDeclStmt *> methods;
-        for (auto &stmt : is->GetBody()) {
-            if (stmt->GetKind() != NkFunDeclStmt) {
-                _diag.Report(stmt->GetStartLoc(), ErrCannotBeHere)
-                    << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc());
-                continue;
-            }
-            isConstMethod = true;
-            FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
-            if (method->IsDeclaration()) {
-                _diag.Report(method->GetStartLoc(), ErrCannotDeclareHere)
-                    << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc());
-                continue;
-            }
-            if (s->Methods.find(method->GetName()) != s->Methods.end()) {
-                _diag.Report(stmt->GetStartLoc(), ErrRedefinitionMethod)
-                    << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc())
-                    << method->GetName();
-                continue;
-            }
-            if (isTraitImpl) {
-                auto tMethodIt = traitDef->Methods.find(method->GetName());
-                if (tMethodIt == traitDef->Methods.end()) {
-                    _diag.Report(method->GetStartLoc(), ErrMethodNotInTrait)
-                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
-                        << method->GetName()
-                        << traitDef->Name;
-                    continue;
-                }
-
-                Function &traitFun = const_cast<Function &>(tMethodIt->second.Fun);
-                if (method->GetRetType() != traitFun.RetType) {
-                    _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_RetTypeMismatch)
-                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
-                        << method->GetName()
-                        << traitDef->Name
-                        << traitFun.RetType.ToString()
-                        << method->GetRetType().ToString();
-                }
-                if (method->GetArgs().size() != traitFun.Args.size()) {
-                     _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_FewArgs)
-                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
-                        << method->GetName()
-                        << traitDef->Name
-                        << traitFun.Args.size()
-                        << method->GetArgs().size();
-                }
-                else {
-                    for (int i = 0; i < method->GetArgs().size(); ++i) {
-                        if (method->GetArgs()[i].GetType() != traitFun.Args[i].GetType()) {
-                            _diag.Report(method->GetStartLoc(), ErrCannotImplTraitMethod_ArgTypeMismatch)
-                                << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
-                                << method->GetName()
-                                << traitDef->Name
-                                << method->GetArgs()[i].GetName()
-                                << traitFun.Args[i].GetType().ToString()
-                                << method->GetArgs()[i].GetType().ToString(); 
-                        }
-                    }
-                }
-
-                implementedTraitMethods[method->GetName()] = true;
-            }
-            methods.push_back(method);
-            Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
-                           .IsDeclaration = method->IsDeclaration() };
-            s->Methods.emplace(method->GetName(), Method { .Fun = fun, .IsConst = isConstMethod, .Access = method->GetAccess() });
-        }
-
-        if (isTraitImpl) {
-            for (auto const &[name, implemented] : implementedTraitMethods) {
-                if (!implemented) {
-                    _diag.Report(is->GetStartLoc(), ErrNotImplTraitMethod)
-                        << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
-                        << name
-                        << traitDef->Name;
-                }
-            }
-            s->TraitsImplements.emplace(traitDef->Name, *traitDef);
-        }
-        */
-
-        /* TODO: remove this block
-        _structs.at(is->GetStructName()).Methods = s.Methods;
-        _structs.at(is->GetStructName()).TraitsImplements = s.TraitsImplements;
-        */
 
         std::vector<FunDeclStmt *> methods;
         for (auto &stmt : is->GetBody()) {
@@ -769,7 +641,7 @@ namespace marble {
             FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
             _vars.push({});
             ASTType thisType = ASTType(ASTTypeKind::Struct, s->Name, false, 0);
-            _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false });
+            _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false, .Access = AccessPriv });
             for (auto &arg : method->GetArgs()) {
                 if (_vars.top().find(arg.GetName()) != _vars.top().end()) {
                     _diag.Report(method->GetStartLoc(), ErrRedefinitionVar)
@@ -780,7 +652,7 @@ namespace marble {
                 _vars.top().emplace(arg.GetName(), Variable { .Name = arg.GetName(), .Type = arg.GetType(),
                                                               .Val = arg.GetType().IsPointer() ? ASTVal(arg.GetType(), ASTValData { .i32Val = 0 }, false, false)
                                                                                                : ASTVal::GetDefaultByType(arg.GetType()),
-                                                              .IsConst = arg.GetType().IsConst() });
+                                                              .IsConst = arg.GetType().IsConst(), .Access = AccessPriv });
             }
             _funRetsTypes.push(method->GetRetType());
             bool hasRet;
@@ -827,38 +699,6 @@ namespace marble {
             _diag.Report(tds->GetStartLoc(), ErrCannotHaveAccessBeHere)
                 << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc());
         }
-        /* TODO: remove this block
-        if (_traits.find(tds->GetName()) != _traits.end()) {
-            _diag.Report(tds->GetStartLoc(), ErrRedefinitionTrait)
-                << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc())
-                << tds->GetName();
-        }
-        */
-
-        /* TODO: is it necessary???
-        Trait *t = _curMod->FindTrait(tds->GetName()); // TODO: remove this block: { .Name = tds->GetName(), .Methods = {} };
-        for (auto stmt : tds->GetBody()) {
-            if (FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt)) {
-                if (!method->IsDeclaration()) {
-                    _diag.Report(method->GetStartLoc(), ErrExpectedDeclarationInTrait)
-                        << llvm::SMRange(method->GetStartLoc(), method->GetEndLoc())
-                        << method->GetName()
-                        << tds->GetName();
-                }
-                Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
-                               .IsDeclaration = method->IsDeclaration() };
-                t->Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
-            }
-            else {
-                _diag.Report(stmt->GetStartLoc(), ErrCannotBeHere)
-                    << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc());
-            }
-        }
-        */
-
-        /* TODO: remove this block
-        _traits.emplace(tds->GetName(), t);
-        */
         return std::nullopt;
     }
 
@@ -904,6 +744,16 @@ namespace marble {
                 << llvm::SMRange(ds->GetStartLoc(), ds->GetEndLoc());
             return std::nullopt;
         }
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitImportStmt(ImportStmt *is) {
+        return std::nullopt;
+    }
+
+    std::optional<ASTVal>
+    SemanticAnalyzer::VisitModDeclStmt(ModDeclStmt *mds) {
         return std::nullopt;
     }
 
@@ -1044,6 +894,11 @@ namespace marble {
             }
             varsCopy.pop();
         }
+        if (auto it = _curMod->Submodules.find(ve->GetName()); it != _curMod->Submodules.end()) {
+            auto val = ASTVal(ASTType(ASTTypeKind::Mod, ve->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
+            val.SetModule(it->second);
+            return val;
+        }
         _diag.Report(ve->GetStartLoc(), ErrUndeclaredVariable)
             << llvm::SMRange(ve->GetStartLoc(), ve->GetEndLoc())
             << ve->GetName();
@@ -1084,7 +939,7 @@ namespace marble {
 
     std::optional<ASTVal>
     SemanticAnalyzer::VisitStructExpr(StructExpr *se) {
-        Struct *s = _curMod->FindStruct(se->GetName()); // TODO: remove this block: _structs.at(se->GetName());
+        Struct *s = _curMod->FindStruct(se->GetName());
         if (!s) {
             _diag.Report(se->GetStartLoc(), ErrUndeclaredStructure)
                 << llvm::SMRange(se->GetStartLoc(), se->GetEndLoc())
@@ -1120,11 +975,12 @@ namespace marble {
     SemanticAnalyzer::VisitFieldAccessExpr(FieldAccessExpr *fae) {
         std::optional<ASTVal> obj = Visit(fae->GetObject());
         resolveType(obj->GetType());
-        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct) {
+        if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct &&
+            obj->GetType().GetTypeKind() != ASTTypeKind::Mod) {
             _diag.Report(fae->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc());
         }
-        else {
+        else if (obj->GetType().GetTypeKind() == ASTTypeKind::Struct) {
             fae->SetObjType(obj->GetType());
             bool objIsThis = false;
             if (fae->GetObject()->GetKind() == NkVarExpr) {
@@ -1133,7 +989,7 @@ namespace marble {
                     objIsThis = true;
                 }
             }
-            Struct *s = _curMod->FindStruct(obj->GetType().GetVal()); // TODO: remove this block: _structs.at(obj->GetType().GetVal());
+            Struct *s = _curMod->FindStruct(obj->GetType().GetVal());
             auto field = s->Fields.find(fae->GetName());
             if (field == s->Fields.end()) {
                 _diag.Report(fae->GetStartLoc(), ErrUndeclaredField)
@@ -1150,6 +1006,35 @@ namespace marble {
                 return s->Fields.at(fae->GetName()).Val;
             }
         }
+        else {
+            Module *mod = obj->GetModule();
+            if (auto it = mod->Variables.find(fae->GetName()); it != mod->Variables.end()) {
+                if (it->second.Access == AccessPriv) {
+                    _diag.Report(fae->GetStartLoc(), ErrVarIsPrivate)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << fae->GetName();
+                    return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
+                }
+                return it->second.Val;
+            }
+            else if (auto it = mod->Submodules.find(fae->GetName()); it != mod->Submodules.end()) {
+                if (it->second->Access == AccessPriv) {
+                    _diag.Report(fae->GetStartLoc(), ErrModIsPrivate)
+                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                        << fae->GetName();
+                    return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
+                }
+                auto val = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
+                val.SetModule(it->second);
+                return val;
+            }
+            else {
+                _diag.Report(fae->GetStartLoc(), ErrUndeclaredVariable)
+                    << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                    << fae->GetName();
+                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
+            }
+        }
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
     }
 
@@ -1158,11 +1043,12 @@ namespace marble {
         std::optional<ASTVal> obj = Visit(mce->GetObject());
         resolveType(obj->GetType());
         if (obj->GetType().GetTypeKind() != ASTTypeKind::Struct &&
-            obj->GetType().GetTypeKind() != ASTTypeKind::Trait) {
+            obj->GetType().GetTypeKind() != ASTTypeKind::Trait &&
+            obj->GetType().GetTypeKind() != ASTTypeKind::Mod) {
             _diag.Report(mce->GetStartLoc(), ErrAccessFromNonStruct)
                 << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc());
         }
-        else {
+        else if (obj->GetType().GetTypeKind() != ASTTypeKind::Mod) {
             mce->SetObjType(obj->GetType());
             bool objIsThis = false;
             if (mce->GetObject()->GetKind() == NkVarExpr) {
@@ -1174,12 +1060,12 @@ namespace marble {
             std::unordered_map<std::string, Method> *methods = nullptr;
             std::string contextName;
             if (obj->GetType().GetTypeKind() == ASTTypeKind::Struct) {
-                Struct *s = _curMod->FindStruct(obj->GetType().GetVal()); // TODO: remove this block: _structs.at(obj->GetType().GetVal());
+                Struct *s = _curMod->FindStruct(obj->GetType().GetVal());
                 methods = &s->Methods;
                 contextName = s->Name;
             }
             else {
-                Trait *t = _curMod->FindTrait(obj->GetType().GetVal()); // TODO: remove this block: _traits.at(obj->GetType().GetVal());
+                Trait *t = _curMod->FindTrait(obj->GetType().GetVal());
                 methods = &t->Methods;
                 contextName = t->Name;
             }
@@ -1221,6 +1107,38 @@ namespace marble {
                     return ASTVal::GetDefaultByType(method->second.Fun.RetType);
                 }
                 return ASTVal::GetDefaultByType(ASTType::GetNothType());
+            }
+        }
+        else {
+            Module *mod = obj->GetModule();
+            if (auto it = mod->Functions.find(mce->GetName()); it != mod->Functions.end()) {
+                if (it->second.Access == AccessPriv) {
+                    _diag.Report(mce->GetStartLoc(), ErrMethodIsPrivate)
+                        << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                        << mce->GetName();
+                }
+                if (it->second.Args.size() != mce->GetArgs().size()) {
+                    _diag.Report(mce->GetStartLoc(), ErrFewArgs)
+                        << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                        << mce->GetName()
+                        << it->second.Args.size()
+                        << mce->GetArgs().size();
+                    return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
+                }
+                for (int i = 0; i < it->second.Args.size(); ++i) {
+                    resolveType(it->second.Args[i].GetType());
+                    implicitlyCast(Visit(mce->GetArgs()[i]).value(), it->second.Args[i].GetType(), mce->GetArgs()[i]->GetStartLoc(), mce->GetArgs()[i]->GetEndLoc());
+                }
+                if (it->second.RetType.GetTypeKind() != ASTTypeKind::Noth) {
+                    return ASTVal::GetDefaultByType(it->second.RetType);
+                }
+                return ASTVal::GetDefaultByType(ASTType::GetNothType());
+            }
+            else {
+                _diag.Report(mce->GetStartLoc(), ErrFunIsPrivate)
+                    << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                    << mce->GetName();
+                return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
             }
         }
         return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
@@ -1422,7 +1340,7 @@ namespace marble {
             return true;
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
-            Struct *s = _curMod->FindStruct(src.GetType().GetVal()); // TODO: remove this block: _structs.at(src.GetType().GetVal());
+            Struct *s = _curMod->FindStruct(src.GetType().GetVal());
             if (s->TraitsImplements.find(expectType.GetVal()) != s->TraitsImplements.end()) {
                 return true;
             }
@@ -1444,7 +1362,7 @@ namespace marble {
             return src;
         }
         if (!expectType.IsPointer() && expectType.GetTypeKind() == ASTTypeKind::Trait && src.GetType().GetTypeKind() == ASTTypeKind::Struct) {
-            Struct *s = _curMod->FindStruct(src.GetType().GetVal()); // TODO: remove this block: _structs.at(src.GetType().GetVal());
+            Struct *s = _curMod->FindStruct(src.GetType().GetVal());
             if (s->TraitsImplements.find(expectType.GetVal()) != s->TraitsImplements.end()) {
                 return ASTVal::GetVal(0, expectType);
             }
