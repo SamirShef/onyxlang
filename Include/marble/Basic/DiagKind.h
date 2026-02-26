@@ -12,7 +12,7 @@ namespace marble {
         ErrExpectedId,
         ErrExpectedType,
         ErrUndeclaredVariable,
-        ErrUndeclaredFuntion,
+        ErrUndeclaredFunction,
         ErrUndeclaredStructure,
         ErrUndeclaredTrait,
         ErrUndeclaredField,

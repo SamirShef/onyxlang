@@ -43,7 +43,7 @@ main(int argc, char **argv) {
     }
 
     marble::SemanticAnalyzer sema(diag, root);
-    sema.AnalyzeModule(root);
+    sema.AnalyzeModule(root, true);
     if (diag.HasErrors()) {
         return 1;
     }

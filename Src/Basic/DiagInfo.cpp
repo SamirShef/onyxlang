@@ -24,7 +24,7 @@ namespace marble {
                 return ERR("expected type, but got `%0`");
             case ErrUndeclaredVariable:
                 return ERR("variable `%0` is undeclared");
-            case ErrUndeclaredFuntion:
+            case ErrUndeclaredFunction:
                 return ERR("function `%0` is undeclared");
             case ErrUndeclaredStructure:
                 return ERR("structure `%0` is undeclared");

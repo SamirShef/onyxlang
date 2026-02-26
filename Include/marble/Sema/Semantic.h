@@ -24,7 +24,7 @@ namespace marble {
         }
 
         void
-        AnalyzeModule(Module *mod);
+        AnalyzeModule(Module *mod, bool isRoot = false);
 
         void
         DeclareInModule(Module *mod);
