@@ -1,0 +1,6 @@
+trait T {}
+
+fun main(): i32 {
+    var p: *T = new T; // Error: Cannot instantiate trait 'T'
+    return 0;
+}

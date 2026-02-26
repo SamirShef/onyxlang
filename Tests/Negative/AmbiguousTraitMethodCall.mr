@@ -1,0 +1,27 @@
+trait A {
+    pub fun test(): i32;
+}
+
+trait B {
+    pub fun test(): i32;
+}
+
+struct S {}
+
+impl A for S {
+    pub fun test(): i32 {
+        return 1;
+    }
+}
+
+impl B for S {
+    pub fun test(): i32 {
+        return 2;
+    }
+}
+
+fun main(): i32 {
+    var s: S;
+    echo s.test(); // Error: Ambiguous call to 'test', matches A.test and B.test
+    return 0;
+}

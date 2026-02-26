@@ -1,6 +1,8 @@
 #include <marble/Sema/Semantic.h>
 #include <cmath>
 
+static bool isConstMethod = true;
+
 namespace marble {
     static std::unordered_map<ASTTypeKind, std::vector<ASTTypeKind>> implicitlyCastAllowed {
         { ASTTypeKind::Char, { ASTTypeKind::I16, ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64 } },
@@ -54,6 +56,11 @@ namespace marble {
         }
         if (_vars.top().find(vds->GetName()) != _vars.top().end()) {
             _diag.Report(vds->GetStartLoc(), ErrRedefinitionVar)
+                << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
+                << vds->GetName();
+        }
+        if (vds->GetType().GetTypeKind() == ASTTypeKind::Noth && !vds->GetType().IsPointer()) {
+            _diag.Report(vds->GetStartLoc(), ErrNothVar)
                 << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc())
                 << vds->GetName();
         }
@@ -335,6 +342,7 @@ namespace marble {
                 VarExpr *ve = llvm::cast<VarExpr>(fas->GetObject());
                 if (ve->GetName() == "this") {
                     objIsThis = true;
+                    isConstMethod = false;
                 }
             }
             Struct s = _structs.at(obj->GetType().GetVal());
@@ -408,6 +416,7 @@ namespace marble {
                     << llvm::SMRange(stmt->GetStartLoc(), stmt->GetEndLoc());
                 continue;
             }
+            isConstMethod = true;
             FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
             if (method->IsDeclaration()) {
                 _diag.Report(method->GetStartLoc(), ErrCannotDeclareHere)
@@ -466,7 +475,7 @@ namespace marble {
             methods.push_back(method);
             Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
                            .IsDeclaration = method->IsDeclaration() };
-            s.Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
+            s.Methods.emplace(method->GetName(), Method { .Fun = fun, .IsConst = isConstMethod, .Access = method->GetAccess() });
         }
 
         if (isTraitImpl) {
@@ -889,12 +898,20 @@ namespace marble {
                     << contextName;
             }
             else {
+                if (isConstMethod) {
+                    isConstMethod = method->second.IsConst;
+                }
+
                 if (method->second.Access == AccessPriv && !objIsThis) {
                     _diag.Report(mce->GetStartLoc(), ErrMethodIsPrivate)
                         << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
                         << mce->GetName();
                 }
-
+                if (obj->GetType().IsConst() && !isConstMethod) {
+                    _diag.Report(mce->GetStartLoc(), ErrCallingNonConstMethodForConstObj)
+                        << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                        << mce->GetName();
+                }
                 if (method->second.Fun.Args.size() != mce->GetArgs().size()) {
                     _diag.Report(mce->GetStartLoc(), ErrFewArgs)
                         << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
@@ -933,6 +950,11 @@ namespace marble {
                 << llvm::SMRange(de->GetStartLoc(), de->GetEndLoc());
             return val;
         }
+        if (val->GetType().GetTypeKind() == ASTTypeKind::Noth && val->GetType().GetPointerDepth() == 1) {
+            _diag.Report(de->GetExpr()->GetStartLoc(), ErrDerefNothPtr)
+                << llvm::SMRange(de->GetStartLoc(), de->GetEndLoc());
+            return val;
+        }
         de->SetExprType(val->GetType());
         return ASTVal(val->GetType().Deref(), val->GetData(), false, val->CreatedByNew());
     }
@@ -957,6 +979,11 @@ namespace marble {
     SemanticAnalyzer::VisitNewExpr(NewExpr *ne) {
         if (ne->GetStructExpr()) {
             VisitStructExpr(ne->GetStructExpr());
+        }
+        if (ne->GetType().GetTypeKind() == ASTTypeKind::Trait) {
+            _diag.Report(ne->GetStartLoc(), ErrNewOnTrait)
+                << llvm::SMRange(ne->GetStartLoc(), ne->GetEndLoc());
+            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
         }
         if (ne->GetType().GetTypeKind() == ASTTypeKind::Noth) {
             _diag.Report(ne->GetStartLoc(), ErrNewOnNoth)

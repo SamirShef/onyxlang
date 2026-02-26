@@ -110,12 +110,20 @@ namespace marble {
                 return ERR("cannot printing noth value");
             case ErrMultipleTraitImpl:
                 return ERR("multiple implementation of trait `%0` for `%1`");
+            case ErrNewOnTrait:
+                return ERR("cannot create trait type with `new` operator");
             case ErrNewOnNoth:
                 return ERR("cannot create type `noth` with `new` operator");
             case ErrNothPtrArithmetic:
                 return ERR("cannot use pointer arithmetic with type `*noth`");
             case ErrWrongMainSignature:
                 return ERR("incorrect main signature: use `main()` or `main(i32, **char)` signatures");
+            case ErrNothVar:
+                return ERR("variable `%0` was defined with type `noth`");
+            case ErrDerefNothPtr:
+                return ERR("cannot dereference `*noth`");
+            case ErrCallingNonConstMethodForConstObj:
+                return ERR("cannot call non-const method `%0` from constant object");
         }
     }
 }

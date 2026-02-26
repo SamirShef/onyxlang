@@ -1,0 +1,13 @@
+struct A {
+    var x: i32;
+}
+
+struct B {
+    var x: i32;
+}
+
+impl A {
+    fun swap(other: B) {
+        this = other; // Error: Incompatible types S and B in assignment
+    }
+}

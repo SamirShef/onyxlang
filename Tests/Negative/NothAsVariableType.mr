@@ -1,0 +1,4 @@
+fun main(): i32 {
+    var x: noth; // Error: Variable cannot have type 'noth'
+    return 0;
+}

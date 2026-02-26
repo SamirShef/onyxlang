@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var p: *noth = nil;
+    var x: i32 = *p; // Error: Cannot dereference pointer to 'noth'
+    return 0;
+}

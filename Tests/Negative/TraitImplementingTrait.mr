@@ -1,0 +1,5 @@
+trait T1 {}
+
+trait T2 {}
+
+impl T1 for T2 {} // Error: Can only implement traits for structures

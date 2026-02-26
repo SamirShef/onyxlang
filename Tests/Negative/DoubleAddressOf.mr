@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var x: i32 = 10;
+    var p: **i32 = &(&x); // Error: '&' requires an l-value (result of &x is an r-value)
+    return 0;
+}

@@ -55,8 +55,12 @@ namespace marble {
         ErrDelOfCreatedNotByNew,
         ErrEchoTypeIsNoth,
         ErrMultipleTraitImpl,
+        ErrNewOnTrait,
         ErrNewOnNoth,
         ErrNothPtrArithmetic,
         ErrWrongMainSignature,
+        ErrNothVar,
+        ErrDerefNothPtr,
+        ErrCallingNonConstMethodForConstObj,
     };
 }

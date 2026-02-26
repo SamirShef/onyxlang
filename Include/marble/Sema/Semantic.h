@@ -41,6 +41,7 @@ namespace marble {
         
         struct Method {
             Function Fun;
+            bool IsConst;
             AccessModifier Access;
         };
 

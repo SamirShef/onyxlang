@@ -1,0 +1,15 @@
+struct Counter {
+    var count: i32;
+}
+
+impl Counter {
+    pub fun inc() {
+        this.count += 1;
+    }
+}
+
+fun main(): i32 {
+    const c: Counter;
+    c.inc(); // Error: Cannot call non-const method on const object
+    return 0;
+}

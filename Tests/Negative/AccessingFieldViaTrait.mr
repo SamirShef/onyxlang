@@ -1,0 +1,13 @@
+trait Shape {}
+
+struct Circle {
+    pub var radius: f32;
+}
+
+impl Shape for Circle {}
+
+fun main(): i32 {
+    var s: Shape = Circle { radius: 1 };
+    echo s.radius; // Error: Trait 'Shape' does not have field 'radius'
+    return 0;
+}
