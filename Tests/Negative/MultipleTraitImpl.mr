@@ -1,0 +1,5 @@
+struct MyStruct {}
+trait MyTrait {}
+
+impl MyTrait for MyStruct { }
+impl MyTrait for MyStruct { } // Error: Multiple implementations

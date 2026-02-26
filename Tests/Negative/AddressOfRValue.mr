@@ -1,0 +1,8 @@
+fun main(): i32 {
+    var p: *i32 = &get5(); // Error: cannot use '&' operator for R-value
+    return 0;
+}
+
+fun get5(): i32 {
+    return 5;
+}

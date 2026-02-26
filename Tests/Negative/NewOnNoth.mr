@@ -1,0 +1,7 @@
+fun main(): i32 {
+    return 0;
+}
+
+fun test(): *noth {
+    return new noth; // Error: Cannot allocate type 'noth'
+}

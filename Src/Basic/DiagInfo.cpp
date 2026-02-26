@@ -108,6 +108,14 @@ namespace marble {
                 return ERR("deleting a value that was not created with new");
             case ErrEchoTypeIsNoth:
                 return ERR("cannot printing noth value");
+            case ErrMultipleTraitImpl:
+                return ERR("multiple implementation of trait `%0` for `%1`");
+            case ErrNewOnNoth:
+                return ERR("cannot create type `noth` with `new` operator");
+            case ErrNothPtrArithmetic:
+                return ERR("cannot use pointer arithmetic with type `*noth`");
+            case ErrWrongMainSignature:
+                return ERR("incorrect main signature: use `main()` or `main(i32, **char)` signatures");
         }
     }
 }

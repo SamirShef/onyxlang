@@ -26,6 +26,20 @@ namespace marble {
                         << fds->GetName();
                     continue;
                 }
+                if (fds->GetName() == "main") {
+                    auto args = fds->GetArgs();
+                    if (args.size() != 0 && args.size() != 2) {
+                        _diag.Report(fds->GetStartLoc(), ErrWrongMainSignature)
+                            << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                    }
+                    else if (args.size() == 2) {
+                        if (!(args[0].GetType().GetTypeKind() == ASTTypeKind::I32 && !args[0].GetType().IsPointer() &&
+                              args[1].GetType().GetTypeKind() == ASTTypeKind::Char && args[1].GetType().GetPointerDepth() == 2)) {
+                            _diag.Report(fds->GetStartLoc(), ErrWrongMainSignature)
+                                << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                        }
+                    }
+                }
                 Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(), .IsDeclaration = fds->IsDeclaration() };
                 _functions.emplace(fds->GetName(), fun);
             }
@@ -373,6 +387,13 @@ namespace marble {
                     << is->GetTraitName();
                 return std::nullopt;
             }
+            if (s.TraitsImplements.find(tIt->first) != s.TraitsImplements.end()) {
+                _diag.Report(is->GetStartLoc(), ErrMultipleTraitImpl)
+                    << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                    << tIt->first
+                    << s.Name;
+                return std::nullopt;
+            }
             traitDef = &tIt->second;
             
             for (auto &method : traitDef->Methods) {
@@ -580,6 +601,11 @@ namespace marble {
         }
         if (val->IsNil()) {
             _diag.Report(ds->GetStartLoc(), ErrDelOfNil)
+                << llvm::SMRange(ds->GetStartLoc(), ds->GetEndLoc());
+            return std::nullopt;
+        }
+        if (!val->CreatedByNew()) {
+            _diag.Report(ds->GetStartLoc(), ErrDelOfCreatedNotByNew)
                 << llvm::SMRange(ds->GetStartLoc(), ds->GetEndLoc());
             return std::nullopt;
         }
@@ -932,6 +958,11 @@ namespace marble {
         if (ne->GetStructExpr()) {
             VisitStructExpr(ne->GetStructExpr());
         }
+        if (ne->GetType().GetTypeKind() == ASTTypeKind::Noth) {
+            _diag.Report(ne->GetStartLoc(), ErrNewOnNoth)
+                << llvm::SMRange(ne->GetStartLoc(), ne->GetEndLoc());
+            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
+        }
         return ASTVal(ne->GetType().Ref(), ASTValData { .i32Val = 0 }, false, true);
     }
 
@@ -958,13 +989,18 @@ namespace marble {
                         << rhs.GetType().ToString();
                 }
                 if (lhs.GetType().IsPointer() &&
-                    !((be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus) && 
+                    !((be->GetOp().GetKind() == TkMinus || be->GetOp().GetKind() == TkMinus) && 
                        rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::I64)) {
                     _diag.Report(be->GetStartLoc(), ErrUnsupportedTypeForOperator)
                         << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc())
                         << be->GetOp().GetText()
                         << lhs.GetType().ToString()
                         << rhs.GetType().ToString();
+                }
+                else if ((lhs.GetType().IsPointer() && lhs.GetType().GetTypeKind() == ASTTypeKind::Noth ||
+                          rhs.GetType().IsPointer()) && rhs.GetType().GetTypeKind() == ASTTypeKind::Noth) {
+                    _diag.Report(be->GetStartLoc(), ErrNothPtrArithmetic)
+                        << llvm::SMRange(be->GetStartLoc(), be->GetEndLoc());
                 }
                 else if (!(lhs.GetType().GetTypeKind() >= ASTTypeKind::Char && lhs.GetType().GetTypeKind() <= ASTTypeKind::F64 &&
                            rhs.GetType().GetTypeKind() >= ASTTypeKind::Char && rhs.GetType().GetTypeKind() <= ASTTypeKind::F64)) {

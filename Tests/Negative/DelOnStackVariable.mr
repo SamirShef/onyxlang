@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var x: i32 = 10;
+    del &x; // Error: 'del' can only be used on heap-allocated pointers
+    return 0;
+}

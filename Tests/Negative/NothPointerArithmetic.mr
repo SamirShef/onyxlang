@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var p: *noth;
+    p += 1; // Error: Size of 'noth' is unknown
+    return 0;
+}

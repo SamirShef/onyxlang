@@ -283,7 +283,7 @@ namespace marble {
     Parser::parseIfElseStmt() {
         AccessModifier accessCopy = access;
         Token firstTok = consume();
-        Expr *cond = parseExpr(PrecLowest);
+        Expr *cond = parseExpr(PrecLowest, false);
         std::vector<Stmt *> thenBranch;
         if (!expect(TkLBrace)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
@@ -324,7 +324,7 @@ namespace marble {
                     << _curTok.GetText();   // got
             }
         }
-        Expr *cond = parseExpr(PrecLowest);
+        Expr *cond = parseExpr(PrecLowest, false);
         Stmt *iteration = nullptr;
         if (!_curTok.Is(TkLBrace)) {
             if (!expect(TkComma)) {
@@ -461,7 +461,7 @@ namespace marble {
     }
 
     Expr *
-    Parser::parsePrefixExpr() {
+    Parser::parsePrefixExpr(bool allowStruct) {
         std::string text = _curTok.GetText();
         switch (_curTok.GetKind()) {
             case TkId: {
@@ -488,32 +488,41 @@ namespace marble {
                         return expr;
                     }
                     case TkLBrace: {
-                        consume();
-                        std::vector<std::pair<std::string, Expr *>> initializer;
-                        while (!expect(TkRBrace)) {
-                            std::string name = _curTok.GetText();
-                            if (!expect(TkId)) {
-                                _diag.Report(_curTok.GetLoc(), ErrExpectedId)
-                                    << getRangeFromTok(_curTok)
-                                    << _curTok.GetText();
-                            }
-                            if (!expect(TkColon)) {
-                                _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
-                                    << getRangeFromTok(_curTok)
-                                    << ":"                  // expected
-                                    << _curTok.GetText();   // got
-                            }
-                            initializer.push_back({ name, parseExpr(PrecLowest) });
-                            if (!_curTok.Is(TkRBrace)) {
-                                if (!expect(TkComma)) {
+                        if (allowStruct) {
+                            consume();
+                            std::vector<std::pair<std::string, Expr *>> initializer;
+                            while (!expect(TkRBrace)) {
+                                std::string name = _curTok.GetText();
+                                if (!expect(TkId)) {
+                                    _diag.Report(_curTok.GetLoc(), ErrExpectedId)
+                                        << getRangeFromTok(_curTok)
+                                        << _curTok.GetText();
+                                }
+                                if (!expect(TkColon)) {
                                     _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
                                         << getRangeFromTok(_curTok)
-                                        << ","                  // expected
+                                        << ":"                  // expected
                                         << _curTok.GetText();   // got
                                 }
+                                initializer.push_back({ name, parseExpr(PrecLowest) });
+                                if (!_curTok.Is(TkRBrace)) {
+                                    if (!expect(TkComma)) {
+                                        _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                                            << getRangeFromTok(_curTok)
+                                            << ","                  // expected
+                                            << _curTok.GetText();   // got
+                                    }
+                                }
                             }
+                            return createNode<StructExpr>(nameToken.GetText(), initializer, nameToken.GetLoc(), _curTok.GetLoc());
                         }
-                        return createNode<StructExpr>(nameToken.GetText(), initializer, nameToken.GetLoc(), _curTok.GetLoc());
+                        else {
+                            Expr *expr = createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
+                            if (expect(TkDot)) {
+                                return parseChainExpr(expr);
+                            }
+                            return expr;
+                        }
                     }
                     default: {
                         Expr *expr = createNode<VarExpr>(nameToken.GetText(), nameToken.GetLoc(), _curTok.GetLoc());
@@ -546,7 +555,7 @@ namespace marble {
             case TkMinus:
             case TkBang: {
                 Token op = consume();
-                return createNode<UnaryExpr>(parseExpr(PrecLowest), op, op.GetLoc(), _curTok.GetLoc());
+                return createNode<UnaryExpr>(parsePrefixExpr(allowStruct), op, op.GetLoc(), _curTok.GetLoc());
             }
             case TkLParen: {
                 Token lparen = consume();
@@ -566,12 +575,12 @@ namespace marble {
             }
             case TkStar: {
                 Token star = consume();
-                Expr *expr = parsePrefixExpr();
+                Expr *expr = parsePrefixExpr(allowStruct);
                 return createNode<DerefExpr>(expr, star.GetLoc(), _curTok.GetLoc());
             }
             case TkAnd: {
                 Token amp = consume();
-                Expr *expr = parsePrefixExpr();
+                Expr *expr = parsePrefixExpr(allowStruct);
                 return createNode<RefExpr>(expr, amp.GetLoc(), _curTok.GetLoc());
             }
             case TkNew: {
@@ -597,8 +606,8 @@ namespace marble {
     }
 
     Expr *
-    Parser::parseExpr(int minPrec) {
-        Expr *lhs = parsePrefixExpr();
+    Parser::parseExpr(int minPrec, bool allowStruct) {
+        Expr *lhs = parsePrefixExpr(allowStruct);
         if (!lhs) {
             return nullptr;
         }
@@ -607,7 +616,7 @@ namespace marble {
             Token op = consume();
             int prec = GetTokPrecedence(op.GetKind());
 
-            Expr *rhs = parseExpr(prec);
+            Expr *rhs = parseExpr(prec, allowStruct);
             lhs = createNode<BinaryExpr>(lhs, rhs, op, lhs->GetStartLoc(), _curTok.GetLoc());
         }
 

@@ -68,10 +68,10 @@ namespace marble {
         parseArgument();
         
         Expr *
-        parsePrefixExpr();
+        parsePrefixExpr(bool allowStruct = true);
 
         Expr *
-        parseExpr(int minPrec);
+        parseExpr(int minPrec, bool allowStruct = true);
     
         Expr *
         parseChainExpr(Expr *base);

@@ -54,5 +54,9 @@ namespace marble {
         ErrDelOfNil,
         ErrDelOfCreatedNotByNew,
         ErrEchoTypeIsNoth,
+        ErrMultipleTraitImpl,
+        ErrNewOnNoth,
+        ErrNothPtrArithmetic,
+        ErrWrongMainSignature,
     };
 }

@@ -1,0 +1,6 @@
+fun main(): i32 {
+    var a: *i32 = nil;
+    var b: *i32 = nil;
+    var c: i32 = a + b; // Error: Invalid operands for pointer arithmetic
+    return 0;
+}
