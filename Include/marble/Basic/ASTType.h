@@ -36,7 +36,7 @@ namespace marble {
 
         bool
         operator==(ASTType &other) {
-            return _kind == other._kind && _val == other._val && _pointerDepth == other._pointerDepth;
+            return _kind == other._kind && _val == other._val && _pointerDepth == other._pointerDepth && _mod == other._mod;
         }
 
         bool
@@ -117,15 +117,7 @@ namespace marble {
         }
 
         std::string
-        ToString() const {
-            std::string val;
-            if (_isConst) {
-                val += "const ";
-            }
-            for (int pd = _pointerDepth; pd > 0; --pd, val += "*");
-            val += _val;
-            return val;
-        }
+        ToString() const;
 
         static ASTType
         GetNothType() {

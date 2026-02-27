@@ -138,6 +138,8 @@ namespace marble {
                 return ERR("cannot dereference `*noth`");
             case ErrCallingNonConstMethodForConstObj:
                 return ERR("cannot call non-const method `%0` from constant object");
+            case ErrCouldNotFindMod:
+                return ERR("could not find module `%0`");
         }
     }
 }

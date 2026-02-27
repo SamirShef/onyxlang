@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <marble/Basic/Module.h>
 #include <marble/Basic/ModuleManager.h>
 #include <marble/AST/Printer.h>
@@ -42,7 +43,8 @@ main(int argc, char **argv) {
         return 0; 
     }
 
-    marble::SemanticAnalyzer sema(diag, root);
+    std::string absoluteFileName = std::filesystem::absolute(fileName);
+    marble::SemanticAnalyzer sema(absoluteFileName.substr(0, absoluteFileName.find_last_of("/\\")), srcMgr, diag, root);
     sema.AnalyzeModule(root, true);
     if (diag.HasErrors()) {
         return 1;

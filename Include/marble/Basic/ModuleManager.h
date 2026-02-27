@@ -11,6 +11,8 @@ namespace marble {
         inline static std::unordered_map<std::string, Module *> _mods;
 
     public:
+        inline static const std::string LibsPath = "Libs/";
+
         static Module *
         LoadModule(std::string path, llvm::SourceMgr &srcMgr, DiagnosticEngine &diag, AccessModifier access = AccessPub) {
             if (auto it = _mods.find(path); it != _mods.end()) {

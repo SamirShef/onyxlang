@@ -460,7 +460,7 @@ namespace marble {
         std::string path;
         if (_curTok.GetKind() == TkStrLit) {
             isLocalImport = true;
-            path = consume().GetKind();
+            path = consume().GetText();
         }
         else {
             do {
@@ -469,7 +469,6 @@ namespace marble {
                     _diag.Report(_curTok.GetLoc(), ErrExpectedId)
                         << getRangeFromTok(_curTok)
                         << _curTok.GetText();
-                    consume();
                 }
                 path += part;
                 if (_curTok.Is(TkDot)) {

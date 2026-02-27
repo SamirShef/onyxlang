@@ -81,12 +81,24 @@ namespace marble {
             if (auto it = Submodules.find(name); it != Submodules.end()) {
                 return it->second;
             }
-            for (auto const &[_, mod] : Imports) {
-                if (auto *m = mod->FindModule(name)) {
-                    return m;
+            Module *cur = this;
+            while (cur) {
+                if (auto it = cur->Imports.find(name); it != cur->Imports.end()) {
+                    return it->second;
                 }
+                cur = cur->Parent;
             }
             return nullptr;
+        }
+
+        std::string
+        ToString() const {
+            std::string res;
+            if (Parent) {
+                res += Parent->ToString() + ".";
+            }
+            res += Name;
+            return res;
         }
     };
 }

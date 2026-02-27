@@ -1,3 +1,4 @@
+#include <marble/Basic/ModuleManager.h>
 #include <marble/Sema/Semantic.h>
 #include <cmath>
 
@@ -47,7 +48,7 @@ namespace marble {
             switch (stmt->GetKind()) {
                 case NkVarDeclStmt: {
                     auto *vds = llvm::dyn_cast<VarDeclStmt>(stmt);
-                    if (mod->FindGlobalVar(vds->GetName())) {
+                    if (auto v = mod->FindGlobalVar(vds->GetName()); v && v->Parent == mod) {
                         _diag.Report(vds->GetStartLoc(), ErrRedefinitionVar)
                             << llvm::SMRange(vds->GetStartLoc(), vds->GetEndLoc());
                         continue;
@@ -80,7 +81,7 @@ namespace marble {
                             << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
                         continue;
                     }
-                    if (mod->FindFunction(fds->GetName())) {
+                    if (auto f = mod->FindFunction(fds->GetName()); f && f->Parent == mod) {
                         _diag.Report(fds->GetStartLoc(), ErrRedefinitionFun)
                             << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc())
                             << fds->GetName();
@@ -111,7 +112,7 @@ namespace marble {
                 }
                 case NkStructStmt: {
                     auto *ss = llvm::dyn_cast<StructStmt>(stmt);
-                    if (mod->FindStruct(ss->GetName())) {
+                    if (auto s = mod->FindStruct(ss->GetName()); s && s->Parent == mod) {
                         _diag.Report(ss->GetStartLoc(), ErrRedefinitionStruct)
                             << llvm::SMRange(ss->GetStartLoc(), ss->GetEndLoc())
                             << ss->GetName();
@@ -277,7 +278,7 @@ namespace marble {
                 }
                 case NkTraitDeclStmt: {
                     auto *tds = llvm::dyn_cast<TraitDeclStmt>(stmt);
-                    if (mod->FindTrait(tds->GetName())) {
+                    if (auto t = mod->FindTrait(tds->GetName()); t && t->Parent == mod) {
                         _diag.Report(tds->GetStartLoc(), ErrRedefinitionTrait)
                             << llvm::SMRange(tds->GetStartLoc(), tds->GetEndLoc())
                             << tds->GetName();
@@ -305,6 +306,57 @@ namespace marble {
                         }
                     }
                     mod->Traits.emplace(t.Name, t);
+                    break;
+                }
+                case NkImportStmt: {
+                    auto *is = llvm::dyn_cast<ImportStmt>(stmt);
+                    std::string path;
+                    if (is->IsLocalImport()) {
+                        path = _parentDir + "/" + is->GetPath();
+                    }
+                    else {
+                        path = ModuleManager::LibsPath + is->GetPath();
+                    }
+                    Module *import = ModuleManager::LoadModule(path + ".mr", _srcMgr, _diag);
+                    if (!import) {
+                        _diag.Report(is->GetStartLoc(), ErrCouldNotFindMod)
+                            << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
+                            << path + ".mr";
+                        continue;
+                    }
+                    std::vector<std::string> parts = splitString(is->IsLocalImport() ? is->GetPath() : path, '/');
+                    import->Name = parts.back();
+                    int i = is->IsLocalImport() ? 0 : 1;
+                    Module *cur = mod;
+                    for (; i < parts.size() - 1; ++i) {
+                        std::string &name = parts[i];
+                        Module *inner = nullptr;
+                        if (auto it = cur->Submodules.find(name); it != cur->Submodules.end()) {
+                            inner = it->second;
+                        }
+                        else if (auto it = cur->Imports.find(name); it != cur->Imports.end()) {
+                            inner = it->second;
+                        }
+                        else {
+                            inner = new Module(name, AccessPub);
+                            if (cur == mod) {
+                                cur->Imports.emplace(name, inner);
+                            }
+                            else {
+                                cur->Submodules.emplace(name, inner);
+                            }
+                            inner->Parent = cur;
+                        }
+                        cur = inner;
+                    }
+                    if (cur == mod) {
+                        cur->Imports.emplace(import->Name, import);
+                    }
+                    else {
+                        cur->Submodules.emplace(import->Name, import);
+                    }
+                    import->Parent = cur;
+                    AnalyzeModule(import);
                     break;
                 }
                 case NkModDeclStmt: {
@@ -924,9 +976,9 @@ namespace marble {
         if (ve->GetName() == "self" || ve->GetName() == "parent") {
             return _curMod->Variables.at(ve->GetName()).Val;
         }
-        if (auto it = _curMod->Submodules.find(ve->GetName()); it != _curMod->Submodules.end()) {
+        if (auto mod = _curMod->FindModule(ve->GetName())) {
             auto val = ASTVal(ASTType(ASTTypeKind::Mod, ve->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
-            val.SetModule(it->second);
+            val.SetModule(mod);
             return val;
         }
         _diag.Report(ve->GetStartLoc(), ErrUndeclaredVariable)
@@ -1050,6 +1102,11 @@ namespace marble {
                     return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
                 }
                 return it->second.Val;
+            }
+            else if (auto it = mod->Imports.find(fae->GetName()); it != mod->Imports.end()) {
+                auto val = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
+                val.SetModule(it->second);
+                return val;
             }
             else if (auto it = mod->Submodules.find(fae->GetName()); it != mod->Submodules.end()) {
                 if (it->second->Access == AccessPriv) {
@@ -1275,7 +1332,7 @@ namespace marble {
                 cur = tmp;
             }
             if (auto *s = cur->FindStruct(typeName)) {
-                if (s->Access == AccessPriv) {
+                if (s->Access == AccessPriv && s->Parent != _curMod) {
                     _diag.Report(startLoc, ErrStructIsPrivate)
                         << llvm::SMRange(startLoc, endLoc)
                         << s->Name;
@@ -1284,7 +1341,7 @@ namespace marble {
                 type.SetModule(s->Parent);
             }
             else if (auto *t = cur->FindTrait(typeName)) {
-                if (t->Access == AccessPriv) {
+                if (t->Access == AccessPriv && t->Parent != _curMod) {
                     _diag.Report(startLoc, ErrTraitIsPrivate)
                         << llvm::SMRange(startLoc, endLoc)
                         << t->Name;
@@ -1295,7 +1352,7 @@ namespace marble {
         }
         else {
             if (auto *s = _curMod->FindStruct(typeName)) {
-                if (s->Access == AccessPriv) {
+                if (s->Access == AccessPriv && s->Parent != _curMod) {
                     _diag.Report(startLoc, ErrStructIsPrivate)
                         << llvm::SMRange(startLoc, endLoc)
                         << s->Name;
@@ -1304,7 +1361,7 @@ namespace marble {
                 type.SetModule(s->Parent);
             }
             else if (auto *t = _curMod->FindTrait(typeName)) {
-                if (t->Access == AccessPriv) {
+                if (t->Access == AccessPriv && t->Parent != _curMod) {
                     _diag.Report(startLoc, ErrTraitIsPrivate)
                         << llvm::SMRange(startLoc, endLoc)
                         << t->Name;

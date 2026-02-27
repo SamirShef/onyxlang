@@ -9,6 +9,8 @@
 
 namespace marble {
     class SemanticAnalyzer : public ASTVisitor<SemanticAnalyzer, std::optional<ASTVal>> {
+        std::string _parentDir;
+        llvm::SourceMgr &_srcMgr;
         DiagnosticEngine &_diag;
         Module *_curMod;
 
@@ -19,7 +21,8 @@ namespace marble {
         int _loopDeth = 0;
         
     public:
-        explicit SemanticAnalyzer(DiagnosticEngine &diag, Module *root) : _diag(diag), _curMod(root) {
+        explicit SemanticAnalyzer(std::string parentDir, llvm::SourceMgr &srcMgr, DiagnosticEngine &diag, Module *root) : _parentDir(parentDir), _srcMgr(srcMgr), _diag(diag),
+                                                                                                                          _curMod(root) {
             _vars.push({});
         }
 
@@ -28,11 +31,6 @@ namespace marble {
 
         void
         DeclareInModule(Module *mod);
-        
-        /*
-        void
-        DeclareFunctions(std::vector<Stmt *> &ast);
-        */
 
         std::optional<ASTVal>
         VisitVarDeclStmt(VarDeclStmt *vds);
