@@ -17,6 +17,7 @@ namespace marble {
         ErrUndeclaredTrait,
         ErrUndeclaredField,
         ErrUndeclaredMethod,
+        ErrUndeclaredMod,
         ErrRedefinitionVar,
         ErrRedefinitionFun,
         ErrRedefinitionStruct,

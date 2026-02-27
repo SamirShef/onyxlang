@@ -2,6 +2,8 @@
 #include <string>
 
 namespace marble {
+    struct Module;
+
     enum class ASTTypeKind {
         Bool,
         Char,
@@ -19,16 +21,18 @@ namespace marble {
     };
     
     class ASTType {
-        ASTTypeKind _kind;
-        std::string _val;
-        bool _isConst;
-        unsigned char _pointerDepth;
+        ASTTypeKind _kind = ASTTypeKind::Unknown;
+        std::string _val = "";
+        bool _isConst = false;
+        unsigned char _pointerDepth = 0;
+        Module *_mod = nullptr;
+        std::string _fullPath = ""; // path without name of type at the end
 
     public:
         ASTType() = default;
 
-        explicit ASTType(ASTTypeKind kind, std::string val, bool isConst, unsigned char pointerDepth)
-                       : _kind(kind), _val(val), _isConst(isConst), _pointerDepth(pointerDepth) {}
+        explicit ASTType(ASTTypeKind kind, std::string val, bool isConst, unsigned char pointerDepth, Module *mod = nullptr, std::string fullPath = "")
+                       : _kind(kind), _val(val), _isConst(isConst), _pointerDepth(pointerDepth), _mod(mod), _fullPath(fullPath) {}
 
         bool
         operator==(ASTType &other) {
@@ -72,12 +76,32 @@ namespace marble {
 
         bool
         IsPointer() const {
-            return _pointerDepth;
+            return _pointerDepth > 0;
         }
 
         unsigned char
         GetPointerDepth() const {
             return _pointerDepth;
+        }
+
+        Module *
+        GetModule() const {
+            return _mod;
+        }
+
+        void
+        SetModule(Module *mod) {
+            _mod = mod;
+        }
+
+        std::string
+        GetFullPath() const {
+            return _fullPath;
+        }
+
+        void
+        SetFullPath(const std::string &path) {
+            _fullPath = path;
         }
 
         ASTType

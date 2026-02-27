@@ -1,31 +1,32 @@
 #pragma once
+#include <marble/Basic/ASTType.h>
 #include <marble/AST/Stmt.h>
 #include <llvm/ADT/StringRef.h>
 #include <vector>
 
 namespace marble {
     class ImplStmt : public Stmt {
-        std::string _traitName;
-        std::string _structName;
+        ASTType _traitType;
+        ASTType _structType;
         std::vector<Stmt *> _body;
 
     public:
-        explicit ImplStmt(std::string traitName, std::string name, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
-                        : _traitName(traitName), _structName(name), _body(body), Stmt(NkImplStmt, access, startLoc, endLoc) {}
+        explicit ImplStmt(ASTType traitType, ASTType structType, std::vector<Stmt *> body, AccessModifier access, llvm::SMLoc startLoc, llvm::SMLoc endLoc)
+                        : _traitType(traitType), _structType(structType), _body(body), Stmt(NkImplStmt, access, startLoc, endLoc) {}
 
         constexpr static bool
         classof(const Node *node) {
             return node->GetKind() == NkImplStmt;
         }
         
-        std::string
-        GetTraitName() const {
-            return _traitName;
+        ASTType &
+        GetTraitType() {
+            return _traitType;
         }
 
-        std::string
-        GetStructName() const {
-            return _structName;
+        ASTType &
+        GetStructType() {
+            return _structType;
         }
 
         std::vector<Stmt *>

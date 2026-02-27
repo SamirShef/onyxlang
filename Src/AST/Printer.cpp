@@ -208,11 +208,11 @@ namespace marble {
     ASTPrinter::VisitImplStmt(ImplStmt *is) {
         llvm::outs() << std::string(_spaces, ' ');
         llvm::outs() << "(ImplStmt: ";
-        if (is->GetTraitName() != "") {
-            llvm::outs() << is->GetTraitName() << " for " << is->GetStructName();
+        if (is->GetTraitType() != ASTType()) {
+            llvm::outs() << is->GetTraitType().ToString() << " for " << is->GetStructType().ToString();
         }
         else {
-            llvm::outs() << is->GetStructName();
+            llvm::outs() << is->GetStructType().ToString();
         }
         llvm::outs() << " {";
         if (is->GetBody().size() != 0) {
@@ -365,7 +365,7 @@ namespace marble {
     void
     ASTPrinter::VisitStructExpr(StructExpr *se) {
         llvm::outs() << std::string(_spaces, ' ');
-        llvm::outs() << "(StructExpr: " << se->GetName() << " { ";
+        llvm::outs() << "(StructExpr: " << se->GetType().GetVal() << " { ";
         for (int i = 0; i < se->GetInitializer().size(); ++i) {
             llvm::outs() << se->GetInitializer()[i].first << ": ";
             Visit(se->GetInitializer()[i].second);

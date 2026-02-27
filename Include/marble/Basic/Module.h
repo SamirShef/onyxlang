@@ -23,6 +23,7 @@ namespace marble {
         Struct *
         FindStruct(const std::string &name) {
             if (auto it = Structures.find(name); it != Structures.end()) {
+                it->second.Parent = this;
                 return &it->second;
             }
             for (auto const &[_, mod] : Imports) {
@@ -36,6 +37,7 @@ namespace marble {
         Trait *
         FindTrait(const std::string &name) {
             if (auto it = Traits.find(name); it != Traits.end()) {
+                it->second.Parent = this;
                 return &it->second;
             }
             for (auto const &[_, mod] : Imports) {
@@ -49,6 +51,7 @@ namespace marble {
         Function *
         FindFunction(const std::string &name) {
             if (auto it = Functions.find(name); it != Functions.end()) {
+                it->second.Parent = this;
                 return &it->second;
             }
             for (auto const &[_, mod] : Imports) {
@@ -62,11 +65,25 @@ namespace marble {
         Variable *
         FindGlobalVar(const std::string &name) {
             if (auto it = Variables.find(name); it != Variables.end()) {
+                it->second.Parent = this;
                 return &it->second;
             }
             for (auto const &[_, mod] : Imports) {
                 if (auto *v = mod->FindGlobalVar(name)) {
                     return v;
+                }
+            }
+            return nullptr;
+        }
+
+        Module *
+        FindModule(const std::string &name) {
+            if (auto it = Submodules.find(name); it != Submodules.end()) {
+                return it->second;
+            }
+            for (auto const &[_, mod] : Imports) {
+                if (auto *m = mod->FindModule(name)) {
+                    return m;
                 }
             }
             return nullptr;

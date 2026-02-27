@@ -34,6 +34,8 @@ namespace marble {
                 return ERR("field `%0` is undeclared in structure `%1`");
             case ErrUndeclaredMethod:
                 return ERR("method `%0` is undeclared in structure `%1`");
+            case ErrUndeclaredMod:
+                return ERR("module `%0` is undeclared in `%1`");
             case ErrRedefinitionVar:
                 return ERR("redefinition the variable `%0`");
             case ErrRedefinitionFun:

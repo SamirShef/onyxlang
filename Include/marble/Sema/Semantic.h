@@ -126,7 +126,7 @@ namespace marble {
 
     private:
         ASTType
-        resolveType(ASTType &type);
+        resolveType(ASTType &type, llvm::SMLoc startLoc, llvm::SMLoc endLoc);
 
         llvm::SMRange
         getRange(llvm::SMLoc start, int len) const;
@@ -138,7 +138,7 @@ namespace marble {
         variableExists(std::string name) const;
 
         bool
-        canImplicitlyCast(ASTVal src, ASTType expectType);
+        canImplicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc);
         
         ASTVal
         implicitlyCast(ASTVal src, ASTType expectType, llvm::SMLoc startLoc, llvm::SMLoc endLoc);

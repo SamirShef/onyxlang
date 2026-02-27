@@ -15,6 +15,7 @@ namespace marble {
         std::optional<ASTVal> Val;
         bool IsConst;
         AccessModifier Access;
+        Module *Parent = nullptr;
     };
 
     struct Function {
@@ -24,6 +25,7 @@ namespace marble {
         std::vector<Stmt *> Body;
         bool IsDeclaration;
         AccessModifier Access;
+        Module *Parent = nullptr;
     };
 
     struct Method {
@@ -35,6 +37,8 @@ namespace marble {
     struct Trait {
         std::string Name;
         std::unordered_map<std::string, Method> Methods;
+        AccessModifier Access;
+        Module *Parent = nullptr;
     };
 
     struct Field {
@@ -51,5 +55,7 @@ namespace marble {
         std::unordered_map<std::string, Field> Fields;
         std::unordered_map<std::string, Method> Methods;
         std::unordered_map<std::string, Trait> TraitsImplements;
+        AccessModifier Access;
+        Module *Parent = nullptr;
     };
 }

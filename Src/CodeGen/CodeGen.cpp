@@ -26,28 +26,28 @@ namespace marble {
                 _funArgsTypes.emplace(fun->getName().str(), argsAST);
             }
             else if (ImplStmt *is = llvm::dyn_cast<ImplStmt>(stmt)) {
-                Struct &s = _structs.at(is->GetStructName());
-                if (!is->GetTraitName().empty()) {
-                    s.TraitsImplements.emplace(is->GetTraitName(), _traits.at(is->GetTraitName()));
+                Struct &s = _structs.at(is->GetStructType().GetVal());
+                if (is->GetTraitType() != ASTType()) {
+                    s.TraitsImplements.emplace(is->GetTraitType().GetVal(), _traits.at(is->GetTraitType().GetVal()));
                 }
                 for (auto stmt : is->GetBody()) {
                     FunDeclStmt *fds = llvm::cast<FunDeclStmt>(stmt);
                     std::vector<llvm::Type *> args(fds->GetArgs().size() + 1);
                     std::vector<ASTType> argsAST(fds->GetArgs().size() + 1);
-                    args[0] = llvm::PointerType::get(_structs.at(is->GetStructName()).Type, 0);
-                    argsAST[0] = ASTType(ASTTypeKind::Struct, is->GetStructName(), true, 0);
+                    args[0] = llvm::PointerType::get(_structs.at(is->GetStructType().GetVal()).Type, 0);
+                    argsAST[0] = ASTType(ASTTypeKind::Struct, is->GetStructType().GetVal(), true, 0);
                     for (int i = 0; i < fds->GetArgs().size(); ++i) {
                         args[i + 1] = typeToLLVM(fds->GetArgs()[i].GetType());
                         argsAST[i + 1] = fds->GetArgs()[i].GetType();
                     }
                     llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
-                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, is->GetStructName() + "." + fds->GetName(), *_module);
+                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, is->GetStructType().GetVal() + "." + fds->GetName(), *_module);
                     
                     if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                         llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, fds->GetRetType().GetVal()));
                         fun->setMetadata("struct_name", metadata);
                     }
-                    llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, is->GetStructName()));
+                    llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, is->GetStructType().GetVal()));
                     fun->setMetadata("this_struct_name", metadata);
                     _functions.emplace(fun->getName(), fun);
                     _funArgsTypes.emplace(fun->getName().str(), argsAST);
@@ -358,7 +358,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitImplStmt(ImplStmt *is) {
-        Struct s = _structs.at(is->GetStructName());
+        Struct s = _structs.at(is->GetStructType().GetVal());
         for (auto &stmt : is->GetBody()) {
             FunDeclStmt *method = llvm::cast<FunDeclStmt>(stmt);
             llvm::Function *fun = _functions.at((s.Name + "." + method->GetName()));
@@ -366,7 +366,7 @@ namespace marble {
             _builder.SetInsertPoint(entry);
             _vars.push({});
             _funRetsTypes.push(fun->getReturnType());
-            ASTType thisType = ASTType(ASTTypeKind::Struct, is->GetStructName(), false, 0);
+            ASTType thisType = ASTType(ASTTypeKind::Struct, is->GetStructType().GetVal(), false, 0);
             int index = 0;
             for (auto &arg : fun->args()) {
                 arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
@@ -704,7 +704,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitStructExpr(StructExpr *se) {
-        Struct s = _structs.at(se->GetName());
+        Struct s = _structs.at(se->GetType().GetVal());
         if (_vars.size() != 1) {
             llvm::AllocaInst *alloca = _builder.CreateAlloca(s.Type, nullptr, s.Name + ".alloca");
             for (int i = 0; i < se->GetInitializer().size(); ++i) {
