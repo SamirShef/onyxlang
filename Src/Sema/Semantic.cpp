@@ -1254,7 +1254,16 @@ namespace marble {
             path.pop_back(); // last part is name of type
             Module *cur = _curMod;
             for (auto part : path) {
-                auto tmp = cur->FindModule(part);
+                Module *tmp;
+                if (part == "self") {
+                    tmp = _curMod;
+                }
+                else if (part == "parent") {
+                    tmp = _curMod->Parent;
+                }
+                else {
+                    tmp = cur->FindModule(part);
+                }
                 if (!tmp) {
                     _diag.Report(startLoc, ErrUndeclaredMod)
                         << llvm::SMRange(startLoc, endLoc)
