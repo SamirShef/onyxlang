@@ -15,19 +15,20 @@ namespace marble {
 
         static Module *
         LoadModule(std::string path, llvm::SourceMgr &srcMgr, DiagnosticEngine &diag, AccessModifier access = AccessPub) {
-            if (auto it = _mods.find(path); it != _mods.end()) {
-                return it->second;
-            }
-
             int last_dot_pos = path.find_last_of('.');
             if (last_dot_pos != std::string::npos && last_dot_pos != 0) { 
                 path.erase(last_dot_pos);
             }
+
+            if (auto it = _mods.find(path); it != _mods.end()) {
+                return it->second;
+            }
+
+            std::string modName = llvm::sys::path::stem(path).str();
             auto bufferOrErr = llvm::MemoryBuffer::getFile(path + ".mr");
             
             if (std::error_code ec = bufferOrErr.getError()) {
-                path += "/mod.mr";
-                bufferOrErr = llvm::MemoryBuffer::getFile(path);
+                bufferOrErr = llvm::MemoryBuffer::getFile(path + "/mod.mr");
                 
                 if (std::error_code ec = bufferOrErr.getError()) {
                     return nullptr;
@@ -36,8 +37,9 @@ namespace marble {
             unsigned bufferId = srcMgr.AddNewSourceBuffer(std::move(*bufferOrErr), llvm::SMLoc());
             Lexer lex(srcMgr, diag, bufferId);
             Parser parser(lex, diag);
-            Module *mod = new Module(llvm::sys::path::stem(path).str(), access);
+            Module *mod = new Module(modName, access);
             mod->AST = parser.ParseAll();
+            _mods.emplace(path, mod);
             return mod;
         }
     };

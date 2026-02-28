@@ -1,4 +1,6 @@
 #include <filesystem>
+#include <llvm/IR/Verifier.h>
+#include <llvm/Support/raw_ostream.h>
 #include <marble/Basic/Module.h>
 #include <marble/Basic/ModuleManager.h>
 #include <marble/AST/Printer.h>
@@ -44,18 +46,16 @@ main(int argc, char **argv) {
     }
 
     std::string absoluteFileName = std::filesystem::absolute(fileName);
-    marble::SemanticAnalyzer sema(absoluteFileName.substr(0, absoluteFileName.find_last_of("/\\")), srcMgr, diag, root);
+    std::string parentDir = absoluteFileName.substr(0, absoluteFileName.find_last_of("/\\"));
+    marble::SemanticAnalyzer sema(parentDir, srcMgr, diag, root);
     sema.AnalyzeModule(root, true);
     if (diag.HasErrors()) {
         return 1;
     }
     diag.ResetErrors();
 
-    // TODO: remove next line
-    return 0;
-
-    marble::CodeGen codegen(fileName, srcMgr);
-    codegen.DeclareFunctionsAndStructures(root->AST);
+    marble::CodeGen codegen(parentDir, fileName, srcMgr, diag);
+    codegen.DeclareMod(root);
     for (auto &stmt : root->AST) {
         codegen.Visit(stmt);
     }
@@ -124,7 +124,7 @@ main(int argc, char **argv) {
     }
     
     std::string objFile = (marble::EmitAction == marble::EmitObj) ? outputName : fileName + ".o";
-    if (!marble::EmitObjectFile(&*mod, objFile, tripleStr)) {
+    if (!marble::EmitObjectFile(mod.get(), objFile, tripleStr)) {
         return 1;
     }
     if (marble::EmitAction == marble::EmitBinary) {

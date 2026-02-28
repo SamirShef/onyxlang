@@ -1,16 +1,21 @@
 #pragma once
+#include <marble/Basic/Module.h>
 #include <marble/AST/Visitor.h>
 #include <marble/Basic/DiagnosticEngine.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 #include <stack>
+#include <string>
 
 namespace marble {
     class CodeGen : public ASTVisitor<CodeGen, llvm::Value *> {
         llvm::SourceMgr &_srcMgr;
+        DiagnosticEngine &_diag;
         llvm::LLVMContext _context;
         std::unique_ptr<llvm::Module> _module;
         llvm::IRBuilder<> _builder;
+        Module *_curMod = nullptr;
+        std::string _parentDir;
 
         std::stack<std::unordered_map<std::string, std::tuple<llvm::Value *, llvm::Type *, ASTType>>> _vars;
 
@@ -26,7 +31,7 @@ namespace marble {
             std::string Name;
             llvm::Type *Type;
             marble::ASTType ASTType;
-            llvm::Value *Val;
+            Expr *DefaultExpr = nullptr;
             bool ManualInitialized;
             long Index;
         };
@@ -39,12 +44,14 @@ namespace marble {
 
         struct Trait {
             std::string Name;
+            std::string MangledName;
             std::vector<std::pair<std::string, Method>> Methods; 
         };
         std::unordered_map<std::string, Trait> _traits;
 
         struct Struct {
             std::string Name;
+            std::string MangledName;
             llvm::StructType *Type;
             std::unordered_map<std::string, Field> Fields;
             std::unordered_map<std::string, Trait> TraitsImplements;
@@ -52,8 +59,8 @@ namespace marble {
         std::unordered_map<std::string, Struct> _structs;
 
     public:
-        explicit CodeGen(std::string fileName, llvm::SourceMgr &mgr) : _srcMgr(mgr), _context(), _builder(_context),
-                                                                       _module(std::make_unique<llvm::Module>(fileName, _context)) {
+        explicit CodeGen(std::string parentDir, std::string fileName, llvm::SourceMgr &mgr, DiagnosticEngine &diag)
+                       : _srcMgr(mgr), _diag(diag), _context(), _builder(_context), _module(std::make_unique<llvm::Module>(fileName, _context)), _parentDir(parentDir) {
             _vars.push({});
         }
 
@@ -63,7 +70,7 @@ namespace marble {
         }
 
         void
-        DeclareFunctionsAndStructures(std::vector<Stmt *> &ast);
+        DeclareMod(Module *mod);
 
         llvm::Value *
         VisitVarDeclStmt(VarDeclStmt *vds);
@@ -188,5 +195,11 @@ namespace marble {
 
         llvm::Constant *
         getOrCreateGlobalString(std::string val, std::string name = "");
+
+        std::string
+        getMangledName(std::string name, char sep = '.', Module *mod = nullptr);
+
+        std::string
+        getMangledName(ASTType type, char sep = '.');
     };
 }

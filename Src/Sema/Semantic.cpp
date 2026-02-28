@@ -23,11 +23,13 @@ namespace marble {
 
         if (!isRoot) {
             ASTType selfType = ASTType(ASTTypeKind::Mod, mod->Name, false, 0);
+            selfType.SetModule(mod);
             ASTVal selfVal = ASTVal(selfType, ASTValData { .i32Val = 0 }, false, false);
             selfVal.SetModule(mod);
             mod->Variables.emplace("self", Variable { .Name = "self", .Type = selfType, .Val = selfVal, .IsConst = true, .Access = AccessPriv });
 
             ASTType parentType = ASTType(ASTTypeKind::Mod, mod->Parent->Name, false, 0);
+            parentType.SetModule(mod->Parent);
             ASTVal parentVal = ASTVal(parentType, ASTValData { .i32Val = 0 }, false, false);
             parentVal.SetModule(mod->Parent);
             mod->Variables.emplace("parent", Variable { .Name = "parent", .Type = parentType, .Val = parentVal, .IsConst = true, .Access = AccessPriv });
@@ -317,7 +319,7 @@ namespace marble {
                     else {
                         path = ModuleManager::LibsPath + is->GetPath();
                     }
-                    Module *import = ModuleManager::LoadModule(path + ".mr", _srcMgr, _diag);
+                    Module *import = ModuleManager::LoadModule(path, _srcMgr, _diag);
                     if (!import) {
                         _diag.Report(is->GetStartLoc(), ErrCouldNotFindMod)
                             << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
@@ -325,7 +327,6 @@ namespace marble {
                         continue;
                     }
                     std::vector<std::string> parts = splitString(is->IsLocalImport() ? is->GetPath() : path, '/');
-                    import->Name = parts.back();
                     int i = is->IsLocalImport() ? 0 : 1;
                     Module *cur = mod;
                     for (; i < parts.size() - 1; ++i) {
@@ -401,6 +402,9 @@ namespace marble {
             std::optional<ASTVal> val = vds->GetExpr() != nullptr ? Visit(vds->GetExpr()) : ASTVal::GetDefaultByType(vds->GetType());
             if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct && vds->GetExpr() == nullptr) {
                 Struct *s = vds->GetType().GetModule()->FindStruct(vds->GetType().GetVal());
+                if (!s) {
+                    return std::nullopt;
+                }
                 val = ASTVal(ASTType(ASTTypeKind::Struct, s->Name, vds->IsConst(), 0, vds->GetType().GetModule(), vds->GetType().GetFullPath()),
                              ASTValData { .i32Val = 0 }, false, false);
             }
@@ -669,6 +673,7 @@ namespace marble {
             }
         }
         else {
+            fas->SetObjType(obj->GetType());
             Module *mod = obj->GetModule();
             if (auto it = mod->Variables.find(fas->GetName()); it != mod->Variables.end()) {
                 if (it->second.Access == AccessPriv && mod != _curMod) {
@@ -978,6 +983,7 @@ namespace marble {
         }
         if (auto mod = _curMod->FindModule(ve->GetName())) {
             auto val = ASTVal(ASTType(ASTTypeKind::Mod, ve->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
+            val.GetType().SetModule(mod);
             val.SetModule(mod);
             return val;
         }
@@ -1093,6 +1099,7 @@ namespace marble {
             }
         }
         else {
+            fae->SetObjType(obj->GetType());
             Module *mod = obj->GetModule();
             if (auto it = mod->Variables.find(fae->GetName()); it != mod->Variables.end()) {
                 if (it->second.Access == AccessPriv && mod != _curMod) {
@@ -1105,6 +1112,7 @@ namespace marble {
             }
             else if (auto it = mod->Imports.find(fae->GetName()); it != mod->Imports.end()) {
                 auto val = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
+                val.GetType().SetModule(it->second);
                 val.SetModule(it->second);
                 return val;
             }
@@ -1116,6 +1124,7 @@ namespace marble {
                     return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
                 }
                 auto val = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
+                val.GetType().SetModule(it->second);
                 val.SetModule(it->second);
                 return val;
             }
@@ -1201,6 +1210,7 @@ namespace marble {
             }
         }
         else {
+            mce->SetObjType(obj->GetType());
             Module *mod = obj->GetModule();
             if (auto it = mod->Functions.find(mce->GetName()); it != mod->Functions.end()) {
                 if (it->second.Access == AccessPriv && mod != _curMod) {

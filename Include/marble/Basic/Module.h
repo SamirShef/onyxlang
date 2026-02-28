@@ -92,10 +92,10 @@ namespace marble {
         }
 
         std::string
-        ToString() const {
+        ToString(char sep = '.') const {
             std::string res;
             if (Parent) {
-                res += Parent->ToString() + ".";
+                res += Parent->ToString() + sep;
             }
             res += Name;
             return res;
