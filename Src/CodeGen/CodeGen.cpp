@@ -163,7 +163,7 @@ namespace marble {
                                            getMangledName(vds->GetName()));
         }
         else {
-            var = _builder.CreateAlloca(type, nullptr, getMangledName(vds->GetName()));
+            var = _builder.CreateAlloca(type, nullptr, vds->GetName());
             _builder.CreateStore(initializer, var);
         }
         if (vds->GetType().GetTypeKind() == ASTTypeKind::Struct ||
@@ -184,9 +184,12 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitVarAsgnStmt(VarAsgnStmt *vas) {
         llvm::Value *val = Visit(vas->GetExpr());
-        std::string varName = _vars.size() == 1 ? getMangledName(vas->GetName()) : vas->GetName();
+        std::string varName = vas->GetName();
         auto varsCopy = _vars;
         while (!varsCopy.empty()) {
+            if (varsCopy.size() == 1) {
+                varName = getMangledName(varName);
+            }
             if (auto var = varsCopy.top().find(varName); var != varsCopy.top().end()) {
                 auto &[varVal, llvmType, type] = var->second;
                 if (auto arg = llvm::dyn_cast<llvm::Argument>(varVal)) {
@@ -654,8 +657,11 @@ namespace marble {
     llvm::Value *
     CodeGen::VisitVarExpr(VarExpr *ve) {
         auto varsCopy = _vars;
-        std::string varName = _vars.size() == 1 ? getMangledName(ve->GetName()) : ve->GetName();
+        std::string varName = ve->GetName();
         while (!varsCopy.empty()) {
+            if (varsCopy.size() == 1) {
+                varName = getMangledName(varName);
+            }
             if (auto var = varsCopy.top().find(varName); var != varsCopy.top().end()) {
                 auto &[varVal, llvmType, type] = var->second;
                 if (createLoad) {
@@ -1272,9 +1278,12 @@ namespace marble {
     CodeGen::resolveStructName(Expr *expr) {
         switch (expr->GetKind()) {
             case NkVarExpr: {
-                std::string name = _vars.size() == 0 ? getMangledName(llvm::dyn_cast<VarExpr>(expr)->GetName()) : llvm::dyn_cast<VarExpr>(expr)->GetName();
+                std::string name = llvm::dyn_cast<VarExpr>(expr)->GetName();
                 auto varsCopy = _vars;
                 while (!varsCopy.empty()) {
+                    if (varsCopy.size() == 1) {
+                        name = getMangledName(name);
+                    }
                     for (auto var : varsCopy.top()) {
                         if (var.first == name) {
                             auto &[varVal, llvmType, type] = var.second;
