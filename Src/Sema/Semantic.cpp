@@ -89,26 +89,34 @@ namespace marble {
                             << fds->GetName();
                         continue;
                     }
+                    resolveType(fds->GetRetType(), fds->GetStartLoc(), fds->GetEndLoc());
                     for (auto &arg : fds->GetArgs()) {
                         resolveType(arg.GetType(), fds->GetStartLoc(), fds->GetEndLoc());
                     }
                     if (fds->GetName() == "main") {
                         auto args = fds->GetArgs();
+                        bool isIncorrect = false;
                         if (args.size() != 0 && args.size() != 2) {
                             _diag.Report(fds->GetStartLoc(), ErrWrongMainSignature)
                                 << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                            isIncorrect = true;
                         }
-                        else if (args.size() == 2) {
+                        else if (args.size() == 2 && !isIncorrect) {
                             if (!(args[0].GetType().GetTypeKind() == ASTTypeKind::I32 && !args[0].GetType().IsPointer() &&
                                   args[1].GetType().GetTypeKind() == ASTTypeKind::Char && args[1].GetType().GetPointerDepth() == 2)) {
                                 _diag.Report(fds->GetStartLoc(), ErrWrongMainSignature)
                                     << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                                isIncorrect = true;
                             }
+                        }
+                        if ((fds->GetRetType().GetTypeKind() != ASTTypeKind::I32 || fds->GetRetType().IsPointer()) && !isIncorrect) {
+                            _diag.Report(fds->GetStartLoc(), ErrWrongMainSignature)
+                                << llvm::SMRange(fds->GetStartLoc(), fds->GetEndLoc());
+                            isIncorrect = true;
                         }
                     }
                     Function fun { .Name = fds->GetName(), .RetType = fds->GetRetType(), .Args = fds->GetArgs(), .Body = fds->GetBody(),
                                    .IsDeclaration = fds->IsDeclaration(), .Access = fds->GetAccess() };
-                    resolveType(fun.RetType, fds->GetStartLoc(), fds->GetEndLoc());
                     mod->Functions.emplace(fun.Name, fun);
                     break;
                 }

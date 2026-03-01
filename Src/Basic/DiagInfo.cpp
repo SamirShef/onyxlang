@@ -131,7 +131,7 @@ namespace marble {
             case ErrNothPtrArithmetic:
                 return ERR("cannot use pointer arithmetic with type `*noth`");
             case ErrWrongMainSignature:
-                return ERR("incorrect main signature: use `main()` or `main(i32, **char)` signatures");
+                return ERR("incorrect main signature: use `main(): i32` or `main(i32, **char): i32` signatures");
             case ErrNothVar:
                 return ERR("variable `%0` was defined with type `noth`");
             case ErrDerefNothPtr:
