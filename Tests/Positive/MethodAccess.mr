@@ -1,0 +1,15 @@
+mod Lib {
+    pub struct S {
+        var x: i32;
+    }
+
+    impl S {
+        pub fun task() {} 
+    }
+}
+
+fun main(): i32 {
+    var obj: Lib.S;
+    obj.task();
+    return 0;
+}

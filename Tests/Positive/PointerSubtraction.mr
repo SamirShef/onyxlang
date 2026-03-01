@@ -1,0 +1,16 @@
+fun main(): i32 {
+    var a: i32 = 10;
+    var aP: *i32 = &a;
+
+    var tmp1: i32;
+    var tmp2: i32;
+    var tmp3: i32;
+
+    var b: i32 = 10;
+
+    var tmp1P: *i32 = &tmp1;
+    var bP: *i32 = &b;
+    var c: i64 = bP - aP;
+    echo c; echo '\n'; // 4
+    return 0;
+}

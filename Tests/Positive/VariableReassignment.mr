@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var PI: f32 = 3.14f;
+    PI = 3.15f;
+    return 0;
+}

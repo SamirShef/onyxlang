@@ -1,0 +1,10 @@
+mod Core {
+    pub struct Internal {
+        var x: i32;
+    }
+}
+
+fun main(): i32 {
+    var i: Core.Internal;
+    return 0;
+}

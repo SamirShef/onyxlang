@@ -1,4 +1,3 @@
-#include <iostream>
 #include <marble/Basic/ModuleManager.h>
 #include <marble/CodeGen/CodeGen.h>
 
@@ -105,38 +104,7 @@ namespace marble {
             }
             else if (ImportStmt *is = llvm::dyn_cast<ImportStmt>(stmt)) {
                 std::string path = is->IsLocalImport() ? _parentDir + "/" + is->GetPath() : ModuleManager::LibsPath + is->GetPath();
-                Module *import = ModuleManager::LoadModule(path, _srcMgr, _diag);
-                std::vector<std::string> parts = splitString(is->IsLocalImport() ? is->GetPath() : path, '/');
-                int i = is->IsLocalImport() ? 0 : 1;
-                Module *cur = mod;
-                for (; i < parts.size() - 1; ++i) {
-                    std::string &name = parts[i];
-                    Module *inner = nullptr;
-                    if (auto it = cur->Submodules.find(name); it != cur->Submodules.end()) {
-                        inner = it->second;
-                    }
-                    else if (auto it = cur->Imports.find(name); it != cur->Imports.end()) {
-                        inner = it->second;
-                    }
-                    else {
-                        inner = new Module(name, AccessPub);
-                        if (cur == mod) {
-                            cur->Imports.emplace(name, inner);
-                        }
-                        else {
-                            cur->Submodules.emplace(name, inner);
-                        }
-                        inner->Parent = cur;
-                    }
-                    cur = inner;
-                }
-                if (cur == mod) {
-                    cur->Imports.emplace(import->Name, import);
-                }
-                else {
-                    cur->Submodules.emplace(import->Name, import);
-                }
-                import->Parent = cur;
+                Module *import = ModuleManager::LoadModule(path + ".mr", _srcMgr, _diag);
                 DeclareMod(import);
             }
             else if (ModDeclStmt *mds = llvm::dyn_cast<ModDeclStmt>(stmt)) {
@@ -582,20 +550,11 @@ namespace marble {
             llvm::Value *gep = _builder.CreateInBoundsGEP(pointeeLLVMTy, ptrVal, { intVal }, "ptr.arith");
             return gep;
         }
-        else if (numPointers == 2 && (be->GetOp().GetKind() == TkPlus || be->GetOp().GetKind() == TkMinus)) {
+        else if (numPointers == 2 && be->GetOp().GetKind() == TkMinus) {
             ASTType leftASTType = be->GetLHSType();
             llvm::Type *pointeeLLVMTy = typeToLLVM(leftASTType.Deref());
-            llvm::Value *leftInt = _builder.CreatePtrToInt(lhs, _builder.getInt64Ty());
-            llvm::Value *rightInt = _builder.CreatePtrToInt(rhs, _builder.getInt64Ty());
-            llvm::Value *diff = _builder.CreateSub(leftInt, rightInt, "ptr.diff.bytes");
-            const llvm::DataLayout &dl = _module->getDataLayout();
-            uint64_t elemSize = dl.getTypeAllocSize(pointeeLLVMTy);
-            if (elemSize > 1) {
-                llvm::Value *sizeVal = _builder.getInt64(elemSize);
-                diff = _builder.CreateExactSDiv(diff, sizeVal, "ptr.diff.elements");
-            }
-            ASTType resultASTType = ASTType::GetCommon(be->GetLHSType(), be->GetRHSType()).Deref();
-            return implicitlyCast(diff, typeToLLVM(resultASTType));
+            llvm::Value *diff = _builder.CreatePtrDiff(pointeeLLVMTy, lhs, rhs, "ptr.diff");
+            return implicitlyCast(diff, _builder.getInt64Ty());
         }
 
         llvm::Type *commonType = getCommonType(lhsType, rhsType);
@@ -834,8 +793,10 @@ namespace marble {
                 field.ManualInitialized = true;
             }
             for (auto &[name, field] : s.Fields) {
-                if (fieldValues[field.Index] == nullptr) {
-                    // TODO: add support of default values in structure: llvm::dyn_cast<llvm::Constant>(field.DefaultExpr ? Visit(field.DefaultExpr) : nullptr);
+                if (!fieldValues[field.Index]) {
+                    if (field.DefaultExpr) {
+                        fieldValues[field.Index] = llvm::dyn_cast<llvm::Constant>(field.DefaultExpr ? Visit(field.DefaultExpr) : nullptr);
+                    }
 
                     if (!fieldValues[field.Index]) {
                         if (field.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
@@ -982,12 +943,6 @@ namespace marble {
         std::string structName = getMangledName(objType);
         if (structName.empty() && obj->getType()->isStructTy()) {
             structName = obj->getType()->getStructName().str();
-            /* TODO: is it necessary???
-            int dotPos = structName.find_last_of('.');
-            if (dotPos != std::string::npos) {
-                structName = structName.substr(0, dotPos);
-            }
-            */
         }
 
         if (_traits.count(structName)) {
@@ -1193,12 +1148,6 @@ namespace marble {
             }
 
             std::string traitName = expectType->getStructName().str();
-            /* TODO: is it necessary???
-            int dotPos = traitName.find_last_of('.');
-            if (dotPos != std::string::npos) {
-                traitName = traitName.substr(0, dotPos);
-            }
-            */
 
             if (_traits.count(traitName)) {
                 llvm::Value* fatPtr = llvm::UndefValue::get(expectType);
@@ -1305,13 +1254,10 @@ namespace marble {
 
         for (auto &[name, field] : s.Fields) {
             llvm::Constant *val;
-            /* TODO: return support of default values in structure
             if (field.DefaultExpr) {
                 val = llvm::cast<llvm::Constant>(Visit(field.DefaultExpr));
             }
-            else 
-            */
-            if (field.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
+            else if (field.ASTType.GetTypeKind() == ASTTypeKind::Struct) {
                 val = field.ASTType.IsPointer() ? llvm::ConstantPointerNull::get(_builder.getPtrTy()) : llvm::dyn_cast<llvm::Constant>(defaultStructConst(field.ASTType));
             }
             else {

@@ -1,0 +1,16 @@
+struct Counter {
+    pub var count: i32;
+}
+
+impl Counter {
+    pub fun inc() {
+        this.count += 1;
+    }
+}
+
+fun main(): i32 {
+    var c: Counter;
+    c.inc();
+    echo c.count; echo '\n'; // 1
+    return 0;
+}

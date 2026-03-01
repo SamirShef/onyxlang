@@ -1,0 +1,2 @@
+// this file cannot be compiled, because does not have the main function
+pub var x: i32;

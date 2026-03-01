@@ -1,0 +1,10 @@
+struct Data {
+    pub var val: i32;
+}
+
+fun main(): i32 {
+    var d: Data;
+    d.val = 10;
+    echo d.val; echo '\n'; // 10
+    return 0;
+}

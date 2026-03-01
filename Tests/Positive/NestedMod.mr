@@ -1,0 +1,10 @@
+mod Outer {
+    pub mod Inner {
+        pub var x: i32 = 1;
+    }
+}
+
+fun main(): i32 {
+    echo Outer.Inner.x; echo '\n'; // 1
+    return 0;
+}

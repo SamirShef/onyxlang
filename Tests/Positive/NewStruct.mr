@@ -1,0 +1,8 @@
+mod M {
+    pub struct S {}
+}
+fun main(): i32 {
+    var p: *M.S = new M.S;
+    del p;
+    return 0;
+}

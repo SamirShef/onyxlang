@@ -1,0 +1,13 @@
+struct A {
+    var x: i32;
+}
+
+impl A {
+    fun swap(other: A) {
+        this = other;
+    }
+}
+
+fun main(): i32 {
+    return 0;
+}

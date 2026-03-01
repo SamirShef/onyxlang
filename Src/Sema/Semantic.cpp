@@ -7,6 +7,9 @@ static bool isConstMethod = true;
 static std::vector<std::string>
 splitString(std::string src, char separator);
 
+std::string
+normalizePath(std::string path);
+
 namespace marble {
     static std::unordered_map<ASTTypeKind, std::vector<ASTTypeKind>> implicitlyCastAllowed {
         { ASTTypeKind::Char, { ASTTypeKind::I16, ASTTypeKind::I32, ASTTypeKind::I64, ASTTypeKind::F32, ASTTypeKind::F64 } },
@@ -327,14 +330,14 @@ namespace marble {
                     else {
                         path = ModuleManager::LibsPath + is->GetPath();
                     }
-                    Module *import = ModuleManager::LoadModule(path, _srcMgr, _diag);
+                    Module *import = ModuleManager::LoadModule(path + ".mr", _srcMgr, _diag);
                     if (!import) {
                         _diag.Report(is->GetStartLoc(), ErrCouldNotFindMod)
                             << llvm::SMRange(is->GetStartLoc(), is->GetEndLoc())
                             << path + ".mr";
                         continue;
                     }
-                    std::vector<std::string> parts = splitString(is->IsLocalImport() ? is->GetPath() : path, '/');
+                    std::vector<std::string> parts = splitString(is->IsLocalImport() ? normalizePath(is->GetPath()) : path, '/');
                     int i = is->IsLocalImport() ? 0 : 1;
                     Module *cur = mod;
                     for (; i < parts.size() - 1; ++i) {
@@ -1573,4 +1576,33 @@ splitString(std::string src, char separator) {
         res.back() += c;
     }
     return res;
+}
+
+std::string
+normalizePath(std::string path) {
+    std::vector<std::string> parts = splitString(path, '/');
+    std::vector<std::string> result;
+
+    for (const auto &part : parts) {
+        if (part == "." || part.empty()) {
+            continue;
+        }
+        if (part == "..") {
+            if (!result.empty()) {
+                result.pop_back();
+            }
+        }
+        else {
+            result.push_back(part);
+        }
+    }
+
+    std::string normalized;
+    for (int i = 0; i < result.size(); ++i) {
+        normalized += result[i];
+        if (i < result.size() - 1) {
+            normalized += "/";
+        }
+    }
+    return normalized;
 }

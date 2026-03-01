@@ -1,0 +1,17 @@
+trait A {
+    pub fun test(): i32;
+}
+
+struct S {}
+
+impl A for S {
+    pub fun test(): i32 {
+        return 1;
+    }
+}
+
+fun main(): i32 {
+    var s: S;
+    echo s.test(); echo '\n'; // 1
+    return 0;
+}

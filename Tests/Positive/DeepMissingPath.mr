@@ -1,0 +1,11 @@
+mod A {
+    pub mod B {
+        pub mod C {
+            pub var D: i32;
+        }
+    }
+}
+fun main(): i32 {
+    echo A.B.C.D; echo '\n'; // 0
+    return 0;
+}

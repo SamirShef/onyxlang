@@ -1,0 +1,8 @@
+mod Test {
+    pub var val: i32 = 42;
+}
+
+fun main(): i32 {
+    echo Test.val; echo '\n'; // 42
+    return 0;
+}

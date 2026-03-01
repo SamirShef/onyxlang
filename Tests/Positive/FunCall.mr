@@ -1,0 +1,8 @@
+mod Engine {
+    pub fun start() {}
+}
+
+fun main(): i32 {
+    Engine.start();
+    return 0;
+}

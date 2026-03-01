@@ -1,0 +1,15 @@
+mod Lib {
+    pub trait T {
+        fun run();
+    }
+}
+
+struct Task {}
+
+impl Lib.T for Task {
+    fun run() {}
+}
+
+fun main(): i32 {
+    return 0;
+}

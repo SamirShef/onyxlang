@@ -1,0 +1,11 @@
+pub mod A {
+    pub var x: i32;
+}
+
+pub mod B {
+    pub var y: i32;
+}
+
+fun main(): i32 {
+    return 0;
+}

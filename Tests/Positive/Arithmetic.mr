@@ -1,0 +1,6 @@
+fun main(): i32 {
+    var x: i32;
+    var y: i32 = x - 2;
+    echo y; echo '\n'; // -2
+    return 0;
+}

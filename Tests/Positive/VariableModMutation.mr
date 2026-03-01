@@ -1,0 +1,8 @@
+mod Config {
+    pub var LIMIT: i32 = 100;
+}
+
+fun main(): i32 {
+    Config.LIMIT = 200;
+    return 0;
+}

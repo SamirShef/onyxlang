@@ -1,0 +1,8 @@
+mod M {
+    pub const K: i32 = 1;
+}
+
+fun main(): i32 {
+    echo M.K; echo '\n'; // 1
+    return 0;
+}

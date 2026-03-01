@@ -1,0 +1,5 @@
+fun main(): i32 {
+    var p: *i32;
+    p += 1;
+    return 0;
+}

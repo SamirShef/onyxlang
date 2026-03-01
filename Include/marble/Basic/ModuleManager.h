@@ -6,6 +6,9 @@
 #include <llvm/Support/raw_ostream.h>
 #include <marble/Basic/Module.h>
 
+extern std::string
+normalizePath(std::string path);
+
 namespace marble {
     class ModuleManager {
         inline static std::unordered_map<std::string, Module *> _mods;
@@ -20,7 +23,7 @@ namespace marble {
                 path.erase(last_dot_pos);
             }
 
-            if (auto it = _mods.find(path); it != _mods.end()) {
+            if (auto it = _mods.find(normalizePath(path)); it != _mods.end()) {
                 return it->second;
             }
 
@@ -39,7 +42,7 @@ namespace marble {
             Parser parser(lex, diag);
             Module *mod = new Module(modName, access);
             mod->AST = parser.ParseAll();
-            _mods.emplace(path, mod);
+            _mods.emplace(normalizePath(path), mod);
             return mod;
         }
     };

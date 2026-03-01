@@ -1,0 +1,8 @@
+struct Node {
+    var value: i32;
+    var next: *Node;
+}
+
+fun main(): i32 {
+    return 0;
+}

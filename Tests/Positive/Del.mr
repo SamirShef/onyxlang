@@ -1,0 +1,7 @@
+fun main(): i32 {
+    var x: *i32 = new i32;
+    *x = 10;
+    echo *x; echo '\n'; // 10
+    del x;
+    return 0;
+}

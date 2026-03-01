@@ -1,0 +1,6 @@
+import "Lib";
+
+fun main(): i32 {
+    echo Lib.x; echo '\n'; // 0
+    return 0;
+}
