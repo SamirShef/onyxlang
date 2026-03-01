@@ -166,6 +166,9 @@ namespace marble {
         void
         declareRuntimeFunctions();
 
+        void
+        createImplicitMain();
+
         llvm::Type *
         getCommonType(llvm::Type *left, llvm::Type *right);
         

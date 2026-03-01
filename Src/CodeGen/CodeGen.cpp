@@ -35,8 +35,7 @@ namespace marble {
                     argsAST[i] = fds->GetArgs()[i].GetType();
                 }
                 llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
-                llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, fds->GetName() == "main" ? "main"
-                                                                                                                                   : getMangledName(fds->GetName()), *_module);
+                llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, getMangledName(fds->GetName()), *_module);
                 
                 if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, getMangledName(fds->GetRetType())));
@@ -151,6 +150,9 @@ namespace marble {
                 Visit(stmt);
             }
         }
+        else {
+            createImplicitMain();
+        }
 
         _curMod = oldMod;
     }
@@ -264,7 +266,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFunDeclStmt(FunDeclStmt *fds) {
-        llvm::Function *fun = _functions.at(fds->GetName() == "main" ? "main" : getMangledName(fds->GetName()));
+        llvm::Function *fun = _functions.at(getMangledName(fds->GetName()));
         llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", fun);
         _builder.SetInsertPoint(entry);
         _vars.push({});
@@ -749,7 +751,7 @@ namespace marble {
 
     llvm::Value *
     CodeGen::VisitFunCallExpr(FunCallExpr *fce) {
-        llvm::Function *fun = _functions.at(fce->GetName() == "main" ? "main" : getMangledName(fce->GetName()));
+        llvm::Function *fun = _functions.at(getMangledName(fce->GetName()));
         std::vector<llvm::Value *> args(fce->GetArgs().size());
         for (int i = 0; i < fce->GetArgs().size(); ++i) {
             bool oldLoad = createLoad;
@@ -761,7 +763,7 @@ namespace marble {
             if (expectedType->isStructTy() && expectedType->getStructNumElements() == 2 && 
                 !val->getType()->isPointerTy()) {
                 std::string structName = resolveStructName(fce->GetArgs()[i]);
-                std::string traitName = getMangledName(_funArgsTypes.at(fce->GetName() == "main" ? "main" : getMangledName(fce->GetName()))[i]);
+                std::string traitName = getMangledName(_funArgsTypes.at(getMangledName(fce->GetName()))[i]);
 
                 llvm::Value *fatPtr = llvm::UndefValue::get(expectedType);
 
@@ -1134,8 +1136,23 @@ namespace marble {
 
 #undef DECL2
 #undef DECL
+    }    
+
+    void
+    CodeGen::createImplicitMain() {
+        llvm::Function *marbleMain = _module->getFunction(_curMod->Name + ".main");
+        llvm::FunctionType *retType = llvm::FunctionType::get(_builder.getInt32Ty(), marbleMain->getFunctionType()->params(), false);
+        llvm::Function *main = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, "main", *_module);
+        llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", main);
+        _builder.SetInsertPoint(entry);
+        std::vector<llvm::Value *> args;
+        for (auto &arg : main->args()) {
+            args.push_back(&arg);
+        }
+        llvm::Value *retCode = _builder.CreateCall(marbleMain, args);
+        _builder.CreateRet(retCode);
     }
-    
+
     llvm::Type *
     CodeGen::getCommonType(llvm::Type *left, llvm::Type *right) {
         if (left == right) {
@@ -1349,7 +1366,7 @@ namespace marble {
             }
             case NkFunCallExpr: {
                 FunCallExpr *fce = llvm::dyn_cast<FunCallExpr>(expr);
-                std::string name = fce->GetName() == "main" ? "main" : getMangledName(fce->GetName());
+                std::string name = getMangledName(fce->GetName());
                 llvm::Function *fun = _functions.at(name);
                 if (auto *metadata = fun->getMetadata("struct_name")) {
                     if (auto *mdStr = llvm::dyn_cast<llvm::MDString>(metadata->getOperand(0))) {
