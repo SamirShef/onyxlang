@@ -1,0 +1,11 @@
+mod Proto {
+    pub trait Interface {
+        fun call();
+    }
+}
+
+struct My {}
+
+impl Proto.Interface for My {
+    // 'call' does not implemented
+}

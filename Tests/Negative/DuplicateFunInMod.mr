@@ -1,0 +1,4 @@
+mod M {
+    pub fun test() {}
+    pub fun test(x: i32) {} // Redefinition
+}

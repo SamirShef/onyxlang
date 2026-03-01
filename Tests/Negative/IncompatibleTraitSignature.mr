@@ -1,0 +1,13 @@
+mod A {
+    pub trait Get {
+        fun val(): i32;
+    }
+}
+
+struct S {}
+
+impl A.Get for S {
+    pub fun val(): f32 { // wrong signature
+        return 1.0f;
+    }
+}

@@ -70,5 +70,6 @@ namespace marble {
         ErrDerefNothPtr,
         ErrCallingNonConstMethodForConstObj,
         ErrCouldNotFindMod,
+        ErrDoesNotHaveMain,
     };
 }

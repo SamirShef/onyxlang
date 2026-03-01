@@ -1,0 +1,12 @@
+mod M {
+    pub var x: i32;
+}
+
+struct S {
+    var m: M;
+}
+
+fun main(): i32 {
+    var m: M;
+    return 0;
+}

@@ -1,0 +1,8 @@
+mod Config {
+    pub const LIMIT: i32 = 100;
+}
+
+fun main(): i32 {
+    Config.LIMIT = 200; // constant mutation
+    return 0;
+}

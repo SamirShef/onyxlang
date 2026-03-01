@@ -1141,6 +1141,9 @@ namespace marble {
     void
     CodeGen::createImplicitMain() {
         llvm::Function *marbleMain = _module->getFunction(_curMod->Name + ".main");
+        if (!marbleMain) {
+            return;
+        }
         llvm::FunctionType *retType = llvm::FunctionType::get(_builder.getInt32Ty(), marbleMain->getFunctionType()->params(), false);
         llvm::Function *main = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, "main", *_module);
         llvm::BasicBlock *entry = llvm::BasicBlock::Create(_context, "entry", main);

@@ -93,7 +93,7 @@ namespace marble {
                     for (auto &arg : fds->GetArgs()) {
                         resolveType(arg.GetType(), fds->GetStartLoc(), fds->GetEndLoc());
                     }
-                    if (fds->GetName() == "main") {
+                    if (fds->GetName() == "main" && !_curMod->Parent) {
                         auto args = fds->GetArgs();
                         bool isIncorrect = false;
                         if (args.size() != 0 && args.size() != 2) {
@@ -858,6 +858,9 @@ namespace marble {
         std::optional<ASTVal> rhs = Visit(be->GetRHS());
         if (rhs == std::nullopt) {
             return rhs;
+        }
+        if (lhs->GetModule() || rhs->GetModule()) {
+            return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
         }
         resolveType(lhs->GetType(), be->GetStartLoc(), be->GetEndLoc());
         resolveType(rhs->GetType(), be->GetStartLoc(), be->GetEndLoc());

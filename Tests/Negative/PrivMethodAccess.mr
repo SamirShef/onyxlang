@@ -1,0 +1,15 @@
+mod Lib {
+    pub struct S {
+        var x: i32;
+    }
+
+    impl S {
+        fun secret_task() {} 
+    }
+}
+
+fun main(): i32 {
+    var obj: Lib.S;
+    obj.secret_task();
+    return 0;
+}

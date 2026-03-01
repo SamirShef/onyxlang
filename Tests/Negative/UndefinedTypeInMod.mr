@@ -1,0 +1,3 @@
+mod M {
+    pub var x: UnknownType;
+}

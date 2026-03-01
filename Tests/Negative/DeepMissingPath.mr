@@ -1,0 +1,8 @@
+mod A {
+    pub mod B {
+        pub mod C {}
+    }
+}
+fun main(): i32 {
+    echo A.B.C.D; echo '\n'; // 'D' does not contains in A.B.C
+}

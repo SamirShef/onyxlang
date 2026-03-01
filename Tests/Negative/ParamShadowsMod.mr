@@ -1,0 +1,5 @@
+mod Net {}
+
+fun test(Net: i32) {
+    Net.connect(); // Net already be i32
+}

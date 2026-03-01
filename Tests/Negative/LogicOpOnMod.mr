@@ -1,0 +1,9 @@
+mod A {}
+mod B {}
+
+fun main(): i32 {
+    if A && B { // modules is not a bool values
+        // ...
+    }
+    return 0;
+}

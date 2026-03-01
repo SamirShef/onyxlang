@@ -1,0 +1,7 @@
+pub mod A {
+    pub var x: i32 = parent.B.y;
+}
+
+pub mod B {
+    pub var y: i32 = parent.A.x;
+}

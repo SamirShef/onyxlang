@@ -1,0 +1,15 @@
+mod Lib {
+    trait Hidden {
+        fun run();
+    }
+}
+
+struct Task {}
+
+impl Lib.Hidden for Task { // Error here
+    fun run() {}
+}
+
+fun main(): i32 {
+    return 0;
+}

@@ -49,6 +49,11 @@ main(int argc, char **argv) {
     std::string parentDir = absoluteFileName.substr(0, absoluteFileName.find_last_of("/\\"));
     marble::SemanticAnalyzer sema(parentDir, srcMgr, diag, root);
     sema.AnalyzeModule(root, true);
+
+    if (root->Functions.find("main") == root->Functions.end()) {
+        diag.Report(llvm::SMLoc::getFromPointer(srcMgr.getMemoryBuffer(srcMgr.getMainFileID())->getBufferStart()), marble::ErrDoesNotHaveMain);
+    }
+
     if (diag.HasErrors()) {
         return 1;
     }

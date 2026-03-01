@@ -1,0 +1,10 @@
+mod Test {
+    fun test(): i32 {
+        return 1;
+    }
+}
+
+fun main(): i32 {
+    echo Test.test(); echo '\n';
+    return 0;
+}

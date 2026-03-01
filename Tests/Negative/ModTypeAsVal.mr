@@ -1,0 +1,6 @@
+mod M {}
+
+fun main(): i32 {
+    var x: i32 = M; // module is not a value
+    return 0;
+}

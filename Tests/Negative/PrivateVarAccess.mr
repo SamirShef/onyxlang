@@ -1,0 +1,8 @@
+mod Vault {
+    var secret: i32 = 42;
+}
+
+fun main(): i32 {
+    echo Vault.secret; echo '\n';
+    return 0;
+}

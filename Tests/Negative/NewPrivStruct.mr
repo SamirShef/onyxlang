@@ -1,0 +1,7 @@
+mod M {
+    struct S {}
+}
+fun main(): i32 {
+    var p: *M.S = new M.S; // `S` is private member
+    return 0;
+}
