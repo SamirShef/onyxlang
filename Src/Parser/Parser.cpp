@@ -1,3 +1,4 @@
+#include "marble/Lexer/Token.h"
 #include <marble/Parser/Parser.h>
 #include <marble/Parser/Precedence.h>
 
@@ -149,6 +150,20 @@ namespace marble {
             case TkMod: {
                 return parseModDeclStmt();
             }
+            case TkStatic: {
+                consume();
+                if (_curTok.Is(TkVar) || _curTok.Is(TkConst)) {
+                    Stmt *stmt = parseVarDeclStmt();
+                    if (consumeSemi && !expect(TkSemi)) {
+                        _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
+                            << getRangeFromTok(_curTok)
+                            << ";"                  // expected
+                            << _curTok.GetText();   // got
+                    }
+                    return stmt;
+                }
+                return parseFunDeclStmt();
+            }
             default:
                 _diag.Report(_curTok.GetLoc(), ErrExpectedStmt)
                     << getRangeFromTok(_curTok)
@@ -181,7 +196,8 @@ namespace marble {
 
     Stmt *
     Parser::parseVarDeclStmt() {
-        Token firstTok = _curTok;
+        bool isStatic = _lastTok.Is(TkStatic);
+        Token firstTok = isStatic ? _lastTok : _curTok;
         bool isConst = consume().Is(TkConst);
         std::string name = _curTok.GetText();
         if (!expect(TkId)) {
@@ -202,7 +218,7 @@ namespace marble {
         if (expect(TkEq)) {
             expr = parseExpr(PrecLowest);
         }
-        return createNode<VarDeclStmt>(name, isConst, type, expr, access, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<VarDeclStmt>(name, isConst, type, expr, isStatic, access, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *
@@ -243,7 +259,12 @@ namespace marble {
 
     Stmt *
     Parser::parseFunDeclStmt() {
-        Token firstTok = consume();
+        bool isStatic = _lastTok.Is(TkStatic);
+        Token firstTok = _lastTok;
+        consume();
+        if (!isStatic) {
+            firstTok = _lastTok;
+        }
         std::string name = _curTok.GetText();
         if (!expect(TkId)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedId)
@@ -275,7 +296,7 @@ namespace marble {
         }
 
         if (expect(TkSemi)) {
-            return createNode<FunDeclStmt>(name, retType, args, std::vector<Stmt *> {}, true, access, firstTok.GetLoc(), _curTok.GetLoc());
+            return createNode<FunDeclStmt>(name, retType, args, std::vector<Stmt *> {}, true, isStatic, access, firstTok.GetLoc(), _curTok.GetLoc());
         }
         if (!expect(TkLBrace)) {
             _diag.Report(_curTok.GetLoc(), ErrExpectedToken)
@@ -288,7 +309,7 @@ namespace marble {
         while (!expect(TkRBrace)) {
             block.push_back(parseStmt());
         }
-        return createNode<FunDeclStmt>(name, retType, args, block, false, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
+        return createNode<FunDeclStmt>(name, retType, args, block, false, isStatic, accessCopy, firstTok.GetLoc(), _curTok.GetLoc());
     }
 
     Stmt *

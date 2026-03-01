@@ -3,6 +3,7 @@
 #include <cmath>
 
 static bool isConstMethod = true;
+static marble::ASTType implementIn = marble::ASTType();
 
 static std::vector<std::string>
 splitString(std::string src, char separator);
@@ -158,7 +159,7 @@ namespace marble {
                             implicitlyCast(val.value(), vds->GetType(), vds->GetExpr()->GetStartLoc(), vds->GetExpr()->GetEndLoc());
                         }
                         s.Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Val = val, .Type = vds->GetType(), .IsConst = vds->IsConst(),
-                                         .Access = vds->GetAccess(), .ManualInitialized = false });
+                                         .Access = vds->GetAccess(), .ManualInitialized = false, .IsStatic = vds->IsStatic() });
                     }
                     break;
                 }
@@ -272,7 +273,7 @@ namespace marble {
                         methods.push_back(method);
                         Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
                                        .IsDeclaration = method->IsDeclaration(), .Access = method->GetAccess() };
-                        s->Methods.emplace(method->GetName(), Method { .Fun = fun, .IsConst = isConstMethod, .Access = method->GetAccess() });
+                        s->Methods.emplace(method->GetName(), Method { .Fun = fun, .IsConst = isConstMethod, .Access = method->GetAccess(), .IsStatic = method->IsStatic() });
                     }
 
                     if (isTraitImpl) {
@@ -311,7 +312,7 @@ namespace marble {
                             }
                             Function fun { .Name = method->GetName(), .RetType = method->GetRetType(), .Args = method->GetArgs(), .Body = method->GetBody(),
                                            .IsDeclaration = method->IsDeclaration(), .Access = method->GetAccess() };
-                            t.Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess() });
+                            t.Methods.emplace(method->GetName(), Method { .Fun = fun, .Access = method->GetAccess(), .IsStatic = method->IsStatic() });
                         }
                         else {
                             _diag.Report(stmt->GetStartLoc(), ErrCannotBeHere)
@@ -670,10 +671,29 @@ namespace marble {
                     << s->Name;
             }
             else {
-                if (field->second.Access == AccessPriv && !objIsThis) {
-                    _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
-                        << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
-                        << fas->GetName();
+                if (!obj->IsType()) {
+                    if (field->second.Access == AccessPriv && !objIsThis) {
+                        _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
+                            << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                            << fas->GetName();
+                    }
+                    if (field->second.IsStatic) {
+                        _diag.Report(fas->GetStartLoc(), ErrFieldStatic)
+                            << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                            << fas->GetName();
+                    }
+                }
+                else {
+                    if (field->second.Access == AccessPriv && implementIn != obj->GetType()) {
+                        _diag.Report(fas->GetStartLoc(), ErrFieldIsPrivate)
+                            << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                            << fas->GetName();
+                    }
+                    if (!field->second.IsStatic) {
+                        _diag.Report(fas->GetStartLoc(), ErrFieldNotStatic)
+                            << llvm::SMRange(fas->GetStartLoc(), fas->GetEndLoc())
+                            << fas->GetName();
+                    }
                 }
                 if (field->second.IsConst || obj->GetType().IsConst()) {
                     _diag.Report(fas->GetStartLoc(), ErrAssignmentConst)
@@ -734,8 +754,11 @@ namespace marble {
             isConstMethod = true;
             FunDeclStmt *method = llvm::dyn_cast<FunDeclStmt>(stmt);
             _vars.push({});
-            ASTType thisType = ASTType(ASTTypeKind::Struct, s->Name, false, 0, is->GetStructType().GetModule());
-            _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = ASTVal::GetDefaultByType(thisType), .IsConst = false, .Access = AccessPriv });
+            if (!method->IsStatic()) {
+                ASTType thisType = ASTType(ASTTypeKind::Struct, s->Name, false, 0, is->GetStructType().GetModule());
+                ASTVal thisVal = ASTVal(thisType, ASTValData { .i32Val = 0 }, false, false);
+                _vars.top().emplace("this", Variable { .Name = "this", .Type = thisType, .Val = thisVal, .IsConst = false, .Access = AccessPriv });
+            }
             for (auto &arg : method->GetArgs()) {
                 if (_vars.top().find(arg.GetName()) != _vars.top().end()) {
                     _diag.Report(method->GetStartLoc(), ErrRedefinitionVar)
@@ -749,13 +772,16 @@ namespace marble {
                                                               .IsConst = arg.GetType().IsConst(), .Access = AccessPriv });
             }
             _funRetsTypes.push(method->GetRetType());
-            bool hasRet;
+            bool hasRet = false;
+            ASTType oldImplementIn = implementIn;
+            implementIn = is->GetStructType();
             for (auto stmt : method->GetBody()) {
                 if (stmt->GetKind() == NkRetStmt) {
                     hasRet = true;
                 }
                 Visit(stmt);
             }
+            implementIn = oldImplementIn;
             _funRetsTypes.pop();
             _vars.pop();
 
@@ -995,6 +1021,10 @@ namespace marble {
         if (ve->GetName() == "self" || ve->GetName() == "parent") {
             return _curMod->Variables.at(ve->GetName()).Val;
         }
+        if (auto type = _curMod->FindStruct(ve->GetName())) {
+            auto val = ASTVal(ASTType(ASTTypeKind::Struct, ve->GetName(), false, 0, type->Parent), ASTValData { .i32Val = 0 }, false, false, true);
+            return val;
+        }
         if (auto mod = _curMod->FindModule(ve->GetName())) {
             auto val = ASTVal(ASTType(ASTTypeKind::Mod, ve->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
             val.GetType().SetModule(mod);
@@ -1104,13 +1134,34 @@ namespace marble {
                     << s->Name;
             }
             else {
-                if (field->second.Access == AccessPriv && !objIsThis) {
-                    _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
-                        << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
-                        << fae->GetName();
+                if (!obj->IsType()) {
+                    if (field->second.Access == AccessPriv && !objIsThis) {
+                        _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
+                            << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                            << fae->GetName();
+                    }
+                    if (field->second.IsStatic) {
+                        _diag.Report(fae->GetStartLoc(), ErrFieldStatic)
+                            << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                            << fae->GetName();
+                    }
+                    return s->Fields.at(fae->GetName()).Val;
                 }
-                return s->Fields.at(fae->GetName()).Val;
+                else {
+                    if (field->second.Access == AccessPriv && implementIn != obj->GetType()) {
+                        _diag.Report(fae->GetStartLoc(), ErrFieldIsPrivate)
+                            << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                            << fae->GetName();
+                    }
+                    if (!field->second.IsStatic) {
+                        _diag.Report(fae->GetStartLoc(), ErrFieldNotStatic)
+                            << llvm::SMRange(fae->GetStartLoc(), fae->GetEndLoc())
+                            << fae->GetName();
+                    }
+                    return s->Fields.at(fae->GetName()).Val;
+                }
             }
+            
         }
         else {
             fae->SetObjType(obj->GetType());
@@ -1123,6 +1174,10 @@ namespace marble {
                     return ASTVal(ASTType(ASTTypeKind::I32, "i32", false, 0), ASTValData { .i32Val = 0 }, false, false);
                 }
                 return it->second.Val;
+            }
+            else if (auto it = mod->Structures.find(fae->GetName()); it != mod->Structures.end()) {
+                auto val = ASTVal(ASTType(ASTTypeKind::Struct, fae->GetName(), false, 0, it->second.Parent), ASTValData { .i32Val = 0 }, false, false, true);
+                return val;
             }
             else if (auto it = mod->Imports.find(fae->GetName()); it != mod->Imports.end()) {
                 auto val = ASTVal(ASTType(ASTTypeKind::Mod, fae->GetName(), false, 0), ASTValData { .i32Val = 0 }, false, false);
@@ -1195,10 +1250,29 @@ namespace marble {
                     isConstMethod = method->second.IsConst;
                 }
 
-                if (method->second.Access == AccessPriv && !objIsThis) {
-                    _diag.Report(mce->GetStartLoc(), ErrMethodIsPrivate)
-                        << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
-                        << mce->GetName();
+                if (!obj->IsType()) {
+                    if (method->second.Access == AccessPriv && !objIsThis) {
+                        _diag.Report(mce->GetStartLoc(), ErrMethodIsPrivate)
+                            << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                            << mce->GetName();
+                    }
+                    if (method->second.IsStatic) {
+                        _diag.Report(mce->GetStartLoc(), ErrMethodStatic)
+                            << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                            << mce->GetName();
+                    }
+                }
+                else {
+                    if (method->second.Access == AccessPriv && implementIn != obj->GetType()) {
+                        _diag.Report(mce->GetStartLoc(), ErrMethodIsPrivate)
+                            << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                            << mce->GetName();
+                    }
+                    if (!method->second.IsStatic) {
+                        _diag.Report(mce->GetStartLoc(), ErrMethodNotStatic)
+                            << llvm::SMRange(mce->GetStartLoc(), mce->GetEndLoc())
+                            << mce->GetName();
+                    }
                 }
                 if (obj->GetType().IsConst() && !isConstMethod) {
                     _diag.Report(mce->GetStartLoc(), ErrCallingNonConstMethodForConstObj)

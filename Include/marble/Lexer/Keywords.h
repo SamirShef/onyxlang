@@ -33,5 +33,6 @@ namespace marble {
         { "del", TkDel },
         { "mod", TkMod },
         { "import", TkImport },
+        { "static", TkStatic },
     };
 }

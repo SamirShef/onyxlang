@@ -32,6 +32,7 @@ namespace marble {
         TkDel,              // keyword `del`
         TkMod,              // keyword `mod`
         TkImport,           // keyword `import`
+        TkStatic,           // keyword `static`
         
         TkBoolLit,          // bool literal
         TkCharLit,          // character literal

@@ -34,12 +34,14 @@ namespace marble {
             Expr *DefaultExpr = nullptr;
             bool ManualInitialized;
             long Index;
+            bool IsStatic;
         };
 
         struct Method {
             std::string Name;
             llvm::Type *RetType;
             std::vector<llvm::Type *> Args;
+            bool IsStatic;
         };
 
         struct Trait {

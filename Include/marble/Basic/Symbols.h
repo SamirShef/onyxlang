@@ -32,6 +32,7 @@ namespace marble {
         Function Fun;
         bool IsConst;
         AccessModifier Access;
+        bool IsStatic;
     };
 
     struct Trait {
@@ -48,6 +49,7 @@ namespace marble {
         bool IsConst;
         AccessModifier Access;
         bool ManualInitialized;
+        bool IsStatic;
     };
 
     struct Struct {

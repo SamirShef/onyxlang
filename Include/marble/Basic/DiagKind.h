@@ -71,5 +71,9 @@ namespace marble {
         ErrCallingNonConstMethodForConstObj,
         ErrCouldNotFindMod,
         ErrDoesNotHaveMain,
+        ErrFieldStatic,
+        ErrMethodStatic,
+        ErrFieldNotStatic,
+        ErrMethodNotStatic,
     };
 }

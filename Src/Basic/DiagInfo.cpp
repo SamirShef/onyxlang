@@ -142,6 +142,14 @@ namespace marble {
                 return ERR("could not find module `%0`");
             case ErrDoesNotHaveMain:
                 return ERR("program does not have main function. Please add `main(): i32` or `main(i32, **char): i32` signature");
+            case ErrFieldStatic:
+                return ERR("accessing of static field `%0`");
+            case ErrMethodStatic:
+                return ERR("calling of static method `%0`");
+            case ErrFieldNotStatic:
+                return ERR("accessing of non-static field `%0`");
+            case ErrMethodNotStatic:
+                return ERR("calling of non-static method `%0`");
         }
     }
 }

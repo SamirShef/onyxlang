@@ -20,9 +20,11 @@ namespace marble {
         bool _isNil;
         bool _createdByNew;
         Module *_mod = nullptr;
+        bool _isType = false;
 
     public:
-        explicit ASTVal(ASTType type, ASTValData data, bool isNil, bool createdByNew) : _type(type), _data(data), _isNil(isNil), _createdByNew(createdByNew) {}
+        explicit ASTVal(ASTType type, ASTValData data, bool isNil, bool createdByNew, bool isType = false) : _type(type), _data(data), _isNil(isNil),
+                        _createdByNew(createdByNew), _isType(isType) {}
         
         ASTType &
         GetType() {
@@ -52,6 +54,16 @@ namespace marble {
         void
         SetModule(Module *mod) {
             _mod = mod;
+        }
+
+        bool
+        IsType() const {
+            return _isType;
+        }
+
+        void
+        SetIsType(bool isType) {
+            _isType = isType;
         }
 
         std::string

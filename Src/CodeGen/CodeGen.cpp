@@ -34,7 +34,8 @@ namespace marble {
                     argsAST[i] = fds->GetArgs()[i].GetType();
                 }
                 llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
-                llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, getMangledName(fds->GetName()), *_module);
+                llvm::Function *fun = llvm::Function::Create(retType, fds->IsStatic() ? llvm::GlobalValue::InternalLinkage : llvm::GlobalValue::ExternalLinkage,
+                                                             getMangledName(fds->GetName()), *_module);
                 
                 if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                     llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, getMangledName(fds->GetRetType())));
@@ -50,17 +51,19 @@ namespace marble {
                 }
                 for (auto stmt : is->GetBody()) {
                     FunDeclStmt *fds = llvm::cast<FunDeclStmt>(stmt);
-                    std::vector<llvm::Type *> args(fds->GetArgs().size() + 1);
-                    std::vector<ASTType> argsAST(fds->GetArgs().size() + 1);
-                    args[0] = llvm::PointerType::get(_structs.at(getMangledName(is->GetStructType())).Type, 0);
-                    argsAST[0] = is->GetStructType();
+                    std::vector<llvm::Type *> args(fds->GetArgs().size() + !fds->IsStatic());
+                    std::vector<ASTType> argsAST(fds->GetArgs().size() + !fds->IsStatic());
+                    if (!fds->IsStatic()) {
+                        args[0] = llvm::PointerType::get(_structs.at(getMangledName(is->GetStructType())).Type, 0);
+                        argsAST[0] = is->GetStructType();
+                    }
                     for (int i = 0; i < fds->GetArgs().size(); ++i) {
-                        args[i + 1] = typeToLLVM(fds->GetArgs()[i].GetType());
-                        argsAST[i + 1] = fds->GetArgs()[i].GetType();
+                        args[i + !fds->IsStatic()] = typeToLLVM(fds->GetArgs()[i].GetType());
+                        argsAST[i + !fds->IsStatic()] = fds->GetArgs()[i].GetType();
                     }
                     llvm::FunctionType *retType = llvm::FunctionType::get(typeToLLVM(fds->GetRetType()), args, false);
-                    llvm::Function *fun = llvm::Function::Create(retType, llvm::GlobalValue::ExternalLinkage, getMangledName(is->GetStructType()) + "." + fds->GetName(),
-                                                                 *_module);
+                    llvm::Function *fun = llvm::Function::Create(retType, fds->IsStatic() ? llvm::GlobalValue::InternalLinkage : llvm::GlobalValue::ExternalLinkage,
+                                                                 getMangledName(is->GetStructType()) + "." + fds->GetName(), *_module);
                     
                     if (fds->GetRetType().GetTypeKind() == ASTTypeKind::Struct) {
                         llvm::MDNode *metadata = llvm::MDNode::get(_context, llvm::MDString::get(_context, getMangledName(fds->GetRetType())));
@@ -73,19 +76,26 @@ namespace marble {
                 }
             }
             else if (StructStmt *ss = llvm::dyn_cast<StructStmt>(stmt)) {
-                std::vector<llvm::Type *> fieldsTypes(ss->GetBody().size());
-                std::unordered_map<std::string, Field> fields;
+                std::vector<llvm::Type *> fieldsTypes;
                 llvm::StructType *structType = llvm::StructType::create(_context, getMangledName(ss->GetName()));
-                Struct s { .Name = ss->GetName(), .MangledName = structType->getName().str(), .Type = structType, .Fields = fields, .TraitsImplements = {} };
+                Struct s { .Name = ss->GetName(), .MangledName = structType->getName().str(), .Type = structType, .Fields = {}, .TraitsImplements = {} };
                 _structs.emplace(s.MangledName, s);
-                for (int i = 0; i < fieldsTypes.size(); ++i) {
+                int index = 0;
+                for (int i = 0; i < ss->GetBody().size(); ++i) {
                     VarDeclStmt *vds = llvm::dyn_cast<VarDeclStmt>(ss->GetBody()[i]);
-                    fieldsTypes[i] = typeToLLVM(vds->GetType());
-                    fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = typeToLLVM(vds->GetType()), .ASTType = vds->GetType(),
-                                                           .DefaultExpr = vds->GetExpr(), .ManualInitialized = false, .Index = i });
-
-                    _structs.at(s.MangledName).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
-                                                                                      .DefaultExpr = vds->GetExpr(), .ManualInitialized = false, .Index = i });
+                    if (!vds->IsStatic()) {
+                        fieldsTypes.push_back(typeToLLVM(vds->GetType()));
+                        _structs.at(s.MangledName).Fields.emplace(vds->GetName(), Field { .Name = vds->GetName(), .Type = fieldsTypes[i], .ASTType = vds->GetType(),
+                                                                                          .DefaultExpr = vds->GetExpr(), .ManualInitialized = false, .Index = index,
+                                                                                          .IsStatic = vds->IsStatic() });
+                        ++index;
+                    }
+                    else {
+                        auto gv = new llvm::GlobalVariable(*_module, typeToLLVM(vds->GetType()), vds->IsConst(), llvm::GlobalValue::InternalLinkage,
+                                                           vds->GetExpr() ? llvm::cast<llvm::Constant>(Visit(vds->GetExpr()))
+                                                                          : llvm::Constant::getNullValue(typeToLLVM(vds->GetType())),
+                                                                          s.MangledName + "." + vds->GetName());
+                    }
                 }
                 structType->setBody(fieldsTypes);
             }
@@ -97,7 +107,8 @@ namespace marble {
                         for (int i = 0; i < args.size(); ++i) {
                             args[i] = typeToLLVM(fds->GetArgs()[i].GetType());
                         }
-                        t.Methods.push_back({ fds->GetName(), Method { .Name = fds->GetName(), .RetType = typeToLLVM(fds->GetRetType()), .Args = args } });
+                        t.Methods.push_back({ fds->GetName(), Method { .Name = fds->GetName(), .RetType = typeToLLVM(fds->GetRetType()), .Args = args,
+                                                                       .IsStatic = fds->IsStatic() } });
                     }
                 }
                 _traits.emplace(t.MangledName, t);
@@ -159,7 +170,8 @@ namespace marble {
         }
         llvm::Value *var;
         if (_vars.size() == 1) {
-            var = new llvm::GlobalVariable(*_module, type, vds->IsConst(), llvm::GlobalValue::ExternalLinkage, llvm::cast<llvm::Constant>(initializer),
+            var = new llvm::GlobalVariable(*_module, type, vds->IsConst(), vds->IsStatic() ? llvm::GlobalValue::InternalLinkage : llvm::GlobalValue::ExternalLinkage,
+                                           llvm::cast<llvm::Constant>(initializer),
                                            getMangledName(vds->GetName()));
         }
         else {
@@ -387,7 +399,11 @@ namespace marble {
                     return nullptr;
                 }
             }
-            return nullptr;
+            else {
+                llvm::GlobalVariable *gv = _module->getNamedGlobal(getMangledName(objType) + "." + fas->GetName());
+                _builder.CreateStore(Visit(fas->GetExpr()), gv);
+                return nullptr;
+            }
         }
         if (objType.IsPointer()) {
             for (int i = 0; i < objType.GetPointerDepth() - 1; ++i) {
@@ -426,8 +442,14 @@ namespace marble {
             ASTType thisType = is->GetStructType();
             int index = 0;
             for (auto &arg : fun->args()) {
-                arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
-                _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
+                if (method->IsStatic()) {
+                    arg.setName(method->GetArgs()[index].GetName());
+                    _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), method->GetArgs()[index].GetType()));
+                }
+                else {
+                    arg.setName(index == 0 ? "this" : method->GetArgs()[index - 1].GetName());
+                    _vars.top().emplace(arg.getName(), std::make_tuple(&arg, arg.getType(), index > 0 ? method->GetArgs()[index - 1].GetType() : thisType));
+                }
                 ++index;
             }
             for (auto &stmt : method->GetBody()) {
@@ -841,6 +863,16 @@ namespace marble {
                 }
                 return nullptr;
             }
+            else {
+                llvm::GlobalVariable *gv = _module->getNamedGlobal(getMangledName(objASTType) + "." + fae->GetName());
+                if (createLoad) {
+                    if (_vars.size() == 1) {
+                        return gv->getInitializer();
+                    }
+                    return _builder.CreateLoad(gv->getValueType(), gv, gv->getName() + ".load");
+                }
+                return gv;
+            }
         }
         if (objASTType.IsPointer()) {
             for (int i = 0; i < objASTType.GetPointerDepth() - 1; ++i) {
@@ -897,6 +929,46 @@ namespace marble {
                 delete expr;
                 _curMod = oldMod;
                 return val;
+            }
+            else {
+                llvm::Function *method = _module->getFunction(getMangledName(objType) + "." + mce->GetName());
+                std::vector<llvm::Value *> args(mce->GetArgs().size());
+                for (int i = 0; i < mce->GetArgs().size(); ++i) {
+                    bool oldLoad = createLoad;
+                    createLoad = true;
+                    llvm::Value *val = Visit(mce->GetArgs()[i]);
+                    createLoad = oldLoad;
+                    llvm::Type *expectedType = method->getFunctionType()->getParamType(i);
+
+                    if (expectedType->isStructTy() && expectedType->getStructNumElements() == 2 && 
+                        !val->getType()->isPointerTy()) {
+                        std::string structName = resolveStructName(mce->GetArgs()[i]);
+                        std::string traitName = getMangledName(_funArgsTypes.at(getMangledName(mce->GetName()))[i]);
+
+                        llvm::Value *fatPtr = llvm::UndefValue::get(expectedType);
+
+                        if (!val->getType()->isPointerTy()) {
+                            llvm::AllocaInst *tmp = _builder.CreateAlloca(val->getType());
+                            _builder.CreateStore(val, tmp);
+                            val = tmp;
+                        }
+                        llvm::Value *dataPtr = _builder.CreateBitCast(val, llvm::PointerType::get(_context, 0));
+                        fatPtr = _builder.CreateInsertValue(fatPtr, dataPtr, 0);
+
+                        llvm::Value *vtable = getOrCreateVTable(structName, traitName);
+                        llvm::Value *vtablePtr = _builder.CreateBitCast(vtable, llvm::PointerType::get(llvm::PointerType::get(_context, 0), 0));
+                        fatPtr = _builder.CreateInsertValue(fatPtr, vtablePtr, 1);
+
+                        args[i] = fatPtr;
+                    }
+                    else {
+                        args[i] = implicitlyCast(val, expectedType);
+                    }
+                }
+                if (method->getReturnType() == _builder.getVoidTy()) {
+                    return _builder.CreateCall(method, args);
+                }
+                return _builder.CreateCall(method, args, method->getName() + ".call");
             }
         }
         if (objType.IsPointer()) {
