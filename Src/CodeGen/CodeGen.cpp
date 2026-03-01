@@ -401,7 +401,8 @@ namespace marble {
             }
             else {
                 llvm::GlobalVariable *gv = _module->getNamedGlobal(getMangledName(objType) + "." + fas->GetName());
-                _builder.CreateStore(Visit(fas->GetExpr()), gv);
+                llvm::Value *val = implicitlyCast(Visit(fas->GetExpr()), gv->getValueType());
+                _builder.CreateStore(val, gv);
                 return nullptr;
             }
         }
@@ -855,11 +856,15 @@ namespace marble {
                 if (mod->Variables.count(fae->GetName())) {
                     Module *oldMod = _curMod;
                     _curMod = mod;
-                    VarExpr *ve = new VarExpr(getMangledName(fae->GetName()), fae->GetStartLoc(), fae->GetEndLoc());
-                    llvm::Value *val = VisitVarExpr(ve);
-                    delete ve;
+                    llvm::GlobalVariable *gv = _module->getNamedGlobal(getMangledName(fae->GetName()));
                     _curMod = oldMod;
-                    return val;
+                    if (createLoad) {
+                        if (_vars.size() == 1) {
+                            return gv->getInitializer();
+                        }
+                        return _builder.CreateLoad(gv->getValueType(), gv, gv->getName() + ".load");
+                    }
+                    return gv;
                 }
                 return nullptr;
             }
